@@ -3,10 +3,6 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --font-instrument-serif: 'Instrument Serif', Georgia, serif;
-  }
-
   html, body {
     height: 100%;
     @apply bg-bg text-text-1 antialiased;

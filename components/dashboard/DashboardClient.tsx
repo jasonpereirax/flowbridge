@@ -21,11 +21,6 @@ interface Props {
   user: User | null
 }
 
-const PROJECT_COLORS = [
-  '#18181A', '#2563EB', '#7C3AED',
-  '#16A34A', '#D97706', '#DC2626',
-]
-
 export function DashboardClient({ initialProjects, user }: Props) {
   const router  = useRouter()
   const store   = useStore()
