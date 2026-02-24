@@ -32,16 +32,8 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh session — critical, do not remove
-  const { data: { user } } = await supabase.auth.getUser()
-
-  // Protect canvas routes — redirect to login if not authenticated
-  const isCanvas = request.nextUrl.pathname.startsWith('/projects/')
-  if (isCanvas && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
-  }
+  // Refresh session to keep cookies in sync
+  await supabase.auth.getUser()
 
   return supabaseResponse
 }
