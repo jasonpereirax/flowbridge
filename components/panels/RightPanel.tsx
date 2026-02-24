@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Plus, Trash2, Info, Settings, FileText } from 'lucide-react'
+import { X, Plus, Trash2 } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { cn, screenCompleteness } from '@/utils'
 import type { RpanelTab, ApiEndpoint, MacroNode, Screen } from '@/types'
@@ -9,10 +9,10 @@ import type { RpanelTab, ApiEndpoint, MacroNode, Screen } from '@/types'
 const RING_R    = 14
 const RING_CIRC = 2 * Math.PI * RING_R
 
-const TABS: { id: RpanelTab; label: string; icon: React.ReactNode }[] = [
-  { id: 'properties', label: 'Properties', icon: <Settings size={13} /> },
-  { id: 'context',    label: 'Context',    icon: <FileText size={13} /> },
-  { id: 'info',       label: 'Info',       icon: <Info size={13} /> },
+const TABS: { id: RpanelTab; label: string }[] = [
+  { id: 'properties', label: 'Properties' },
+  { id: 'context',    label: 'Context' },
+  { id: 'info',       label: 'Info' },
 ]
 
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const
@@ -42,32 +42,36 @@ export function RightPanel() {
     : TABS.filter(t => t.id !== 'context')
 
   return (
-    <div className="w-80 flex-shrink-0 border-l border-border bg-surface flex flex-col overflow-hidden z-20">
+    <div className="w-[280px] flex-shrink-0 border-l border-border bg-surface flex flex-col overflow-hidden z-20">
       {/* Panel header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
-        <div className="flex items-center gap-1">
-          {availableTabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => store.setRpTab(tab.id)}
-              className={cn(
-                'flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-colors',
-                rpanelTab === tab.id
-                  ? 'bg-bg text-text-1'
-                  : 'text-text-2 hover:text-text-1',
-              )}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </div>
+      <div className="flex items-center justify-between px-[14px] py-[10px] border-b border-border flex-shrink-0">
+        <span className="text-[12px] font-semibold text-text-1">
+          {entity === 'screen' ? 'Screen' : entity === 'node' ? 'Node' : 'Inspector'}
+        </span>
         <button
           onClick={() => store.closeRpanel()}
-          className="w-6 h-6 flex items-center justify-center rounded-lg text-text-3 hover:bg-bg hover:text-text-1 transition-colors"
+          className="w-[22px] h-[22px] flex items-center justify-center rounded-[4px] text-text-3 hover:bg-bg hover:text-text-1 transition-colors"
         >
-          <X size={14} />
+          <X size={12} />
         </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-border bg-bg flex-shrink-0">
+        {availableTabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => store.setRpTab(tab.id)}
+            className={cn(
+              'flex-1 py-[7px] text-[12px] font-medium text-center border-b-2 transition-all',
+              rpanelTab === tab.id
+                ? 'text-text-1 border-text-1 bg-surface'
+                : 'text-text-3 border-transparent hover:text-text-2',
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Panel content */}
@@ -148,7 +152,7 @@ function ScreenProperties({
           type="text"
           defaultValue={screen.name}
           onBlur={e => store.updateScreen(journeyId, flowId, screen.id, { name: e.target.value })}
-          className="w-full text-[12px] px-2.5 py-1.5 rounded-lg border border-border bg-bg outline-none focus:border-text-1 transition-colors"
+          className="w-full text-[12.5px] px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors"
         />
       </Field>
       <div className="flex items-center gap-2">
@@ -231,7 +235,7 @@ function ScreenContextForm({
   return (
     <div className="p-4 space-y-5">
       {/* Completeness ring */}
-      <div className="flex items-center gap-3 p-3 bg-bg rounded-xl border border-border">
+      <div className="flex items-center gap-3 p-3 bg-bg rounded-[10px] border border-border">
         <svg width="36" height="36" className="-rotate-90 flex-shrink-0" viewBox="0 0 36 36">
           <circle cx="18" cy="18" r={RING_R} fill="none" stroke="#E3E3DF" strokeWidth="3" />
           <circle
@@ -259,7 +263,7 @@ function ScreenContextForm({
           value={ctx.route}
           onChange={e => update({ route: e.target.value })}
           placeholder="/auth/login"
-          className="w-full text-[12px] font-mono px-2.5 py-1.5 rounded-lg border border-border bg-bg outline-none focus:border-text-1 transition-colors"
+          className="w-full text-[12.5px] font-mono px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors"
         />
       </Field>
 
@@ -270,7 +274,7 @@ function ScreenContextForm({
           onChange={e => update({ purpose: e.target.value })}
           placeholder="Allow user to sign in with email + password"
           rows={2}
-          className="w-full text-[12px] px-2.5 py-1.5 rounded-lg border border-border bg-bg outline-none focus:border-text-1 transition-colors resize-none"
+          className="w-full text-[12.5px] px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors resize-none"
         />
       </Field>
 
@@ -281,7 +285,7 @@ function ScreenContextForm({
           onChange={e => update({ userIntent: e.target.value })}
           placeholder="User wants to access their account"
           rows={2}
-          className="w-full text-[12px] px-2.5 py-1.5 rounded-lg border border-border bg-bg outline-none focus:border-text-1 transition-colors resize-none"
+          className="w-full text-[12.5px] px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors resize-none"
         />
       </Field>
 
@@ -340,7 +344,7 @@ function ScreenContextForm({
               <select
                 value={ep.method}
                 onChange={e => updateEndpoint(i, { method: e.target.value as ApiEndpoint['method'] })}
-                className="text-[11px] font-mono px-1.5 py-1 rounded-lg border border-border bg-bg outline-none focus:border-text-1 w-20 flex-shrink-0"
+                className="text-[11px] font-mono px-[8px] py-[6px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 w-20 flex-shrink-0"
               >
                 {HTTP_METHODS.map(m => (
                   <option key={m} value={m}>{m}</option>
@@ -351,7 +355,7 @@ function ScreenContextForm({
                 value={ep.path}
                 onChange={e => updateEndpoint(i, { path: e.target.value })}
                 placeholder="/api/auth"
-                className="flex-1 text-[11px] font-mono px-2 py-1 rounded-lg border border-border bg-bg outline-none focus:border-text-1 transition-colors min-w-0"
+                className="flex-1 text-[11px] font-mono px-[8px] py-[6px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors min-w-0"
               />
               <button
                 onClick={() => removeEndpoint(i)}
@@ -378,7 +382,7 @@ function ScreenContextForm({
           onChange={e => update({ notes: e.target.value })}
           placeholder="Architecture decisions, patterns to follow…"
           rows={3}
-          className="w-full text-[12px] px-2.5 py-1.5 rounded-lg border border-border bg-bg outline-none focus:border-text-1 transition-colors resize-none"
+          className="w-full text-[12.5px] px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors resize-none"
         />
       </Field>
 
@@ -389,7 +393,7 @@ function ScreenContextForm({
           onChange={e => update({ genRules: e.target.value })}
           placeholder="Use Server Action for form, prefer RSC…"
           rows={2}
-          className="w-full text-[12px] px-2.5 py-1.5 rounded-lg border border-border bg-bg outline-none focus:border-text-1 transition-colors resize-none"
+          className="w-full text-[12.5px] px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors resize-none"
         />
       </Field>
     </div>
@@ -418,7 +422,7 @@ function NodeProperties({ node }: { node: MacroNode }) {
           type="text"
           defaultValue={node.name}
           onBlur={e => updateNode({ name: e.target.value })}
-          className="w-full text-[12px] px-2.5 py-1.5 rounded-lg border border-border bg-bg outline-none focus:border-text-1 transition-colors"
+          className="w-full text-[12.5px] px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors"
         />
       </Field>
 
@@ -427,7 +431,7 @@ function NodeProperties({ node }: { node: MacroNode }) {
           defaultValue={node.description}
           onBlur={e => updateNode({ description: e.target.value })}
           rows={2}
-          className="w-full text-[12px] px-2.5 py-1.5 rounded-lg border border-border bg-bg outline-none focus:border-text-1 transition-colors resize-none"
+          className="w-full text-[12.5px] px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors resize-none"
         />
       </Field>
 
@@ -440,7 +444,7 @@ function NodeProperties({ node }: { node: MacroNode }) {
               onChange={e => setTagsInput(e.target.value)}
               onBlur={e => commitTags(e.target.value)}
               placeholder="Button, Input, Card, Modal…"
-              className="w-full text-[12px] px-2.5 py-1.5 rounded-lg border border-border bg-bg outline-none focus:border-text-1 transition-colors"
+              className="w-full text-[12.5px] px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors"
             />
           </Field>
           <Field label="Figma File URL">
@@ -452,7 +456,7 @@ function NodeProperties({ node }: { node: MacroNode }) {
                 updateNode({ figmaFileUrl: url || undefined, figmaFileKey: url ? extractFigmaKey(url) : undefined })
               }}
               placeholder="https://figma.com/design/…"
-              className="w-full text-[12px] font-mono px-2.5 py-1.5 rounded-lg border border-border bg-bg outline-none focus:border-text-1 transition-colors"
+              className="w-full text-[12.5px] font-mono px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors"
             />
           </Field>
         </>
@@ -463,7 +467,7 @@ function NodeProperties({ node }: { node: MacroNode }) {
           <select
             value={node.status ?? 'draft'}
             onChange={e => updateNode({ status: e.target.value as MacroNode['status'] })}
-            className="w-full text-[12px] px-2.5 py-1.5 rounded-lg border border-border bg-bg outline-none focus:border-text-1 transition-colors"
+            className="w-full text-[12.5px] px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors"
           >
             <option value="draft">Draft</option>
             <option value="in-progress">In Progress</option>
@@ -514,7 +518,7 @@ function EntityInfo({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="text-[11px] font-medium text-text-2 mb-1.5 block">{label}</label>
+      <label className="text-[10.5px] font-medium text-text-3 mb-[6px] block uppercase tracking-[0.04em]">{label}</label>
       {children}
     </div>
   )

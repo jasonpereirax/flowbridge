@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Menu } from 'lucide-react'
 import { useStore, useTransform, useView } from '@/lib/store'
 import { useCanvasInteraction } from '@/hooks/useCanvasInteraction'
 import { makeConn } from '@/utils'
@@ -119,104 +120,115 @@ export function CanvasWorkspace({ projectId }: Props) {
       <div className="flex flex-col flex-1 min-w-0">
 
         {/* ── Nav bar ────────────────────────────────────────────────── */}
-        <nav className="h-[46px] bg-surface border-b border-border flex items-center justify-between px-4 z-30 flex-shrink-0">
-          <div className="flex items-center gap-1.5">
+        <nav className="h-[46px] bg-surface border-b border-border flex items-center justify-between z-30 flex-shrink-0">
+          <div className="flex items-center h-full">
+            {/* Hamburger toggle */}
             <button
-              onClick={() => router.push('/')}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-bg transition-colors"
+              onClick={() => store.toggleEbar()}
+              className="w-[52px] h-full border-r border-border flex items-center justify-center text-text-2 hover:bg-bg transition-colors flex-shrink-0"
             >
-              <div className="w-6 h-6 bg-text-1 rounded-[9px] flex items-center justify-center text-white font-serif italic text-sm">F</div>
-              <span className="text-[13px] font-semibold tracking-tight text-text-2">{project.name}</span>
+              <Menu size={16} />
             </button>
 
+            {/* Logo + project name */}
+            <div className="flex items-center gap-2 px-3 h-full border-r border-border">
+              <button
+                onClick={() => router.push('/')}
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              >
+                <div className="w-[22px] h-[22px] bg-text-1 rounded-[5px] flex items-center justify-center text-white font-serif italic text-[12px]">F</div>
+                <span className="text-[12px] font-semibold text-text-1">{project.name}</span>
+              </button>
+            </div>
+
+            {/* Breadcrumb in micro view */}
             {view === 'micro' && (
-              <>
-                <span className="text-text-3 text-xs">›</span>
+              <div className="flex items-center gap-1 px-3">
                 <button
                   onClick={() => store.goMacro()}
-                  className="text-[12px] text-text-2 hover:text-text-1 px-2 py-1 rounded transition-colors"
+                  className="text-[12px] text-text-2 hover:text-text-1 transition-colors"
                 >
                   Workspace
                 </button>
                 {journey && (
                   <>
                     <span className="text-text-3 text-xs">›</span>
-                    <span className="text-[12px] text-text-1 font-medium px-2">{journey.name}</span>
+                    <span className="text-[12px] text-text-1 font-medium">{journey.name}</span>
                   </>
                 )}
-              </>
+              </div>
             )}
           </div>
 
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-text-1 text-white text-[13px] font-medium rounded-lg hover:bg-neutral-800 transition-colors">
-            <span>⚡</span> Generate
-          </button>
+          <div className="px-4">
+            <button className="flex items-center gap-1.5 px-3 py-1.5 bg-text-1 text-white text-[12px] font-medium rounded-[8px] hover:bg-neutral-800 transition-colors">
+              <span>⚡</span> Generate
+            </button>
+          </div>
         </nav>
 
         {/* ── Canvas area ────────────────────────────────────────────── */}
-        <div className="flex-1 relative">
-          <div
-            ref={canvasRef}
-            data-canvas
-            className="canvas-root canvas-dots absolute inset-0 overflow-hidden cursor-grab"
-          >
+        <div className="flex flex-1 overflow-hidden">
+          {/* Flow panel sidebar — micro view only */}
+          {view === 'micro' && <FlowPanel />}
+
+          {/* Canvas */}
+          <div className="flex-1 relative">
             <div
-              className="absolute top-0 left-0 origin-top-left"
-              style={{
-                transform: `translate(${transform.x}px,${transform.y}px) scale(${transform.scale})`,
-                width:  8000,
-                height: 8000,
-              }}
+              ref={canvasRef}
+              data-canvas
+              className="canvas-root canvas-dots absolute inset-0 overflow-hidden cursor-grab"
             >
-              <ConnectorLayer pendingConn={pendingConn} />
+              <div
+                className="absolute top-0 left-0 origin-top-left"
+                style={{
+                  transform: `translate(${transform.x}px,${transform.y}px) scale(${transform.scale})`,
+                  width:  8000,
+                  height: 8000,
+                }}
+              >
+                <ConnectorLayer pendingConn={pendingConn} />
 
-              {view === 'macro' && macroNodes.map(node => (
-                <MacroNodeCard
-                  key={node.id}
-                  node={node}
-                  onConnDragStart={handleConnDragStart}
-                />
-              ))}
+                {view === 'macro' && macroNodes.map(node => (
+                  <MacroNodeCard
+                    key={node.id}
+                    node={node}
+                    onConnDragStart={handleConnDragStart}
+                  />
+                ))}
 
-              {view === 'micro' && activeFlow && journey && screenNodes.map(screen => (
-                <ScreenNodeCard
-                  key={screen.id}
-                  screen={screen}
-                  journeyId={journey.id}
-                  flowId={activeFlow.id}
-                />
-              ))}
+                {view === 'micro' && activeFlow && journey && screenNodes.map((screen, i) => (
+                  <ScreenNodeCard
+                    key={screen.id}
+                    screen={screen}
+                    journeyId={journey.id}
+                    flowId={activeFlow.id}
+                    index={i}
+                  />
+                ))}
 
-              {view === 'macro' && macroNodes.length === 0 && (
-                <div
-                  className="absolute flex flex-col items-center gap-2 text-center"
-                  style={{ left: '50%', top: '40%', transform: 'translate(-50%,-50%)' }}
-                >
-                  <div className="text-[13px] text-text-3">Start by adding a DS node and a Journey node</div>
-                  <div className="text-[11px] text-text-3">Use the + button below</div>
-                </div>
-              )}
+                {view === 'macro' && macroNodes.length === 0 && (
+                  <div
+                    className="absolute flex flex-col items-center gap-2 text-center"
+                    style={{ left: '50%', top: '40%', transform: 'translate(-50%,-50%)' }}
+                  >
+                    <div className="text-[13px] text-text-3">Start by adding a DS node and a Journey node</div>
+                    <div className="text-[11px] text-text-3">Use the + button below</div>
+                  </div>
+                )}
 
-              {view === 'micro' && activeFlow && screenNodes.length === 0 && (
-                <div
-                  className="absolute flex flex-col items-center gap-2 text-center"
-                  style={{ left: '50%', top: '40%', transform: 'translate(-50%,-50%)' }}
-                >
-                  <div className="text-[13px] text-text-3">No screens yet in this flow</div>
-                  <div className="text-[11px] text-text-3">Use the + button below to add a screen</div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Flow panel — overlaid on canvas, micro view only */}
-          {view === 'micro' && (
-            <div className="absolute top-3 left-3 z-20 pointer-events-none">
-              <div className="pointer-events-auto">
-                <FlowPanel />
+                {view === 'micro' && activeFlow && screenNodes.length === 0 && (
+                  <div
+                    className="absolute flex flex-col items-center gap-2 text-center"
+                    style={{ left: '50%', top: '40%', transform: 'translate(-50%,-50%)' }}
+                  >
+                    <div className="text-[13px] text-text-3">No screens yet in this flow</div>
+                    <div className="text-[11px] text-text-3">Use the + button below to add a screen</div>
+                  </div>
+                )}
               </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
