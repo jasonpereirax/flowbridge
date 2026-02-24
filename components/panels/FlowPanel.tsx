@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, ChevronDown } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { cn, makeFlow } from '@/utils'
 
@@ -32,45 +31,45 @@ export function FlowPanel() {
   }
 
   return (
-    <div className="absolute top-3 left-3 bg-surface border border-border rounded-xl shadow-md z-20 min-w-[220px] max-w-[280px]">
+    <div className="w-[210px] flex-shrink-0 border-r border-border bg-surface flex flex-col overflow-hidden z-20">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-        <span className="text-[11px] font-semibold text-text-2 uppercase tracking-wider">Flows</span>
-        <button
-          onClick={() => setIsAdding(true)}
-          className="w-5 h-5 flex items-center justify-center rounded text-text-2 hover:bg-bg hover:text-text-1 transition-colors"
-          title="Add flow"
-        >
-          <Plus size={12} />
-        </button>
+      <div className="px-3 py-[9px] border-b border-border flex-shrink-0">
+        <span className="text-[10px] font-semibold tracking-[0.06em] uppercase text-text-3">Flows</span>
       </div>
 
-      {/* Flow tabs */}
-      <div className="py-1 max-h-48 overflow-y-auto">
+      {/* Flow list */}
+      <div className="flex-1 overflow-y-auto">
         {flows.map(flow => (
           <button
             key={flow.id}
             onClick={() => store.setActiveFlow(journey.id, flow.id)}
             className={cn(
-              'w-full flex items-center justify-between px-3 py-1.5 text-left transition-colors',
-              activeFlow?.id === flow.id
-                ? 'bg-bg text-text-1'
-                : 'text-text-2 hover:bg-bg',
+              'w-full flex items-center gap-2 px-3 py-[7px] text-left transition-colors',
+              activeFlow?.id === flow.id ? 'bg-bg' : 'hover:bg-bg',
             )}
           >
-            <span className="text-[12px] font-medium truncate">{flow.name}</span>
-            <span className="text-[10px] font-mono text-text-3 flex-shrink-0 ml-2">
+            <span className={cn(
+              'w-[6px] h-[6px] rounded-full flex-shrink-0 transition-colors',
+              activeFlow?.id === flow.id ? 'bg-text-1' : 'bg-border-strong',
+            )} />
+            <span className={cn(
+              'text-[12.5px] font-medium flex-1 truncate',
+              activeFlow?.id === flow.id ? 'text-text-1' : 'text-text-2',
+            )}>
+              {flow.name}
+            </span>
+            <span className="text-[11px] font-mono text-text-3 flex-shrink-0">
               {flow.screens.length}
             </span>
           </button>
         ))}
 
         {flows.length === 0 && !isAdding && (
-          <div className="px-3 py-2 text-[11px] text-text-3">No flows yet</div>
+          <div className="px-3 py-3 text-[11px] text-text-3">No flows yet</div>
         )}
       </div>
 
-      {/* Add flow input */}
+      {/* Add flow inline input */}
       {isAdding && (
         <div className="px-2 py-2 border-t border-border">
           <input
@@ -83,24 +82,20 @@ export function FlowPanel() {
               if (e.key === 'Escape') { setIsAdding(false); setNewName('') }
             }}
             placeholder="Flow name…"
-            className="w-full text-[12px] px-2 py-1.5 rounded-lg border border-border bg-bg outline-none focus:border-text-1 transition-colors"
+            className="w-full text-[12px] px-[10px] py-[6px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors"
           />
-          <div className="flex items-center gap-1.5 mt-1.5">
-            <button
-              onClick={handleAddFlow}
-              className="flex-1 text-[11px] bg-text-1 text-white px-2 py-1 rounded-lg hover:bg-neutral-800 transition-colors"
-            >
-              Add
-            </button>
-            <button
-              onClick={() => { setIsAdding(false); setNewName('') }}
-              className="flex-1 text-[11px] text-text-2 px-2 py-1 rounded-lg border border-border hover:bg-bg transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
         </div>
       )}
+
+      {/* Footer */}
+      <div className="px-3 py-2 border-t border-border flex-shrink-0">
+        <button
+          onClick={() => setIsAdding(true)}
+          className="w-full bg-bg border border-border rounded-[8px] py-[6px] text-[12px] text-text-2 hover:text-text-1 hover:border-border-strong transition-colors"
+        >
+          + Add Flow
+        </button>
+      </div>
     </div>
   )
 }

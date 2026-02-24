@@ -9,28 +9,52 @@ interface ScreenNodeProps {
   screen:    Screen
   journeyId: NodeId
   flowId:    FlowId
+  index?:    number
 }
 
-// Completeness ring dimensions
-const RING_R     = 10
-const RING_CIRC  = 2 * Math.PI * RING_R
+// Mock wireframe content — rotates per screen index
+const MOCKS = [
+  <div key={0} className="flex flex-col gap-[3px] p-2">
+    <div className="h-[4px] rounded-sm bg-[#93C5FD] w-[55%]" />
+    <div className="h-[9px] rounded-sm bg-bg border border-border" />
+    <div className="h-[4px] rounded-sm bg-border w-3/4" />
+    <div className="h-[14px] rounded-sm bg-text-1 mt-0.5" />
+  </div>,
+  <div key={1} className="flex flex-col gap-[3px] p-2">
+    <div className="h-[4px] rounded-sm bg-border" />
+    <div className="h-[9px] rounded-sm bg-bg border border-border" />
+    <div className="h-[4px] rounded-sm bg-border w-3/4" />
+    <div className="h-[9px] rounded-sm bg-bg border border-border" />
+    <div className="h-[14px] rounded-sm bg-text-1 mt-0.5" />
+  </div>,
+  <div key={2} className="flex flex-col gap-[3px] p-2">
+    <div className="h-[9px] rounded-sm bg-[#FEE2E2]" />
+    <div className="h-[4px] rounded-sm bg-border w-[45%]" />
+    <div className="h-[9px] rounded-sm bg-bg border border-border" />
+    <div className="h-[14px] rounded-sm bg-text-1 mt-0.5" />
+  </div>,
+  <div key={3} className="flex flex-col gap-[3px] p-2">
+    <div className="h-[4px] rounded-sm bg-[#93C5FD] w-[55%]" />
+    <div className="flex gap-[3px]">
+      <div className="flex-1 h-[14px] rounded-sm bg-bg border border-border p-0.5">
+        <div className="h-[2px] rounded-sm bg-border mb-px" />
+      </div>
+      <div className="flex-1 h-[14px] rounded-sm bg-bg border border-border p-0.5">
+        <div className="h-[2px] rounded-sm bg-[#93C5FD]" />
+      </div>
+    </div>
+    <div className="h-[9px] rounded-sm bg-bg border border-border" />
+  </div>,
+]
 
-const STATUS_COLOR: Record<string, string> = {
-  empty:     'text-text-3',
-  partial:   'text-brand-amber',
-  ready:     'text-brand-green',
-  generated: 'text-brand-purple',
-}
-
-export function ScreenNodeCard({ screen, journeyId, flowId }: ScreenNodeProps) {
+export function ScreenNodeCard({ screen, journeyId, flowId, index = 0 }: ScreenNodeProps) {
   const store      = useStore()
   const isSelected = useStore(s => s.selScreenId === screen.id)
 
   const isDragging = useRef(false)
   const dragStart  = useRef({ px: 0, py: 0, nx: 0, ny: 0 })
 
-  const pct    = screenCompleteness(screen)
-  const offset = RING_CIRC - (pct / 100) * RING_CIRC
+  const pct = screenCompleteness(screen)
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     if (e.button !== 0) return
@@ -38,12 +62,7 @@ export function ScreenNodeCard({ screen, journeyId, flowId }: ScreenNodeProps) {
     store.selectScreen(screen.id)
     isDragging.current = true
     e.currentTarget.setPointerCapture(e.pointerId)
-    dragStart.current = {
-      px: e.clientX,
-      py: e.clientY,
-      nx: screen.position.x,
-      ny: screen.position.y,
-    }
+    dragStart.current = { px: e.clientX, py: e.clientY, nx: screen.position.x, ny: screen.position.y }
   }
 
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
@@ -51,20 +70,13 @@ export function ScreenNodeCard({ screen, journeyId, flowId }: ScreenNodeProps) {
     const { scale } = useStore.getState().transform
     const dx = (e.clientX - dragStart.current.px) / scale
     const dy = (e.clientY - dragStart.current.py) / scale
-    store.moveScreen(journeyId, flowId, screen.id, {
-      x: dragStart.current.nx + dx,
-      y: dragStart.current.ny + dy,
-    })
+    store.moveScreen(journeyId, flowId, screen.id, { x: dragStart.current.nx + dx, y: dragStart.current.ny + dy })
   }
 
-  function onPointerUp() {
-    isDragging.current = false
-  }
+  function onPointerUp() { isDragging.current = false }
+  function onClick(e: React.MouseEvent) { e.stopPropagation(); store.selectScreen(screen.id) }
 
-  function onClick(e: React.MouseEvent) {
-    e.stopPropagation()
-    store.selectScreen(screen.id)
-  }
+  const isDone = pct > 60
 
   return (
     <div
@@ -72,10 +84,11 @@ export function ScreenNodeCard({ screen, journeyId, flowId }: ScreenNodeProps) {
       data-selectable
       data-screen-id={screen.id}
       className={cn(
-        'absolute w-48 rounded-xl bg-surface border shadow-sm cursor-pointer select-none transition-shadow',
+        'absolute w-[170px] rounded-[12px] bg-surface border cursor-pointer select-none transition-all overflow-hidden',
+        isDone ? 'border-t-[2px] border-t-brand-green' : 'border-t border-t-border',
         isSelected
-          ? 'border-text-1 shadow-md ring-2 ring-text-1/20 ring-offset-1'
-          : 'border-border hover:border-border-strong hover:shadow-md',
+          ? 'border-text-1 shadow-[0_0_0_3px_rgba(24,24,26,0.06),0_4px_12px_rgba(0,0,0,0.08)]'
+          : 'border-border shadow-sm hover:border-border-strong hover:shadow-md',
       )}
       style={{ left: screen.position.x, top: screen.position.y }}
       onPointerDown={onPointerDown}
@@ -83,78 +96,51 @@ export function ScreenNodeCard({ screen, journeyId, flowId }: ScreenNodeProps) {
       onPointerUp={onPointerUp}
       onClick={onClick}
     >
-      {/* Thumbnail placeholder or Figma thumbnail */}
-      {screen.figma?.thumbnailUrl ? (
-        <div className="relative mx-2 mt-2 rounded-lg overflow-hidden bg-bg border border-border" style={{ height: 80 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={screen.figma.thumbnailUrl}
-            alt={screen.name}
-            className="w-full h-full object-cover"
-          />
-        </div>
-      ) : (
-        <div className="mx-2 mt-2 rounded-lg bg-bg border border-border flex items-center justify-center" style={{ height: 80 }}>
-          <span className="text-[10px] text-text-3 font-mono">no figma</span>
-        </div>
-      )}
-
-      {/* Content */}
-      <div className="px-3 pt-2 pb-3">
-        {/* Badges */}
-        <div className="flex items-center gap-1 mb-1.5">
-          {screen.isEntry && (
-            <span className="text-[9px] font-mono font-medium px-1.5 py-0.5 rounded bg-brand-green/10 border border-brand-green/30 text-brand-green">
-              entry
-            </span>
-          )}
-          {screen.isError && (
-            <span className="text-[9px] font-mono font-medium px-1.5 py-0.5 rounded bg-brand-red/10 border border-brand-red/30 text-brand-red">
-              error
-            </span>
-          )}
-          {!screen.isEntry && !screen.isError && (
-            <span className={cn('text-[9px] font-mono', STATUS_COLOR[screen.status] ?? 'text-text-3')}>
-              {screen.status}
-            </span>
-          )}
-        </div>
-
-        {/* Name + completeness ring */}
-        <div className="flex items-center justify-between gap-1">
-          <span className="font-medium text-[12px] text-text-1 leading-tight truncate">{screen.name}</span>
-
-          {/* Completeness ring */}
-          <svg width="24" height="24" className="flex-shrink-0 -rotate-90" viewBox="0 0 24 24">
-            {/* Track */}
-            <circle
-              cx="12"
-              cy="12"
-              r={RING_R}
-              fill="none"
-              stroke="#E3E3DF"
-              strokeWidth="2.5"
-            />
-            {/* Progress */}
-            <circle
-              cx="12"
-              cy="12"
-              r={RING_R}
-              fill="none"
-              stroke={pct >= 80 ? '#16A34A' : pct >= 20 ? '#D97706' : '#ADADAD'}
-              strokeWidth="2.5"
-              strokeDasharray={RING_CIRC}
-              strokeDashoffset={offset}
-              strokeLinecap="round"
-              style={{ transition: 'stroke-dashoffset 0.3s ease' }}
-            />
-          </svg>
-        </div>
-
-        {/* Route */}
-        {screen.context.route && (
-          <div className="mt-1 text-[10px] font-mono text-text-3 truncate">{screen.context.route}</div>
+      {/* Preview area — edge to edge */}
+      <div
+        className="relative h-[88px] bg-bg border-b border-border overflow-hidden"
+        style={{ borderRadius: '10px 10px 0 0' }}
+      >
+        {screen.figma?.thumbnailUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={screen.figma.thumbnailUrl} alt={screen.name} className="w-full h-full object-cover" />
+        ) : (
+          MOCKS[index % MOCKS.length]
         )}
+
+        {/* Entry / Error pin */}
+        {screen.isEntry && (
+          <span className="absolute top-[5px] left-[5px] text-[9px] font-mono font-medium px-[5px] py-px rounded-full bg-brand-green/10 border border-brand-green/30 text-brand-green">
+            Entry
+          </span>
+        )}
+        {screen.isError && (
+          <span className="absolute top-[5px] left-[5px] text-[9px] font-mono font-medium px-[5px] py-px rounded-full bg-brand-red/10 border border-brand-red/30 text-brand-red">
+            Error
+          </span>
+        )}
+      </div>
+
+      {/* Body */}
+      <div className="px-[10px] py-[8px]">
+        <div className="text-[12px] font-semibold text-text-1 mb-[2px] truncate">{screen.name}</div>
+        <div className={cn(
+          'text-[11px] leading-[1.35] line-clamp-2',
+          screen.context.purpose ? 'text-text-2' : 'text-text-3',
+        )}>
+          {screen.context.purpose || 'Add context…'}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between px-[10px] py-[5px] border-t border-border">
+        <div className="flex items-center gap-[3px] text-[10.5px] font-mono text-text-3">
+          {isDone && <span className="w-[5px] h-[5px] rounded-full bg-brand-green flex-shrink-0" />}
+          <span>{isDone ? 'done' : 'empty'}</span>
+        </div>
+        <span className="text-[10.5px] font-mono text-text-3">
+          {index === 0 ? 'entry' : `step ${index + 1}`}
+        </span>
       </div>
     </div>
   )

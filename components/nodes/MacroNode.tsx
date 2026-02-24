@@ -6,9 +6,8 @@ import { useStore } from '@/lib/store'
 import { cn } from '@/utils'
 import type { MacroNode } from '@/types'
 
-// Width matches w-52; handle center Y from node top
-export const NODE_WIDTH = 208
-export const CONN_HANDLE_Y = 44
+export const NODE_WIDTH    = 220
+export const CONN_HANDLE_Y = 65   // vertically centered at 50% of ~130px typical height
 
 interface MacroNodeProps {
   node: MacroNode
@@ -28,12 +27,7 @@ export function MacroNodeCard({ node, onConnDragStart }: MacroNodeProps) {
     store.selectNode(node.id)
     isDragging.current = true
     e.currentTarget.setPointerCapture(e.pointerId)
-    dragStart.current = {
-      px: e.clientX,
-      py: e.clientY,
-      nx: node.position.x,
-      ny: node.position.y,
-    }
+    dragStart.current = { px: e.clientX, py: e.clientY, nx: node.position.x, ny: node.position.y }
   }
 
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
@@ -41,25 +35,19 @@ export function MacroNodeCard({ node, onConnDragStart }: MacroNodeProps) {
     const { scale } = useStore.getState().transform
     const dx = (e.clientX - dragStart.current.px) / scale
     const dy = (e.clientY - dragStart.current.py) / scale
-    store.moveNode(node.id, {
-      x: dragStart.current.nx + dx,
-      y: dragStart.current.ny + dy,
-    })
+    store.moveNode(node.id, { x: dragStart.current.nx + dx, y: dragStart.current.ny + dy })
   }
 
-  function onPointerUp() {
-    isDragging.current = false
-  }
+  function onPointerUp() { isDragging.current = false }
 
-  function onClick(e: React.MouseEvent) {
-    e.stopPropagation()
-    store.selectNode(node.id)
-  }
+  function onClick(e: React.MouseEvent) { e.stopPropagation(); store.selectNode(node.id) }
 
   function onDoubleClick(e: React.MouseEvent) {
     e.stopPropagation()
     if (node.type === 'journey') store.openJourney(node.id)
   }
+
+  const isDS = node.type === 'ds'
 
   return (
     <div
@@ -69,10 +57,13 @@ export function MacroNodeCard({ node, onConnDragStart }: MacroNodeProps) {
       data-node-type={node.type}
       data-journey-id={node.type === 'journey' ? node.id : undefined}
       className={cn(
-        'absolute w-52 rounded-xl bg-surface border shadow-sm cursor-pointer select-none transition-shadow',
+        'absolute w-[220px] rounded-[12px] bg-surface border cursor-pointer select-none transition-all',
+        isDS ? 'border-t-[3px] border-t-brand-blue' : 'border-t-[3px] border-t-brand-purple',
         isSelected
-          ? 'border-text-1 shadow-md ring-2 ring-text-1/20 ring-offset-1'
-          : 'border-border hover:border-border-strong hover:shadow-md',
+          ? isDS
+            ? 'border-brand-blue shadow-[0_0_0_3px_rgba(37,99,235,0.1),0_4px_12px_rgba(0,0,0,0.08)]'
+            : 'border-brand-purple shadow-[0_0_0_3px_rgba(124,58,237,0.1),0_4px_12px_rgba(0,0,0,0.08)]'
+          : 'border-border shadow-sm hover:border-border-strong hover:shadow-md',
       )}
       style={{ left: node.position.x, top: node.position.y }}
       onPointerDown={onPointerDown}
@@ -92,64 +83,65 @@ export function MacroNodeCard({ node, onConnDragStart }: MacroNodeProps) {
 
 // ── DS Node ───────────────────────────────────────────────────────────────────
 
-interface DSNodeContentProps {
+function DSNodeContent({ node, onConnDragStart }: {
   node: MacroNode
   onConnDragStart: (fromId: string, clientX: number, clientY: number) => void
-}
-
-function DSNodeContent({ node, onConnDragStart }: DSNodeContentProps) {
+}) {
   function onHandlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    e.stopPropagation()
-    e.preventDefault()
+    e.stopPropagation(); e.preventDefault()
     onConnDragStart(node.id, e.clientX, e.clientY)
   }
+
+  const connsOut = useStore(s => s.canvas()?.conns.filter(c => c.fromId === node.id).length ?? 0)
 
   return (
     <>
       {/* Header */}
-      <div className="px-3 pt-3 pb-2.5">
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <div className="w-4 h-4 rounded bg-brand-blue/10 flex items-center justify-center flex-shrink-0">
-            <Layers size={10} className="text-brand-blue" />
-          </div>
-          <span className="text-[10px] font-mono text-text-3 uppercase tracking-wider">DS / Lib</span>
+      <div className="flex items-center gap-[9px] px-[13px] pt-[11px] pb-[9px]">
+        <div className="w-[29px] h-[29px] rounded-[7px] bg-brand-blue/10 flex items-center justify-center flex-shrink-0">
+          <Layers size={14} className="text-brand-blue" />
         </div>
-        <div className="font-semibold text-[13px] text-text-1 leading-tight">{node.name}</div>
+        <div className="min-w-0">
+          <div className="text-[9.5px] font-mono font-medium tracking-[0.04em] uppercase text-brand-blue mb-px">
+            Assets · DS · Lib
+          </div>
+          <div className="text-[13px] font-semibold tracking-tight text-text-1 truncate">{node.name}</div>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="px-[13px] pb-[10px]">
         {node.description && (
-          <div className="text-[11px] text-text-2 mt-0.5 line-clamp-1">{node.description}</div>
+          <div className="text-[11.5px] text-text-2 leading-snug mb-[7px] line-clamp-2">{node.description}</div>
+        )}
+        {node.tags.length > 0 && (
+          <div className="flex flex-wrap gap-[3px]">
+            {node.tags.slice(0, 6).map(tag => (
+              <span key={tag} className="text-[10px] font-mono px-[6px] py-px rounded-full bg-bg border border-border text-text-3">
+                {tag}
+              </span>
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Tags */}
-      {node.tags.length > 0 && (
-        <div className="px-3 pb-2.5 flex flex-wrap gap-1">
-          {node.tags.slice(0, 5).map(tag => (
-            <span
-              key={tag}
-              className="text-[10px] bg-bg border border-border rounded px-1.5 py-0.5 text-text-2"
-            >
-              {tag}
-            </span>
-          ))}
-          {node.tags.length > 5 && (
-            <span className="text-[10px] text-text-3">+{node.tags.length - 5}</span>
-          )}
-        </div>
-      )}
+      {/* Footer */}
+      <div className="flex items-center justify-between px-[13px] py-[7px] border-t border-border">
+        <span className="text-[11px] font-mono text-text-3">
+          feeds {connsOut} journey{connsOut !== 1 ? 's' : ''}
+        </span>
+        {node.figmaFileKey && (
+          <span className="flex items-center gap-1 text-[10.5px] text-text-3">
+            <Link2 size={9} />Figma
+          </span>
+        )}
+      </div>
 
-      {/* Figma link */}
-      {node.figmaFileKey && (
-        <div className="px-3 pb-2.5 flex items-center gap-1.5">
-          <Link2 size={10} className="text-text-3 flex-shrink-0" />
-          <span className="text-[10px] font-mono text-text-3 truncate">Figma linked</span>
-        </div>
-      )}
-
-      {/* Output connector handle — right edge, vertically centered at CONN_HANDLE_Y */}
+      {/* Output connector handle */}
       <div
         data-handle
         data-from-id={node.id}
-        className="absolute right-0 top-[44px] translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-surface border-2 border-border-strong rounded-full cursor-crosshair hover:border-brand-blue hover:scale-125 transition-all z-10"
+        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-[10px] h-[10px] bg-surface border-2 border-border-strong rounded-full cursor-crosshair hover:bg-brand-blue hover:border-brand-blue hover:scale-125 transition-all z-10"
         onPointerDown={onHandlePointerDown}
       />
     </>
@@ -166,37 +158,45 @@ const STATUS_STYLES: Record<string, string> = {
 }
 
 function JourneyNodeContent({ node }: { node: MacroNode }) {
+  const connsIn   = useStore(s => s.canvas()?.conns.filter(c => c.toId === node.id).length ?? 0)
+  const flowCount = useStore(s => s.canvas()?.flows[node.id]?.length ?? 0)
+
   return (
     <>
       {/* Header */}
-      <div className="px-3 pt-3 pb-2.5">
-        <div className="flex items-center justify-between mb-1.5">
-          <div className="flex items-center gap-1.5">
-            <div className="w-4 h-4 rounded bg-brand-purple/10 flex items-center justify-center flex-shrink-0">
-              <GitBranch size={10} className="text-brand-purple" />
-            </div>
-            <span className="text-[10px] font-mono text-text-3 uppercase tracking-wider">Journey</span>
-          </div>
-          {node.status && (
-            <span
-              className={cn(
-                'text-[10px] font-medium font-mono px-1.5 py-0.5 rounded border',
-                STATUS_STYLES[node.status] ?? STATUS_STYLES['draft'],
-              )}
-            >
-              {node.status}
-            </span>
-          )}
+      <div className="flex items-center gap-[9px] px-[13px] pt-[11px] pb-[9px]">
+        <div className="w-[29px] h-[29px] rounded-[7px] bg-brand-purple/10 flex items-center justify-center flex-shrink-0">
+          <GitBranch size={14} className="text-brand-purple" />
         </div>
-        <div className="font-semibold text-[13px] text-text-1 leading-tight">{node.name}</div>
-        {node.description && (
-          <div className="text-[11px] text-text-2 mt-0.5 line-clamp-1">{node.description}</div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[9.5px] font-mono font-medium tracking-[0.04em] uppercase text-brand-purple mb-px">
+            Journey · Flow
+          </div>
+          <div className="text-[13px] font-semibold tracking-tight text-text-1 truncate">{node.name}</div>
+        </div>
+        {node.status && (
+          <span className={cn(
+            'text-[10px] font-semibold font-mono px-[7px] py-[2px] rounded-full border flex-shrink-0',
+            STATUS_STYLES[node.status] ?? STATUS_STYLES['draft'],
+          )}>
+            {node.status}
+          </span>
         )}
       </div>
 
-      {/* Double-click hint */}
-      <div className="px-3 pb-2.5">
-        <span className="text-[10px] text-text-3">Double-click to open</span>
+      {/* Body */}
+      {node.description && (
+        <div className="px-[13px] pb-[10px]">
+          <div className="text-[11.5px] text-text-2 leading-snug line-clamp-2">{node.description}</div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="flex items-center justify-between px-[13px] py-[7px] border-t border-border">
+        <span className="text-[11px] font-mono text-text-3">
+          {connsIn} source{connsIn !== 1 ? 's' : ''} · {flowCount} flow{flowCount !== 1 ? 's' : ''}
+        </span>
+        <span className="text-[10.5px] text-text-3 opacity-70">dbl-click</span>
       </div>
     </>
   )
