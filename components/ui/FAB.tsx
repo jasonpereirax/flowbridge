@@ -126,14 +126,14 @@ export function FAB() {
             <button
               key={action.label}
               onClick={action.onClick}
-              className="flex items-center gap-2.5 px-3.5 py-2.5 bg-surface border border-border rounded-xl shadow-md hover:border-border-strong hover:shadow-lg transition-all text-left min-w-[180px]"
+              className="flex items-center gap-2.5 px-3 py-2 bg-surface border border-border rounded-[10px] shadow-md hover:border-border-strong hover:shadow-lg transition-all text-left min-w-[180px]"
             >
-              <span className="w-6 h-6 flex items-center justify-center rounded-lg bg-bg text-text-1 flex-shrink-0">
+              <span className="w-6 h-6 flex items-center justify-center rounded-[6px] bg-bg border border-border text-text-1 flex-shrink-0">
                 {action.icon}
               </span>
               <div>
-                <div className="text-[12px] font-medium text-text-1">{action.label}</div>
-                <div className="text-[10px] text-text-3">{action.description}</div>
+                <div className="text-[13px] font-medium text-text-1">{action.label}</div>
+                <div className="text-[11px] text-text-3">{action.description}</div>
               </div>
             </button>
           ))}

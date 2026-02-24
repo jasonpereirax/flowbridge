@@ -72,9 +72,10 @@ export function ScreenNodeCard({ screen, journeyId, flowId }: ScreenNodeProps) {
       data-selectable
       data-screen-id={screen.id}
       className={cn(
-        'absolute w-48 rounded-xl bg-surface border shadow-sm cursor-pointer select-none transition-shadow',
+        'absolute w-48 rounded-[10px] bg-surface border-y border-r shadow-sm cursor-pointer select-none transition-all',
+        screen.isEntry ? 'border-l-[3px] border-l-brand-green' : screen.isError ? 'border-l-[3px] border-l-brand-red' : 'border-l-[3px] border-l-border-strong',
         isSelected
-          ? 'border-text-1 shadow-md ring-2 ring-text-1/20 ring-offset-1'
+          ? 'border-border-strong shadow-md'
           : 'border-border hover:border-border-strong hover:shadow-md',
       )}
       style={{ left: screen.position.x, top: screen.position.y }}
@@ -85,7 +86,7 @@ export function ScreenNodeCard({ screen, journeyId, flowId }: ScreenNodeProps) {
     >
       {/* Thumbnail placeholder or Figma thumbnail */}
       {screen.figma?.thumbnailUrl ? (
-        <div className="relative mx-2 mt-2 rounded-lg overflow-hidden bg-bg border border-border" style={{ height: 80 }}>
+        <div className="relative mx-2 mt-2 rounded-[8px] overflow-hidden bg-bg border border-border" style={{ height: 80 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={screen.figma.thumbnailUrl}
@@ -94,7 +95,7 @@ export function ScreenNodeCard({ screen, journeyId, flowId }: ScreenNodeProps) {
           />
         </div>
       ) : (
-        <div className="mx-2 mt-2 rounded-lg bg-bg border border-border flex items-center justify-center" style={{ height: 80 }}>
+        <div className="mx-2 mt-2 rounded-[8px] bg-bg border border-border flex items-center justify-center" style={{ height: 80 }}>
           <span className="text-[10px] text-text-3 font-mono">no figma</span>
         </div>
       )}
@@ -104,12 +105,12 @@ export function ScreenNodeCard({ screen, journeyId, flowId }: ScreenNodeProps) {
         {/* Badges */}
         <div className="flex items-center gap-1 mb-1.5">
           {screen.isEntry && (
-            <span className="text-[9px] font-mono font-medium px-1.5 py-0.5 rounded bg-brand-green/10 border border-brand-green/30 text-brand-green">
+            <span className="text-[9px] font-mono font-medium px-2 py-0.5 rounded-full bg-brand-green/10 border border-brand-green/30 text-brand-green">
               entry
             </span>
           )}
           {screen.isError && (
-            <span className="text-[9px] font-mono font-medium px-1.5 py-0.5 rounded bg-brand-red/10 border border-brand-red/30 text-brand-red">
+            <span className="text-[9px] font-mono font-medium px-2 py-0.5 rounded-full bg-brand-red/10 border border-brand-red/30 text-brand-red">
               error
             </span>
           )}

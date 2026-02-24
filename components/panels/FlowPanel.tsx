@@ -32,10 +32,10 @@ export function FlowPanel() {
   }
 
   return (
-    <div className="absolute top-3 left-3 bg-surface border border-border rounded-xl shadow-md z-20 min-w-[220px] max-w-[280px]">
+    <div className="bg-surface border border-border rounded-[10px] shadow-md min-w-[200px] max-w-[260px]">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-        <span className="text-[11px] font-semibold text-text-2 uppercase tracking-wider">Flows</span>
+        <span className="text-[10px] font-mono font-semibold text-text-2 uppercase tracking-wider">Flows</span>
         <button
           onClick={() => setIsAdding(true)}
           className="w-5 h-5 flex items-center justify-center rounded text-text-2 hover:bg-bg hover:text-text-1 transition-colors"

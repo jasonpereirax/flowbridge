@@ -69,9 +69,10 @@ export function MacroNodeCard({ node, onConnDragStart }: MacroNodeProps) {
       data-node-type={node.type}
       data-journey-id={node.type === 'journey' ? node.id : undefined}
       className={cn(
-        'absolute w-52 rounded-xl bg-surface border shadow-sm cursor-pointer select-none transition-shadow',
+        'absolute w-52 rounded-[10px] bg-surface border-y border-r shadow-sm cursor-pointer select-none transition-all',
+        node.type === 'ds'      ? 'border-l-[3px] border-l-brand-blue'   : 'border-l-[3px] border-l-brand-purple',
         isSelected
-          ? 'border-text-1 shadow-md ring-2 ring-text-1/20 ring-offset-1'
+          ? 'border-border-strong shadow-md'
           : 'border-border hover:border-border-strong hover:shadow-md',
       )}
       style={{ left: node.position.x, top: node.position.y }}
@@ -126,7 +127,7 @@ function DSNodeContent({ node, onConnDragStart }: DSNodeContentProps) {
           {node.tags.slice(0, 5).map(tag => (
             <span
               key={tag}
-              className="text-[10px] bg-bg border border-border rounded px-1.5 py-0.5 text-text-2"
+              className="text-[10px] font-mono bg-bg border border-border rounded-full px-2 py-0.5 text-text-2"
             >
               {tag}
             </span>
@@ -180,7 +181,7 @@ function JourneyNodeContent({ node }: { node: MacroNode }) {
           {node.status && (
             <span
               className={cn(
-                'text-[10px] font-medium font-mono px-1.5 py-0.5 rounded border',
+                'text-[10px] font-semibold font-mono px-2 py-0.5 rounded-full border',
                 STATUS_STYLES[node.status] ?? STATUS_STYLES['draft'],
               )}
             >
