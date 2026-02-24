@@ -3,7 +3,6 @@ import { twMerge } from 'tailwind-merge'
 import type {
   Screen, ScreenStatus, MacroNode, Project,
   ProjectSettings, Flow, Connection, XY,
-  EMPTY_CONTEXT,
 } from '@/types'
 import { EMPTY_CONTEXT as EC } from '@/types'
 
