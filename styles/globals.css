@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-instrument-serif: 'Instrument Serif', Georgia, serif;
+  }
+
+  html, body {
+    height: 100%;
+    @apply bg-bg text-text-1 antialiased;
+  }
+
+  ::-webkit-scrollbar       { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-border-strong rounded; }
+}
+
+@layer utilities {
+  .font-serif { font-family: var(--font-instrument-serif); }
+
+  /* Canvas root — disables text selection during pan/drag */
+  .canvas-root {
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+
+  /* Dot grid background for canvas */
+  .canvas-dots {
+    background-image: radial-gradient(circle, #C9C9C3 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+}
