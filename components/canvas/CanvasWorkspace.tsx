@@ -9,11 +9,6 @@ import { makeConn } from '@/utils'
 import { MacroNodeCard } from '@/components/nodes/MacroNode'
 import { ScreenNodeCard }  from '@/components/nodes/ScreenNode'
 import { ConnectorLayer }  from '@/components/canvas/ConnectorLayer'
-import { Ibar }            from '@/components/sidebar/Ibar'
-import { Ebar }            from '@/components/sidebar/Ebar'
-import { FlowPanel }       from '@/components/panels/FlowPanel'
-import { RightPanel }      from '@/components/panels/RightPanel'
-import { FAB }             from '@/components/ui/FAB'
 
 interface PendingConn {
   fromId: string
@@ -114,64 +109,49 @@ export function CanvasWorkspace({ projectId }: Props) {
   const screenNodes = activeFlow?.screens ?? []
 
   return (
-    <div className="flex h-screen overflow-hidden bg-bg">
+    <div className="flex flex-col h-screen overflow-hidden bg-bg">
 
-      {/* ── Left sidebar ─────────────────────────────────────────────── */}
-      <Ibar />
-      <Ebar />
-
-      {/* ── Main content ─────────────────────────────────────────────── */}
-      <div className="flex flex-col flex-1 min-w-0">
-
-        {/* ── Nav bar ────────────────────────────────────────────────── */}
-        <nav className="h-[46px] bg-surface border-b border-border flex items-center justify-between px-4 z-30 flex-shrink-0">
-          <div className="flex items-center gap-1.5">
-            {/* Logo → dashboard */}
-            <button
-              onClick={() => router.push('/')}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-bg transition-colors"
-            >
-              <div className="w-6 h-6 bg-text-1 rounded-md flex items-center justify-center text-white font-serif italic text-sm">
-                F
-              </div>
-              <span className="text-[13px] font-semibold tracking-tight text-text-2">
-                {project.name}
-              </span>
-            </button>
-
-            {/* Breadcrumb — micro view only */}
-            {view === 'micro' && (
-              <>
-                <span className="text-text-3 text-xs">›</span>
-                <button
-                  onClick={() => store.goMacro()}
-                  className="text-[12px] text-text-2 hover:text-text-1 px-2 py-1 rounded transition-colors"
-                >
-                  Workspace
-                </button>
-                {journey && (
-                  <>
-                    <span className="text-text-3 text-xs">›</span>
-                    <span className="text-[12px] text-text-1 font-medium px-2">{journey.name}</span>
-                  </>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* Generate button */}
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-text-1 text-white text-[13px] font-medium rounded-lg hover:bg-neutral-800 transition-colors">
-            <span>⚡</span> Generate
-          </button>
-        </nav>
-
-        {/* ── Canvas ─────────────────────────────────────────────────── */}
-        <div className="flex-1 relative">
-          <div
-            ref={canvasRef}
-            data-canvas
-            className="canvas-root canvas-dots absolute inset-0 overflow-hidden cursor-grab"
+      {/* ── Nav bar ─────────────────────────────────────────────────── */}
+      <nav className="h-[46px] bg-surface border-b border-border flex items-center justify-between px-4 z-50 flex-shrink-0">
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => router.push('/')}
+            className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-bg transition-colors"
           >
+            <div className="w-6 h-6 bg-text-1 rounded-md flex items-center justify-center text-white font-serif italic text-sm">F</div>
+            <span className="text-[13px] font-semibold tracking-tight text-text-2">{project.name}</span>
+          </button>
+
+          {view === 'micro' && (
+            <>
+              <span className="text-text-3 text-xs">›</span>
+              <button
+                onClick={() => store.goMacro()}
+                className="text-[12px] text-text-2 hover:text-text-1 px-2 py-1 rounded transition-colors"
+              >
+                Workspace
+              </button>
+              {journey && (
+                <>
+                  <span className="text-text-3 text-xs">›</span>
+                  <span className="text-[12px] text-text-1 font-medium px-2">{journey.name}</span>
+                </>
+              )}
+            </>
+          )}
+        </div>
+
+        <button className="flex items-center gap-1.5 px-3 py-1.5 bg-text-1 text-white text-[13px] font-medium rounded-lg hover:bg-neutral-800 transition-colors">
+          <span>⚡</span> Generate
+        </button>
+      </nav>
+
+      {/* ── Canvas ──────────────────────────────────────────────────── */}
+      <div
+        ref={canvasRef}
+        className="canvas-root canvas-dots flex-1 relative overflow-hidden cursor-grab"
+        data-canvas
+      >
             {/* Scene — single transformed container */}
             <div
               className="absolute top-0 left-0 origin-top-left"
@@ -224,24 +204,10 @@ export function CanvasWorkspace({ projectId }: Props) {
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Flow panel — floating, micro view only */}
-          {view === 'micro' && (
-            <div className="absolute top-0 left-0 p-3 z-10 pointer-events-none">
-              <div className="pointer-events-auto">
-                <FlowPanel />
-              </div>
-            </div>
-          )}
-        </div>
       </div>
 
-      {/* ── Right panel ──────────────────────────────────────────────── */}
-      <RightPanel />
-
-      {/* ── Zoom bar (fixed bottom-right) ────────────────────────────── */}
-      <div className="fixed bottom-5 right-5 bg-surface border border-border rounded-xl shadow-md flex items-center overflow-hidden z-40">
+      {/* ── Zoom bar ────────────────────────────────────────────────── */}
+      <div className="fixed bottom-5 right-5 bg-surface border border-border rounded-xl shadow-md flex items-center overflow-hidden z-50">
         <button
           onClick={() => store.setTransform({ scale: Math.max(0.15, transform.scale - 0.15) })}
           className="w-8 h-8 flex items-center justify-center text-text-2 hover:bg-bg transition-colors text-base"
@@ -270,8 +236,6 @@ export function CanvasWorkspace({ projectId }: Props) {
         </button>
       </div>
 
-      {/* ── FAB (fixed bottom-center) ─────────────────────────────────── */}
-      <FAB />
     </div>
   )
 }
