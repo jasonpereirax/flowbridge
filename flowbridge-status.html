@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Flowbridge — Project Status</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F5F5F3;--surf:#FFF;--bdr:#E3E3DF;--bdr2:#C9C9C3;
+  --t1:#18181A;--t2:#6B6B6B;--t3:#ADADAD;
+  --grn:#16A34A;--grn-bg:#F0FDF4;--grn-bd:#BBF7D0;
+  --blu:#2563EB;--blu-bg:#EFF6FF;--blu-bd:#BFDBFE;
+  --pur:#7C3AED;--pur-bg:#F5F3FF;--pur-bd:#DDD6FE;
+  --amb:#D97706;--amb-bg:#FFFBEB;--amb-bd:#FDE68A;
+  --red:#DC2626;--red-bg:#FEF2F2;--red-bd:#FECACA;
+  --f:'Geist',system-ui,sans-serif;
+  --fm:'Geist Mono',monospace;
+  --fs:'Instrument Serif',Georgia,serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--f);font-size:14px;background:var(--bg);color:var(--t1);min-height:100vh}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:3px}
+
+.wrap{max-width:1100px;margin:0 auto;padding:0 32px 80px}
+
+/* ── HEADER ── */
+.hdr{padding:40px 0 32px;border-bottom:1px solid var(--bdr);margin-bottom:40px}
+.hdr-top{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:20px}
+.brand{display:flex;align-items:center;gap:10px}
+.mark{width:36px;height:36px;background:var(--t1);border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--fs);font-style:italic;font-size:18px}
+.brand-txt{display:flex;flex-direction:column;gap:1px}
+.brand-name{font-size:16px;font-weight:700;letter-spacing:-.03em}
+.brand-sub{font-size:11.5px;color:var(--t3);font-family:var(--fm)}
+.hdr-date{font-size:11.5px;font-family:var(--fm);color:var(--t3);background:var(--surf);border:1px solid var(--bdr);padding:4px 10px;border-radius:20px}
+.hdr-title{font-family:var(--fs);font-size:32px;font-style:italic;letter-spacing:-.01em;color:var(--t1);margin-bottom:6px}
+.hdr-sub{font-size:14px;color:var(--t2);max-width:600px;line-height:1.6}
+
+/* ── PROGRESS ── */
+.prog-bar-wrap{margin-top:20px;display:flex;flex-direction:column;gap:6px}
+.prog-bar-row{display:flex;align-items:center;gap:12px}
+.prog-bar-bg{flex:1;height:6px;background:var(--bdr);border-radius:3px;overflow:hidden}
+.prog-bar-fill{height:100%;border-radius:3px;background:var(--t1);transition:width 1s cubic-bezier(.16,1,.3,1)}
+.prog-meta{display:flex;align-items:center;justify-content:space-between}
+.prog-pct{font-size:13px;font-weight:600;font-family:var(--fm);color:var(--t1)}
+.prog-label{font-size:12px;color:var(--t2)}
+
+/* ── KPI STRIP ── */
+.kpi-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:40px}
+.kpi{background:var(--surf);border:1px solid var(--bdr);border-radius:12px;padding:16px 18px}
+.kpi-n{font-size:26px;font-weight:700;letter-spacing:-.04em;font-family:var(--fm);margin-bottom:2px}
+.kpi-l{font-size:11.5px;color:var(--t2)}
+.kpi-sub{font-size:10.5px;font-family:var(--fm);color:var(--t3);margin-top:3px}
+.kpi.grn .kpi-n{color:var(--grn)}.kpi.amb .kpi-n{color:var(--amb)}.kpi.red .kpi-n{color:var(--red)}.kpi.blu .kpi-n{color:var(--blu)}
+
+/* ── INFOBANNER ── */
+.infobanner{background:var(--blu-bg);border:1px solid var(--blu-bd);border-radius:12px;padding:14px 18px;margin-bottom:40px;display:flex;align-items:flex-start;gap:12px}
+.infobanner-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.infobanner-body{}
+.infobanner-title{font-size:13px;font-weight:600;color:var(--blu);margin-bottom:3px}
+.infobanner-text{font-size:12.5px;color:var(--t2);line-height:1.55}
+
+/* ── SECTION ── */
+.sec{margin-bottom:48px}
+.sec-hdr{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--bdr)}
+.sec-title{font-size:17px;font-weight:700;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
+.sec-phase{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:20px;font-family:var(--fm)}
+.ph-done{background:var(--grn-bg);color:var(--grn);border:1px solid var(--grn-bd)}
+.ph-active{background:var(--blu-bg);color:var(--blu);border:1px solid var(--blu-bd)}
+.ph-next{background:var(--bg);color:var(--t3);border:1px solid var(--bdr)}
+.sec-pct{font-size:12px;font-family:var(--fm);color:var(--t2)}
+
+/* ── FEATURE TABLE ── */
+.ftable{display:flex;flex-direction:column;gap:3px}
+.frow{display:flex;align-items:flex-start;background:var(--surf);border:1px solid var(--bdr);border-radius:10px;overflow:hidden;transition:border-color .14s}
+.frow:hover{border-color:var(--bdr2)}
+.frow.done{border-left:3px solid var(--grn)}
+.frow.partial{border-left:3px solid var(--amb)}
+.frow.next{border-left:3px solid var(--bdr2);opacity:.75}
+.frow.new{border-left:3px solid var(--blu)}
+.f-status{width:120px;flex-shrink:0;padding:11px 14px;display:flex;align-items:center;gap:6px;border-right:1px solid var(--bdr)}
+.f-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.fd-done{background:var(--grn)}.fd-partial{background:var(--amb)}.fd-next{background:var(--bdr2)}.fd-new{background:var(--blu)}
+.f-st-lbl{font-size:11px;font-weight:500;font-family:var(--fm)}
+.fst-done{color:var(--grn)}.fst-partial{color:var(--amb)}.fst-next{color:var(--t3)}.fst-new{color:var(--blu)}
+.f-main{flex:1;padding:11px 16px;min-width:0}
+.f-name{font-size:13px;font-weight:500;color:var(--t1);margin-bottom:2px}
+.f-desc{font-size:12px;color:var(--t2);line-height:1.4}
+.f-note{display:inline-flex;align-items:center;gap:4px;margin-top:5px;font-size:11px;font-family:var(--fm);padding:2px 8px;border-radius:20px;background:var(--bg);border:1px solid var(--bdr);color:var(--t3)}
+.f-note.warn{background:var(--amb-bg);border-color:var(--amb-bd);color:var(--amb)}
+.f-note.info{background:var(--blu-bg);border-color:var(--blu-bd);color:var(--blu)}
+.f-note.good{background:var(--grn-bg);border-color:var(--grn-bd);color:var(--grn)}
+.f-pri{width:80px;flex-shrink:0;padding:11px 12px;display:flex;align-items:center;justify-content:center;border-left:1px solid var(--bdr)}
+.pri{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-family:var(--fm);padding:2px 7px;border-radius:20px}
+.p-c{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd)}
+.p-h{background:var(--amb-bg);color:var(--amb);border:1px solid var(--amb-bd)}
+.p-m{background:var(--blu-bg);color:var(--blu);border:1px solid var(--blu-bd)}
+.p-l{background:var(--bg);color:var(--t3);border:1px solid var(--bdr)}
+
+/* ── STACK DIFF ── */
+.diff-table{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:40px}
+.diff-col{background:var(--surf);border:1px solid var(--bdr);border-radius:12px;overflow:hidden}
+.diff-col.old{border-color:var(--bdr2);opacity:.7}
+.diff-col.new{border-color:var(--blu-bd);border-top:3px solid var(--blu)}
+.diff-head{padding:10px 14px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:8px}
+.diff-head-label{font-size:11px;font-weight:600;font-family:var(--fm);text-transform:uppercase;letter-spacing:.05em}
+.diff-old-label{color:var(--t3)}.diff-new-label{color:var(--blu)}
+.diff-row{display:flex;align-items:flex-start;gap:10px;padding:8px 14px;border-bottom:1px solid var(--bdr);font-size:12px}
+.diff-row:last-child{border-bottom:none}
+.diff-key{color:var(--t2);width:120px;flex-shrink:0}
+.diff-val{color:var(--t1);font-family:var(--fm);font-size:11.5px}
+.diff-val.removed{text-decoration:line-through;color:var(--t3)}
+.diff-val.added{color:var(--blu)}
+
+/* ── RISK TABLE ── */
+.risk-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.risk-card{background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:14px 16px}
+.risk-card.high{border-left:3px solid var(--red)}
+.risk-card.med{border-left:3px solid var(--amb)}
+.risk-card.low{border-left:3px solid var(--grn)}
+.risk-card.resolved{border-left:3px solid var(--grn);opacity:.6}
+.risk-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.risk-name{font-size:13px;font-weight:500}
+.risk-badge{font-size:10px;font-weight:600;font-family:var(--fm);text-transform:uppercase;padding:2px 7px;border-radius:20px}
+.rb-h{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd)}
+.rb-m{background:var(--amb-bg);color:var(--amb);border:1px solid var(--amb-bd)}
+.rb-l{background:var(--grn-bg);color:var(--grn);border:1px solid var(--grn-bd)}
+.rb-r{background:var(--bg);color:var(--t3);border:1px solid var(--bdr)}
+.risk-desc{font-size:12px;color:var(--t2);line-height:1.4}
+.risk-mit{font-size:11px;font-family:var(--fm);color:var(--t3);margin-top:6px;padding-top:6px;border-top:1px solid var(--bdr)}
+
+/* ── NEXT UP ── */
+.next-list{display:flex;flex-direction:column;gap:8px}
+.next-item{display:flex;align-items:flex-start;gap:12px;background:var(--surf);border:1px solid var(--bdr);border-radius:10px;padding:12px 16px}
+.next-num{width:22px;height:22px;border-radius:6px;background:var(--t1);color:#fff;font-size:11px;font-weight:700;font-family:var(--fm);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.next-body{flex:1}
+.next-name{font-size:13px;font-weight:500;margin-bottom:2px}
+.next-desc{font-size:12px;color:var(--t2);line-height:1.4}
+.next-effort{font-size:11px;font-family:var(--fm);color:var(--t3);margin-top:4px}
+
+/* ── TIMELINE ── */
+.timeline{display:flex;flex-direction:column;gap:0}
+.tl-phase{display:flex;gap:16px;position:relative}
+.tl-phase::before{content:'';position:absolute;left:11px;top:28px;bottom:-4px;width:1px;background:var(--bdr)}
+.tl-phase:last-child::before{display:none}
+.tl-dot{width:24px;height:24px;border-radius:50%;border:2px solid var(--bdr);background:var(--surf);display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;margin-top:10px;z-index:1}
+.tl-dot.done{background:var(--t1);border-color:var(--t1);color:#fff}
+.tl-dot.active{background:var(--blu);border-color:var(--blu);color:#fff;box-shadow:0 0 0 4px var(--blu-bg)}
+.tl-dot.next{background:var(--bg);border-color:var(--bdr2);color:var(--t3)}
+.tl-body{flex:1;padding:8px 0 20px}
+.tl-title{font-size:13.5px;font-weight:600;letter-spacing:-.01em;margin-bottom:2px}
+.tl-meta{font-size:11.5px;color:var(--t2);margin-bottom:6px}
+.tl-items{display:flex;flex-wrap:wrap;gap:5px}
+.tl-tag{font-size:11px;font-family:var(--fm);padding:2px 8px;border-radius:20px;background:var(--bg);border:1px solid var(--bdr);color:var(--t2)}
+.tl-tag.done{background:var(--grn-bg);border-color:var(--grn-bd);color:var(--grn)}
+.tl-tag.active{background:var(--blu-bg);border-color:var(--blu-bd);color:var(--blu)}
+.tl-tag.pending{background:var(--bg);color:var(--t3)}
+
+/* ── FOOTER ── */
+.foot{margin-top:60px;padding-top:24px;border-top:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between}
+.foot-brand{font-family:var(--fs);font-style:italic;font-size:15px;color:var(--t2)}
+.foot-meta{font-size:11.5px;font-family:var(--fm);color:var(--t3)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <div class="hdr">
+    <div class="hdr-top">
+      <div class="brand">
+        <div class="mark">F</div>
+        <div class="brand-txt">
+          <div class="brand-name">Flowbridge Studio</div>
+          <div class="brand-sub">MVP · Build Log v2</div>
+        </div>
+      </div>
+      <div class="hdr-date">Feb 24, 2026</div>
+    </div>
+    <div class="hdr-title">Project Status Overview</div>
+    <div class="hdr-sub">Design-to-code pipeline. Migrated from React+Vite single-file prototype to Next.js 15 App Router + Supabase + TypeScript production scaffold. Base architecture complete — moving into context engine and Figma integration.</div>
+    <div class="prog-bar-wrap">
+      <div class="prog-meta">
+        <span class="prog-pct">48% complete</span>
+        <span class="prog-label">Phases 1–2 done · Infra migration done · Phase 3 starting</span>
+      </div>
+      <div class="prog-bar-row">
+        <div class="prog-bar-bg"><div class="prog-bar-fill" style="width:48%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI STRIP -->
+  <div class="kpi-strip">
+    <div class="kpi grn">
+      <div class="kpi-n">2</div>
+      <div class="kpi-l">Phases delivered</div>
+      <div class="kpi-sub">of 5 total</div>
+    </div>
+    <div class="kpi blu">
+      <div class="kpi-n">36</div>
+      <div class="kpi-l">Files in scaffold</div>
+      <div class="kpi-sub">Next.js · TS · Supabase</div>
+    </div>
+    <div class="kpi grn">
+      <div class="kpi-n">0</div>
+      <div class="kpi-l">Servers to maintain</div>
+      <div class="kpi-sub">was 2 — Express gone</div>
+    </div>
+    <div class="kpi amb">
+      <div class="kpi-n">9</div>
+      <div class="kpi-l">Open items</div>
+      <div class="kpi-sub">Phase 3 backlog</div>
+    </div>
+    <div class="kpi red">
+      <div class="kpi-n">2</div>
+      <div class="kpi-l">Critical gaps</div>
+      <div class="kpi-sub">context + gen still mock</div>
+    </div>
+  </div>
+
+  <!-- INFOBANNER: Migration note -->
+  <div class="infobanner">
+    <div class="infobanner-icon">🔄</div>
+    <div class="infobanner-body">
+      <div class="infobanner-title">Stack migrated: React+Vite → Next.js 15 App Router</div>
+      <div class="infobanner-text">Express server eliminated — Route Handlers in <code>app/api/</code> replace it. Supabase SSR added for cookie-based auth across Server Components and middleware. Zustand store now persists to localStorage natively. One deploy target (Vercel) instead of two. All v6 prototype logic preserved — canvas, store, hooks, types, prompt builder all ported.</div>
+    </div>
+  </div>
+
+  <!-- STACK DIFF -->
+  <div class="sec">
+    <div class="sec-hdr">
+      <div class="sec-title">Stack Migration — Before vs After</div>
+    </div>
+    <div class="diff-table">
+      <div class="diff-col old">
+        <div class="diff-head"><span class="diff-head-label diff-old-label">Before — React + Vite</span></div>
+        <div class="diff-row"><div class="diff-key">Frontend</div><div class="diff-val removed">React 19 + Vite</div></div>
+        <div class="diff-row"><div class="diff-key">API server</div><div class="diff-val removed">Express (server/index.ts)</div></div>
+        <div class="diff-row"><div class="diff-key">Routing</div><div class="diff-val removed">React Router v7</div></div>
+        <div class="diff-row"><div class="diff-key">API proxy</div><div class="diff-val removed">Vite proxy (dev only)</div></div>
+        <div class="diff-row"><div class="diff-key">Auth</div><div class="diff-val removed">supabase-js (localStorage)</div></div>
+        <div class="diff-row"><div class="diff-key">Server rendering</div><div class="diff-val removed">None — all CSR</div></div>
+        <div class="diff-row"><div class="diff-key">Deploy</div><div class="diff-val removed">Vercel + Railway/Render</div></div>
+        <div class="diff-row"><div class="diff-key">Config files</div><div class="diff-val removed">vite.config.ts + tsconfig</div></div>
+      </div>
+      <div class="diff-col new">
+        <div class="diff-head"><span class="diff-head-label diff-new-label">After — Next.js 15</span></div>
+        <div class="diff-row"><div class="diff-key">Frontend</div><div class="diff-val added">Next.js 15 App Router + TS</div></div>
+        <div class="diff-row"><div class="diff-key">API server</div><div class="diff-val added">Route Handlers (app/api/*)</div></div>
+        <div class="diff-row"><div class="diff-key">Routing</div><div class="diff-val added">File-system routing (built-in)</div></div>
+        <div class="diff-row"><div class="diff-key">API proxy</div><div class="diff-val added">Route Handlers (dev + prod)</div></div>
+        <div class="diff-row"><div class="diff-key">Auth</div><div class="diff-val added">@supabase/ssr (cookies)</div></div>
+        <div class="diff-row"><div class="diff-key">Server rendering</div><div class="diff-val added">Server Components (dashboard)</div></div>
+        <div class="diff-row"><div class="diff-key">Deploy</div><div class="diff-val added">Vercel only</div></div>
+        <div class="diff-row"><div class="diff-key">Config files</div><div class="diff-val added">next.config.ts + tsconfig</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 1 -->
+  <div class="sec">
+    <div class="sec-hdr">
+      <div class="sec-title"><span class="sec-phase ph-done">Phase 1 — Done</span> Foundation & Canvas</div>
+      <div class="sec-pct">100%</div>
+    </div>
+    <div class="ftable">
+      <div class="frow done"><div class="f-status"><div class="f-dot fd-done"></div><span class="f-st-lbl fst-done">Done</span></div><div class="f-main"><div class="f-name">Free canvas — pan + zoom</div><div class="f-desc">Pointer events (not mouse), GPU transform on single scene container. Zoom toward cursor. Fit view. Keyboard shortcuts (F, Esc, Del).</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow done"><div class="f-status"><div class="f-dot fd-done"></div><span class="f-st-lbl fst-done">Done</span></div><div class="f-main"><div class="f-name">Macro nodes — DS/Lib + Journey</div><div class="f-desc">Two types with visual differentiation. Drag to reposition. Double-click journey → enters micro view.</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow done"><div class="f-status"><div class="f-dot fd-done"></div><span class="f-st-lbl fst-done">Done</span></div><div class="f-main"><div class="f-name">Micro view — screens inside journeys</div><div class="f-desc">Screen-level canvas per flow. Sequential connectors. Entry/Error pin badges. Breadcrumb navigation.</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow done"><div class="f-status"><div class="f-dot fd-done"></div><span class="f-st-lbl fst-done">Done</span></div><div class="f-main"><div class="f-name">DS → Journey connectors</div><div class="f-desc">Wire drag from output handle. DS/Lib → Journey validation. Bezier SVG path with arrowhead. Click to select, Del to delete. No node side-effects.</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow done"><div class="f-status"><div class="f-dot fd-done"></div><span class="f-st-lbl fst-done">Done</span></div><div class="f-main"><div class="f-name">Right panel — properties</div><div class="f-desc">Name, description, tags, Figma URL, screen context. Real-time update to node on keystroke. Tabs: Properties / Context / Info.</div></div><div class="f-pri"><span class="pri p-h">High</span></div></div>
+      <div class="frow done"><div class="f-status"><div class="f-dot fd-done"></div><span class="f-st-lbl fst-done">Done</span></div><div class="f-main"><div class="f-name">Context menu (right-click)</div><div class="f-desc">Edit, Open Flows, Duplicate, Delete — per node type. Screen-level context menu.</div></div><div class="f-pri"><span class="pri p-m">Med</span></div></div>
+    </div>
+  </div>
+
+  <!-- PHASE 2 -->
+  <div class="sec">
+    <div class="sec-hdr">
+      <div class="sec-title"><span class="sec-phase ph-done">Phase 2 — Done</span> Project Management & Sidebar</div>
+      <div class="sec-pct">100%</div>
+    </div>
+    <div class="ftable">
+      <div class="frow done"><div class="f-status"><div class="f-dot fd-done"></div><span class="f-st-lbl fst-done">Done</span></div><div class="f-main"><div class="f-name">Dashboard — project grid</div><div class="f-desc">Server Component fetches projects from Supabase directly. No client-side loading state. Project card with color, node/flow counts, last updated.</div><div class="f-note good">Next.js: Server Component — zero client fetch</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow done"><div class="f-status"><div class="f-dot fd-done"></div><span class="f-st-lbl fst-done">Done</span></div><div class="f-main"><div class="f-name">Multi-project isolation</div><div class="f-desc">Each project has independent canvas data (nodes, conns, flows) in Zustand. Persisted per-project in localStorage.</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow done"><div class="f-status"><div class="f-dot fd-done"></div><span class="f-st-lbl fst-done">Done</span></div><div class="f-main"><div class="f-name">Auth — GitHub + Google OAuth</div><div class="f-desc">Supabase SSR with cookie-based sessions. Middleware refreshes session on every request. Auth guard redirects to /login if unauthenticated.</div><div class="f-note good">@supabase/ssr — works in Server Components</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow done"><div class="f-status"><div class="f-dot fd-done"></div><span class="f-st-lbl fst-done">Done</span></div><div class="f-main"><div class="f-name">Icon sidebar — 2 sections (hierarchical tree)</div><div class="f-desc">Macro Nodes (⬡) and Components (◈). DS → tags, Journey → Flows. Expand/collapse. Click navigates back to macro view first. ✕ delete per item.</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow done"><div class="f-status"><div class="f-dot fd-done"></div><span class="f-st-lbl fst-done">Done</span></div><div class="f-main"><div class="f-name">FAB + Flow panel</div><div class="f-desc">Floating action button with DS/Journey/Screen options. Flow panel lists flows per journey. Add flow/screen inline.</div></div><div class="f-pri"><span class="pri p-h">High</span></div></div>
+      <div class="frow done"><div class="f-status"><div class="f-dot fd-done"></div><span class="f-st-lbl fst-done">Done</span></div><div class="f-main"><div class="f-name">Data persistence — localStorage</div><div class="f-desc">Zustand persist middleware writes project + canvas data to localStorage on every change. Loads automatically on boot. No data loss on refresh.</div><div class="f-note good">Resolved: was the #1 risk in previous status</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+    </div>
+  </div>
+
+  <!-- INFRA PHASE -->
+  <div class="sec">
+    <div class="sec-hdr">
+      <div class="sec-title"><span class="sec-phase ph-done">Infra — Done</span> Next.js Migration & Scaffold</div>
+      <div class="sec-pct">100%</div>
+    </div>
+    <div class="ftable">
+      <div class="frow new"><div class="f-status"><div class="f-dot fd-new"></div><span class="f-st-lbl fst-new">New</span></div><div class="f-main"><div class="f-name">Next.js 15 App Router scaffold</div><div class="f-desc">36 files. File-system routing. Server Components for dashboard. Client Components for canvas. Route Groups for auth and dashboard layouts.</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow new"><div class="f-status"><div class="f-dot fd-new"></div><span class="f-st-lbl fst-new">New</span></div><div class="f-main"><div class="f-name">Route Handlers — Claude + Figma proxies</div><div class="f-desc"><code>app/api/generate/route.ts</code> streams Claude API as SSE. <code>app/api/figma/route.ts</code> proxies Figma node + image APIs. Both server-side — keys never reach browser. Express eliminated.</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow new"><div class="f-status"><div class="f-dot fd-new"></div><span class="f-st-lbl fst-new">New</span></div><div class="f-main"><div class="f-name">Supabase SSR auth + middleware</div><div class="f-desc">Cookie-based sessions via <code>@supabase/ssr</code>. Middleware refreshes session on every route. Auth guard for canvas routes. OAuth callback handler.</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow new"><div class="f-status"><div class="f-dot fd-new"></div><span class="f-st-lbl fst-new">New</span></div><div class="f-main"><div class="f-name">Supabase schema — full migration</div><div class="f-desc">Tables: profiles, projects, macro_nodes, connections, flows, screens, generation_runs. RLS on all tables. Realtime enabled for collaboration (Phase 5). Auto-create profile on signup trigger.</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow new"><div class="f-status"><div class="f-dot fd-new"></div><span class="f-st-lbl fst-new">New</span></div><div class="f-main"><div class="f-name">TypeScript types — full domain model</div><div class="f-desc">Project, MacroNode, Connection, Flow, Screen, ScreenContext, ScreenFigma, GeneratedFile, GenerateRequest. Used by store, Route Handlers, and prompt builder — single source of truth.</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow new"><div class="f-status"><div class="f-dot fd-new"></div><span class="f-st-lbl fst-new">New</span></div><div class="f-main"><div class="f-name">Zustand store — complete with immer + persist</div><div class="f-desc">All canvas actions (addNode, moveNode, addConn, addScreen, etc.) typed. Persist middleware with partialize — only data persisted, UI state excluded. Devtools enabled in dev.</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow new"><div class="f-status"><div class="f-dot fd-new"></div><span class="f-st-lbl fst-new">New</span></div><div class="f-main"><div class="f-name">Hooks — useCanvasInteraction, useGenerate, useAuth</div><div class="f-desc">Canvas: pointer events with capture (better than mouse events). Generate: reads SSE stream, extracts JSON file array. Auth: wraps Supabase subscription lifecycle.</div></div><div class="f-pri"><span class="pri p-h">High</span></div></div>
+      <div class="frow new"><div class="f-status"><div class="f-dot fd-new"></div><span class="f-st-lbl fst-new">New</span></div><div class="f-main"><div class="f-name">Prompt builder — context graph → Claude</div><div class="f-desc">Assembles system + user prompt from project settings, DS nodes, and all screen context fields. Framework-specific rules (Next.js/Remix/etc). Structured per-screen fields with API endpoints, component list, gen rules.</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+    </div>
+  </div>
+
+  <!-- PHASE 3 -->
+  <div class="sec">
+    <div class="sec-hdr">
+      <div class="sec-title"><span class="sec-phase ph-active">Phase 3 — Active</span> Context Engine & Figma Integration</div>
+      <div class="sec-pct">10%</div>
+    </div>
+    <div class="ftable">
+      <div class="frow partial"><div class="f-status"><div class="f-dot fd-partial"></div><span class="f-st-lbl fst-partial">Partial</span></div><div class="f-main"><div class="f-name">Structured screen context fields</div><div class="f-desc">Type <code>ScreenContext</code> defined: purpose, userIntent, route, requiresAuth, apiEndpoints[], components[], notes, genRules. Prompt builder consumes all fields.</div><div class="f-note warn">Types done — UI form not yet built in canvas right panel.</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow next"><div class="f-status"><div class="f-dot fd-next"></div><span class="f-st-lbl fst-next">Next</span></div><div class="f-main"><div class="f-name">Context form UI — right panel</div><div class="f-desc">Replace free-text context with structured input fields per screen: route input, purpose textarea, component multi-select from DS node tags, API endpoint builder, auth toggle.</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow next"><div class="f-status"><div class="f-dot fd-next"></div><span class="f-st-lbl fst-next">Next</span></div><div class="f-main"><div class="f-name">Figma URL → node binding</div><div class="f-desc">Input exists. When user pastes Figma URL: parse fileKey + nodeId, call <code>/api/figma</code> Route Handler, store component list and thumbnail on screen. Render thumbnail in screen card.</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow next"><div class="f-status"><div class="f-dot fd-next"></div><span class="f-st-lbl fst-next">Next</span></div><div class="f-main"><div class="f-name">Figma component map editor</div><div class="f-desc">Map Figma component names to code component names per DS node. Visual table: "Button/Primary" → Button. Feeds into generation prompt as explicit mapping.</div></div><div class="f-pri"><span class="pri p-h">High</span></div></div>
+      <div class="frow next"><div class="f-status"><div class="f-dot fd-next"></div><span class="f-st-lbl fst-next">Next</span></div><div class="f-main"><div class="f-name">Context completeness scoring</div><div class="f-desc">Weighted model: Figma(30) + purpose(20) + route(15) + components(15) + api(10) + notes(10). Ring in screen card. Dashboard shows project-level %. Already implemented in <code>utils/index.ts</code> — needs UI wiring.</div></div><div class="f-pri"><span class="pri p-h">High</span></div></div>
+    </div>
+  </div>
+
+  <!-- PHASE 4 -->
+  <div class="sec">
+    <div class="sec-hdr">
+      <div class="sec-title"><span class="sec-phase ph-next">Phase 4 — Queued</span> Code Generation</div>
+      <div class="sec-pct">15%</div>
+    </div>
+    <div class="ftable">
+      <div class="frow partial"><div class="f-status"><div class="f-dot fd-partial"></div><span class="f-st-lbl fst-partial">Shell only</span></div><div class="f-main"><div class="f-name">⚡ Generate button + overlay</div><div class="f-desc">Button exists in <code>CanvasWorkspace.tsx</code>. Animated step-by-step overlay in v6 prototype. <code>useGenerate</code> hook fully wired to <code>/api/generate</code> with SSE streaming.</div><div class="f-note warn">Not connected in UI — hook is ready, button is not wired to it yet.</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow partial"><div class="f-status"><div class="f-dot fd-partial"></div><span class="f-st-lbl fst-partial">Partial</span></div><div class="f-main"><div class="f-name">Claude API Route Handler</div><div class="f-desc"><code>app/api/generate/route.ts</code> complete: accepts GenerateRequest, calls Claude with SSE stream, sends text deltas + done/error events. Server-side key, 60s timeout.</div><div class="f-note warn">Route Handler ready — prompt builder needs real context data to produce quality output.</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow next"><div class="f-status"><div class="f-dot fd-next"></div><span class="f-st-lbl fst-next">Next</span></div><div class="f-main"><div class="f-name">Wire Generate button to useGenerate hook</div><div class="f-desc">Connect ⚡ button → <code>generate()</code>. Show animated overlay with streaming progress text. Parse JSON file array from response. Display in code modal with syntax highlighting.</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow next"><div class="f-status"><div class="f-dot fd-next"></div><span class="f-st-lbl fst-next">Next</span></div><div class="f-main"><div class="f-name">Code output modal</div><div class="f-desc">File tree on left, syntax-highlighted code on right. Copy single file / copy all. Export as ZIP. Store run in generation_runs table with token usage.</div></div><div class="f-pri"><span class="pri p-h">High</span></div></div>
+      <div class="frow next"><div class="f-status"><div class="f-dot fd-next"></div><span class="f-st-lbl fst-next">Next</span></div><div class="f-main"><div class="f-name">Per-screen generation</div><div class="f-desc">Select individual screen → generate only that screen. Faster iteration loop for focused development.</div></div><div class="f-pri"><span class="pri p-h">High</span></div></div>
+    </div>
+  </div>
+
+  <!-- PHASE 5 -->
+  <div class="sec">
+    <div class="sec-hdr">
+      <div class="sec-title"><span class="sec-phase ph-next">Phase 5 — Backlog</span> Supabase Sync, Collaboration & Polish</div>
+      <div class="sec-pct">0%</div>
+    </div>
+    <div class="ftable">
+      <div class="frow next"><div class="f-status"><div class="f-dot fd-next"></div><span class="f-st-lbl fst-next">Backlog</span></div><div class="f-main"><div class="f-name">Supabase sync — multi-device</div><div class="f-desc">Write canvas mutations to Supabase in background. Load from Supabase on first open per device. localStorage remains primary for speed, Supabase as truth for sync.</div></div><div class="f-pri"><span class="pri p-c">Core</span></div></div>
+      <div class="frow next"><div class="f-status"><div class="f-dot fd-next"></div><span class="f-st-lbl fst-next">Backlog</span></div><div class="f-main"><div class="f-name">Real-time collaboration</div><div class="f-desc">Share project link. Live cursors via Supabase Realtime (already enabled in schema). Comment threads on screens. Tables <code>macro_nodes</code>, <code>screens</code>, <code>connections</code> are subscribed.</div></div><div class="f-pri"><span class="pri p-m">Med</span></div></div>
+      <div class="frow next"><div class="f-status"><div class="f-dot fd-next"></div><span class="f-st-lbl fst-next">Backlog</span></div><div class="f-main"><div class="f-name">Screen → Screen custom connectors</div><div class="f-desc">Free-form connections between any two screens. Conditional branch labels ("on success", "on error"). Currently sequential only.</div></div><div class="f-pri"><span class="pri p-h">High</span></div></div>
+      <div class="frow next"><div class="f-status"><div class="f-dot fd-next"></div><span class="f-st-lbl fst-next">Backlog</span></div><div class="f-main"><div class="f-name">Generation history</div><div class="f-desc">Log each run in <code>generation_runs</code> table (schema ready). View past outputs, re-run, diff comparison between generations.</div></div><div class="f-pri"><span class="pri p-m">Med</span></div></div>
+      <div class="frow next"><div class="f-status"><div class="f-dot fd-next"></div><span class="f-st-lbl fst-next">Backlog</span></div><div class="f-main"><div class="f-name">Component library browser</div><div class="f-desc">Searchable catalog per DS node. Drag to screen → auto-tag. Visual preview of Figma component.</div></div><div class="f-pri"><span class="pri p-m">Med</span></div></div>
+    </div>
+  </div>
+
+  <!-- RISKS -->
+  <div class="sec">
+    <div class="sec-hdr">
+      <div class="sec-title">Risks & Technical Debt</div>
+    </div>
+    <div class="risk-grid">
+      <div class="risk-card resolved">
+        <div class="risk-top"><span class="risk-name">No data persistence</span><span class="risk-badge rb-r">Resolved</span></div>
+        <div class="risk-desc">Was the #1 risk. Zustand persist middleware with localStorage now handles this automatically.</div>
+        <div class="risk-mit">→ Done in scaffold. Phase 5 adds Supabase sync for multi-device.</div>
+      </div>
+      <div class="risk-card resolved">
+        <div class="risk-top"><span class="risk-name">Single-file architecture</span><span class="risk-badge rb-r">Resolved</span></div>
+        <div class="risk-desc">Was 1,500 lines in one HTML file. Now a proper Next.js project with separated concerns, TypeScript, and linting.</div>
+        <div class="risk-mit">→ Done. 36 files, typed, ready for team development.</div>
+      </div>
+      <div class="risk-card high">
+        <div class="risk-top"><span class="risk-name">Context data is shallow</span><span class="risk-badge rb-h">High</span></div>
+        <div class="risk-desc">Screen context fields are typed and the prompt builder consumes them — but the UI to fill them in doesn't exist yet. Until screens have real context, generated code will be generic.</div>
+        <div class="risk-mit">→ First task in Phase 3: build context form UI in the right panel.</div>
+      </div>
+      <div class="risk-card high">
+        <div class="risk-top"><span class="risk-name">Generate button is a stub</span><span class="risk-badge rb-h">High</span></div>
+        <div class="risk-desc">The core value proposition doesn't work end-to-end yet. Route Handler and hook are ready — the UI connection and output modal are missing.</div>
+        <div class="risk-mit">→ Wire after Phase 3 context form is done. Context quality = output quality.</div>
+      </div>
+      <div class="risk-card med">
+        <div class="risk-top"><span class="risk-name">Figma integration not started</span><span class="risk-badge rb-m">Med</span></div>
+        <div class="risk-desc">Figma Route Handler exists. Thumbnail display not implemented. Component map editor not built. Without Figma data, prompts lack visual context.</div>
+        <div class="risk-mit">→ Phase 3 priority #2 after context form.</div>
+      </div>
+      <div class="risk-card low">
+        <div class="risk-top"><span class="risk-name">Canvas components not ported yet</span><span class="risk-badge rb-l">Low</span></div>
+        <div class="risk-desc">CanvasWorkspace has placeholder nodes. MacroNode, ScreenNode, Sidebar, RightPanel, FlowPanel all need to be ported from v6 prototype to React components.</div>
+        <div class="risk-mit">→ Port incrementally. v6 HTML is the reference — logic is already in hooks and store.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEXT UP -->
+  <div class="sec">
+    <div class="sec-hdr">
+      <div class="sec-title">Next 5 Tasks — Recommended Sequence</div>
+    </div>
+    <div class="next-list">
+      <div class="next-item">
+        <div class="next-num">1</div>
+        <div class="next-body">
+          <div class="next-name">Port canvas components from v6 → React</div>
+          <div class="next-desc">MacroNode, ScreenNode, SVG connector layer, Sidebar (Ibar + Ebar tree), RightPanel with tabs, FlowPanel. The store and hooks are ready — just need the JSX.</div>
+          <div class="next-effort">~1 day · Uses v6 as reference · No external deps</div>
+        </div>
+      </div>
+      <div class="next-item">
+        <div class="next-num">2</div>
+        <div class="next-body">
+          <div class="next-name">Build context form UI in right panel</div>
+          <div class="next-desc">Replace free-text with structured fields: route input, purpose textarea, component multi-select (from DS node tags), API endpoint builder (method + path + description rows), auth toggle, notes, gen rules.</div>
+          <div class="next-effort">~3–4h · Foundation for quality generation · No external deps</div>
+        </div>
+      </div>
+      <div class="next-item">
+        <div class="next-num">3</div>
+        <div class="next-body">
+          <div class="next-name">Figma URL binding + thumbnail</div>
+          <div class="next-desc">When user pastes Figma URL into screen context: call /api/figma Route Handler, fetch node components, display thumbnail in screen card, populate component list in context.</div>
+          <div class="next-effort">~3–4h · Requires Figma token in .env · Depends on task 1</div>
+        </div>
+      </div>
+      <div class="next-item">
+        <div class="next-num">4</div>
+        <div class="next-body">
+          <div class="next-name">Wire ⚡ Generate → real output</div>
+          <div class="next-desc">Connect button to useGenerate hook. Build generation overlay with streaming text. Parse JSON file array from response. Display code modal: file tree left, syntax-highlighted code right, copy/download.</div>
+          <div class="next-effort">~4–6h · Core value prop · Depends on tasks 2 + 3</div>
+        </div>
+      </div>
+      <div class="next-item">
+        <div class="next-num">5</div>
+        <div class="next-body">
+          <div class="next-name">Supabase sync — write mutations to DB</div>
+          <div class="next-desc">After any canvas mutation (addNode, updateScreen, etc.), sync to Supabase in the background. On first project open on a new device, load from Supabase if localStorage is empty.</div>
+          <div class="next-effort">~1 day · Enables multi-device + team use · DB schema already deployed</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIMELINE -->
+  <div class="sec">
+    <div class="sec-hdr">
+      <div class="sec-title">Phase Timeline</div>
+    </div>
+    <div class="timeline">
+      <div class="tl-phase">
+        <div class="tl-dot done">✓</div>
+        <div class="tl-body">
+          <div class="tl-title">Phase 1 — Foundation & Canvas</div>
+          <div class="tl-meta">Completed · v1→v4 prototype</div>
+          <div class="tl-items">
+            <span class="tl-tag done">Free canvas</span>
+            <span class="tl-tag done">Macro nodes</span>
+            <span class="tl-tag done">Micro screens</span>
+            <span class="tl-tag done">Connectors</span>
+            <span class="tl-tag done">Breadcrumbs</span>
+            <span class="tl-tag done">Right panel</span>
+          </div>
+        </div>
+      </div>
+      <div class="tl-phase">
+        <div class="tl-dot done">✓</div>
+        <div class="tl-body">
+          <div class="tl-title">Phase 2 — Projects + Auth</div>
+          <div class="tl-meta">Completed · v5→v6 prototype</div>
+          <div class="tl-items">
+            <span class="tl-tag done">Dashboard</span>
+            <span class="tl-tag done">Multi-project</span>
+            <span class="tl-tag done">Hierarchical sidebar</span>
+            <span class="tl-tag done">FAB</span>
+            <span class="tl-tag done">localStorage</span>
+          </div>
+        </div>
+      </div>
+      <div class="tl-phase">
+        <div class="tl-dot done">✓</div>
+        <div class="tl-body">
+          <div class="tl-title">Infra — Next.js Migration</div>
+          <div class="tl-meta">Completed · scaffold delivered</div>
+          <div class="tl-items">
+            <span class="tl-tag done">Next.js 15</span>
+            <span class="tl-tag done">TypeScript</span>
+            <span class="tl-tag done">Supabase SSR</span>
+            <span class="tl-tag done">Route Handlers</span>
+            <span class="tl-tag done">Zustand + persist</span>
+            <span class="tl-tag done">Prompt builder</span>
+          </div>
+        </div>
+      </div>
+      <div class="tl-phase">
+        <div class="tl-dot active">→</div>
+        <div class="tl-body">
+          <div class="tl-title">Phase 3 — Context Engine & Figma</div>
+          <div class="tl-meta">In progress · v7 target</div>
+          <div class="tl-items">
+            <span class="tl-tag active">Canvas components port</span>
+            <span class="tl-tag active">Context form UI</span>
+            <span class="tl-tag pending">Figma binding</span>
+            <span class="tl-tag pending">Component map editor</span>
+            <span class="tl-tag pending">Completeness scoring UI</span>
+          </div>
+        </div>
+      </div>
+      <div class="tl-phase">
+        <div class="tl-dot next">4</div>
+        <div class="tl-body">
+          <div class="tl-title">Phase 4 — Real Code Generation</div>
+          <div class="tl-meta">Queued</div>
+          <div class="tl-items">
+            <span class="tl-tag pending">Wire Generate button</span>
+            <span class="tl-tag pending">Code output modal</span>
+            <span class="tl-tag pending">Per-screen gen</span>
+            <span class="tl-tag pending">Export ZIP</span>
+          </div>
+        </div>
+      </div>
+      <div class="tl-phase">
+        <div class="tl-dot next">5</div>
+        <div class="tl-body">
+          <div class="tl-title">Phase 5 — Sync & Collaboration</div>
+          <div class="tl-meta">Backlog</div>
+          <div class="tl-items">
+            <span class="tl-tag pending">Supabase sync</span>
+            <span class="tl-tag pending">Realtime collaboration</span>
+            <span class="tl-tag pending">Branch connectors</span>
+            <span class="tl-tag pending">Gen history</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span class="foot-brand">Flowbridge Studio</span>
+    <span class="foot-meta">Feb 24, 2026 · Next.js 15 scaffold · 36 files</span>
+  </div>
+
+</div>
+<script>
+window.addEventListener('load', () => {
+  const fill = document.querySelector('.prog-bar-fill')
+  fill.style.width = '0'
+  setTimeout(() => fill.style.width = '48%', 200)
+})
+</script>
+</body>
+</html>
