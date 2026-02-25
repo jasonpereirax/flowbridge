@@ -1,116 +1,174 @@
 'use client'
 
-import { useRef } from 'react'
-import { useStore } from '@/lib/store'
-import { screenCompleteness, cn } from '@/utils'
-import type { Screen, NodeId, FlowId } from '@/types'
+import { useCallback } from 'react'
+import { cn } from '@/utils'
+import { screenCompleteness } from '@/utils'
+import type { Screen } from '@/types'
 
-interface ScreenNodeProps { screen: Screen; journeyId: NodeId; flowId: FlowId; index?: number }
+interface ScreenNodeCardProps {
+  screen: Screen
+  isSelected: boolean
+  onSelect: (id: string) => void
+  onDragStart: (id: string, x: number, y: number) => void
+  onDoubleClick?: (id: string) => void
+}
 
-// Wireframe mock patterns
-const MOCKS = [
-  <div key={0} className="flex flex-col gap-[3px] p-2">
-    <div className="h-[4px] rounded-sm bg-[#93C5FD] w-[55%]" />
-    <div className="h-[9px] rounded-sm bg-bg border border-border" />
-    <div className="h-[4px] rounded-sm bg-border w-3/4" />
-    <div className="h-[14px] rounded-sm bg-text-1 mt-0.5" />
-  </div>,
-  <div key={1} className="flex flex-col gap-[3px] p-2">
-    <div className="h-[4px] rounded-sm bg-border" />
-    <div className="h-[9px] rounded-sm bg-bg border border-border" />
-    <div className="h-[4px] rounded-sm bg-border w-3/4" />
-    <div className="h-[9px] rounded-sm bg-bg border border-border" />
-    <div className="h-[14px] rounded-sm bg-text-1 mt-0.5" />
-  </div>,
-  <div key={2} className="flex flex-col gap-[3px] p-2">
-    <div className="h-[9px] rounded-sm bg-[#FEE2E2]" />
-    <div className="h-[4px] rounded-sm bg-border w-[45%]" />
-    <div className="h-[9px] rounded-sm bg-bg border border-border" />
-    <div className="h-[14px] rounded-sm bg-text-1 mt-0.5" />
-  </div>,
-  <div key={3} className="flex flex-col gap-[3px] p-2">
-    <div className="h-[4px] rounded-sm bg-[#93C5FD] w-[55%]" />
-    <div className="flex gap-[3px]">
-      <div className="flex-1 h-[14px] rounded-sm bg-bg border border-border p-0.5"><div className="h-[2px] rounded-sm bg-border mb-px" /></div>
-      <div className="flex-1 h-[14px] rounded-sm bg-bg border border-border p-0.5"><div className="h-[2px] rounded-sm bg-[#93C5FD]" /></div>
-    </div>
-    <div className="h-[9px] rounded-sm bg-bg border border-border" />
-  </div>,
-]
+/**
+ * ScreenNodeCard
+ * 
+ * Visual representation of a screen in micro view.
+ * 
+ * Features:
+ * - Figma thumbnail display
+ * - Entry/Error state badges
+ * - Completeness scoring ring (0-100%)
+ * - Route and status display
+ * - Drag to reposition
+ * - Selection highlight
+ */
+export function ScreenNodeCard({
+  screen,
+  isSelected,
+  onSelect,
+  onDragStart,
+  onDoubleClick,
+}: ScreenNodeCardProps) {
+  const completeness = screenCompleteness(screen)
 
-export function ScreenNodeCard({ screen, journeyId, flowId, index = 0 }: ScreenNodeProps) {
-  const store      = useStore()
-  const isSelected = useStore(s => s.selScreenId === screen.id)
+  // Completeness color coding
+  const completenessColor =
+    completeness >= 80
+      ? 'text-green-600 border-green-200'
+      : completeness >= 50
+        ? 'text-yellow-600 border-yellow-200'
+        : 'text-red-600 border-red-200'
 
-  const isDragging = useRef(false)
-  const dragStart  = useRef({ px: 0, py: 0, nx: 0, ny: 0 })
-  const pct        = screenCompleteness(screen)
-  const isDone     = pct > 60
+  // Event handlers
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      onDragStart(screen.id, e.clientX, e.clientY)
+    },
+    [screen.id, onDragStart]
+  )
 
-  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    if (e.button !== 0) return
-    e.stopPropagation()
-    store.selectScreen(screen.id)
-    isDragging.current = true
-    e.currentTarget.setPointerCapture(e.pointerId)
-    dragStart.current = { px: e.clientX, py: e.clientY, nx: screen.position.x, ny: screen.position.y }
-  }
+  const handleClick = useCallback(() => {
+    onSelect(screen.id)
+  }, [screen.id, onSelect])
 
-  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!isDragging.current) return
-    const { scale } = useStore.getState().transform
-    const dx = (e.clientX - dragStart.current.px) / scale
-    const dy = (e.clientY - dragStart.current.py) / scale
-    store.moveScreen(journeyId, flowId, screen.id, { x: dragStart.current.nx + dx, y: dragStart.current.ny + dy })
-  }
-
-  function onPointerUp() { isDragging.current = false }
-  function onClick(e: React.MouseEvent) { e.stopPropagation(); store.selectScreen(screen.id) }
+  const handleDoubleClickLocal = useCallback(
+    (e: React.MouseEvent) => {
+      onDoubleClick?.(screen.id)
+    },
+    [screen.id, onDoubleClick]
+  )
 
   return (
     <div
-      data-screen data-selectable data-screen-id={screen.id}
       className={cn(
-        'absolute w-[170px] rounded-[12px] bg-surface border cursor-pointer select-none overflow-hidden node-enter',
-        'transition-[box-shadow,border-color] duration-[140ms]',
-        isDone ? 'border-t-[2px] border-t-brand-green' : 'border-t border-t-border',
+        // Base styles
+        'absolute rounded-lg border-2 bg-white cursor-move',
+        'transition-all duration-150 ease-out',
+        'shadow-md hover:shadow-lg hover:border-gray-300',
+        'w-48 overflow-hidden',
+        // Selection state
         isSelected
-          ? 'border-text-1 shadow-[0_0_0_3px_rgba(24,24,26,0.06),0_4px_12px_rgba(0,0,0,0.08)]'
-          : 'border-border shadow-sm hover:border-border-strong hover:shadow-md',
+          ? 'border-blue-500 shadow-lg'
+          : 'border-gray-200'
       )}
-      style={{ left: screen.position.x, top: screen.position.y }}
-      onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onClick={onClick}
+      style={{
+        left: `${screen.position.x}px`,
+        top: `${screen.position.y}px`,
+      }}
+      onMouseDown={handleMouseDown}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClickLocal}
+      data-screen-id={screen.id}
+      role="button"
+      tabIndex={0}
+      title={`Screen: ${screen.name}`}
     >
-      {/* preview */}
-      <div className="relative h-[88px] bg-bg border-b border-border overflow-hidden" style={{ borderRadius: '10px 10px 0 0' }}>
-        {screen.figma?.thumbnailUrl
-          // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={screen.figma.thumbnailUrl} alt={screen.name} className="w-full h-full object-cover" />
-          : MOCKS[index % MOCKS.length]
-        }
-        {screen.isEntry && (
-          <span className="absolute top-[5px] left-[5px] text-[9px] font-mono font-medium px-[5px] py-px rounded-full bg-brand-green/10 border border-brand-green/30 text-brand-green">Entry</span>
+      {/* Thumbnail area */}
+      <div className="relative w-full h-32 bg-gradient-to-br from-gray-50 to-gray-100 
+                      border-b border-gray-200 flex items-center justify-center 
+                      overflow-hidden">
+        {screen.figma?.thumbnailUrl ? (
+          <>
+            <img
+              src={screen.figma.thumbnailUrl}
+              alt={`Screenshot of ${screen.name}`}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+            {/* Overlay to improve readability of badges */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+          </>
+        ) : (
+          <div className="text-center">
+            <div className="text-3xl mb-1 opacity-50">🎨</div>
+            <div className="text-xs text-gray-400 font-medium">
+              No design linked
+            </div>
+          </div>
         )}
-        {screen.isError && (
-          <span className="absolute top-[5px] left-[5px] text-[9px] font-mono font-medium px-[5px] py-px rounded-full bg-brand-red/10 border border-brand-red/30 text-brand-red">Error</span>
-        )}
-      </div>
 
-      {/* body */}
-      <div className="px-[10px] py-[8px]">
-        <div className="text-[12px] font-semibold text-text-1 mb-[2px] truncate">{screen.name}</div>
-        <div className={cn('text-[11px] leading-[1.35] line-clamp-2', screen.context.purpose ? 'text-text-2' : 'text-text-3')}>
-          {screen.context.purpose || 'Add context…'}
+        {/* State badges (top-right) */}
+        <div className="absolute top-2 right-2 flex gap-1 flex-shrink-0">
+          {screen.isEntry && (
+            <span className={cn(
+              'px-2 py-1 bg-green-500 text-white text-xs font-semibold',
+              'rounded shadow-sm'
+            )}>
+              Entry
+            </span>
+          )}
+          {screen.isError && (
+            <span className={cn(
+              'px-2 py-1 bg-red-500 text-white text-xs font-semibold',
+              'rounded shadow-sm'
+            )}>
+              Error
+            </span>
+          )}
+        </div>
+
+        {/* Completeness ring (bottom-left) */}
+        <div className={cn(
+          'absolute bottom-2 left-2',
+          'w-12 h-12 rounded-full bg-white border-2 shadow-md',
+          'flex flex-col items-center justify-center',
+          completenessColor
+        )}>
+          <div className="text-sm font-bold">
+            {completeness}%
+          </div>
+          <div className="text-xs text-gray-500">
+            done
+          </div>
         </div>
       </div>
 
-      {/* footer */}
-      <div className="flex items-center justify-between px-[10px] py-[5px] border-t border-border">
-        <div className="flex items-center gap-[4px] text-[10.5px] font-mono text-text-3">
-          {isDone && <span className="w-[5px] h-[5px] rounded-full bg-brand-green flex-shrink-0" />}
-          <span>{isDone ? 'done' : 'empty'}</span>
+      {/* Body */}
+      <div className="px-3 py-2">
+        {/* Screen name */}
+        <h4 className="text-xs font-bold text-gray-900 truncate mb-1">
+          {screen.name}
+        </h4>
+
+        {/* Footer metadata */}
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-gray-600 font-mono text-xs truncate">
+            {screen.context.route || '(no route)'}
+          </span>
+          <span className={cn(
+            'px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0',
+            screen.status === 'empty' && 'bg-gray-100 text-gray-600',
+            screen.status === 'partial' && 'bg-yellow-100 text-yellow-700',
+            screen.status === 'ready' && 'bg-green-100 text-green-700',
+            screen.status === 'generated' && 'bg-blue-100 text-blue-700'
+          )}>
+            {screen.status}
+          </span>
         </div>
-        <span className="text-[10.5px] font-mono text-text-3">{index === 0 ? 'entry' : `step ${index + 1}`}</span>
       </div>
     </div>
   )

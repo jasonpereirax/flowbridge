@@ -1,196 +1,226 @@
 'use client'
 
-import { useState } from 'react'
-import { X, ChevronDown, ChevronRight, Layers, GitBranch, FileText } from 'lucide-react'
+import { useState, useCallback } from 'react'
 import { useStore } from '@/lib/store'
 import { cn } from '@/utils'
-import type { MacroNode, Flow } from '@/types'
+import { ChevronRight, Trash2 } from 'lucide-react'
 
+/**
+ * Ebar
+ * 
+ * Expandable tree panel showing project hierarchy.
+ * Sections: Macro Nodes, Components (future).
+ * 
+ * Features:
+ * - Expand/collapse nodes
+ * - Show flows inside journeys
+ * - Delete nodes/flows
+ * - Click to select
+ */
 export function Ebar() {
-  const store        = useStore()
-  const ebarOpen     = useStore(s => s.ebarOpen)
-  const ebarSection  = useStore(s => s.ebarSection)
-  const canvas       = useStore(s => s.canvas())
-  const selNodeId    = useStore(s => s.selNodeId)
-  const selScreenId  = useStore(s => s.selScreenId)
-  const view         = useStore(s => s.view)
-  const curJourneyId = useStore(s => s.curJourneyId)
-
-  if (!ebarOpen) return null
-
-  const nodes        = canvas?.nodes ?? []
-  const dsNodes      = nodes.filter(n => n.type === 'ds')
-  const journeyNodes = nodes.filter(n => n.type === 'journey')
-
-  return (
-    <div className="w-[240px] flex-shrink-0 border-r border-border bg-surface shadow-panel overflow-y-auto z-25 flex flex-col panel-enter-left">
-
-      {/* header */}
-      <div className="flex items-center justify-between px-[13px] pt-[11px] pb-[9px] border-b border-border flex-shrink-0">
-        <span className="text-[13px] font-semibold tracking-[-0.01em] text-text-1">
-          {ebarSection === 'macro' ? 'Workspace' : 'Components'}
-        </span>
-        <button
-          onClick={() => store.closeEbar()}
-          className="w-[20px] h-[20px] flex items-center justify-center rounded-[4px] text-text-3 hover:bg-bg hover:text-text-1 transition-colors"
-        >
-          <X size={12} />
-        </button>
-      </div>
-
-      {ebarSection === 'macro' && (
-        <div className="py-[4px] flex-1 overflow-y-auto">
-          {dsNodes.length > 0 && (
-            <div className="mb-[4px]">
-              <div className="text-[10px] font-semibold tracking-[0.06em] uppercase text-text-3 px-[12px] pt-[10px] pb-[4px]">
-                Design Systems
-              </div>
-              {dsNodes.map(node => (
-                <DSNodeRow key={node.id} node={node} isSelected={selNodeId === node.id} onSelect={() => store.selectNode(node.id)} />
-              ))}
-            </div>
-          )}
-
-          {journeyNodes.length > 0 && (
-            <div>
-              <div className="text-[10px] font-semibold tracking-[0.06em] uppercase text-text-3 px-[12px] pt-[10px] pb-[4px]">
-                Journeys
-              </div>
-              {journeyNodes.map(node => (
-                <JourneyNodeRow
-                  key={node.id}
-                  node={node}
-                  isSelected={selNodeId === node.id && view === 'macro'}
-                  selScreenId={selScreenId}
-                  currentJourneyId={curJourneyId}
-                  onSelect={() => { store.goMacro(); store.selectNode(node.id) }}
-                  onOpen={() => store.openJourney(node.id)}
-                />
-              ))}
-            </div>
-          )}
-
-          {nodes.length === 0 && (
-            <div className="px-[12px] py-4 text-[11px] text-text-3 text-center">No nodes yet. Use + to add.</div>
-          )}
-        </div>
-      )}
-
-      {ebarSection === 'comp' && (
-        <div className="px-[12px] py-4 text-[11px] text-text-3 text-center">
-          Component library coming soon.
-        </div>
-      )}
-    </div>
-  )
-}
-
-function DSNodeRow({ node, isSelected, onSelect }: { node: MacroNode; isSelected: boolean; onSelect: () => void }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <div>
-      <button
-        onClick={() => { onSelect(); setOpen(o => !o) }}
-        className={cn(
-          'w-full flex items-center gap-[8px] px-[12px] py-[7px] text-left transition-colors',
-          isSelected ? 'bg-bg text-text-1' : 'hover:bg-bg text-text-2',
-        )}
-      >
-        <span className="text-text-3 flex-shrink-0 w-[11px]">
-          {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-        </span>
-        <div className="w-[17px] h-[17px] rounded-[4px] bg-brand-blue/10 flex items-center justify-center flex-shrink-0">
-          <Layers size={9} className="text-brand-blue" />
-        </div>
-        <span className="text-[12.5px] font-medium truncate flex-1">{node.name}</span>
-      </button>
-
-      {open && (
-        <div className="pl-[46px] pb-[4px]">
-          {node.tags.length > 0 ? node.tags.map(tag => (
-            <div key={tag} className="py-[3px] text-[11px] text-text-2 truncate">{tag}</div>
-          )) : (
-            <div className="py-[3px] text-[10px] text-text-3">No components yet</div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function JourneyNodeRow({ node, isSelected, selScreenId, currentJourneyId, onSelect, onOpen }: {
-  node: MacroNode; isSelected: boolean; selScreenId: string | null
-  currentJourneyId: string | null; onSelect: () => void; onOpen: () => void
-}) {
-  const store  = useStore()
-  const canvas = useStore(s => s.canvas())
-  const [open, setOpen] = useState(false)
-  const flows  = canvas?.flows[node.id] ?? []
-
-  return (
-    <div>
-      <div className={cn('flex items-center gap-[8px] px-[12px] py-[7px] transition-colors', isSelected ? 'bg-bg text-text-1' : 'hover:bg-bg text-text-2')}>
-        <button onClick={() => setOpen(o => !o)} className="text-text-3 flex-shrink-0 w-[11px]">
-          {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-        </button>
-        <button onClick={onSelect} className="flex items-center gap-[8px] flex-1 min-w-0 text-left">
-          <div className="w-[17px] h-[17px] rounded-[4px] bg-brand-purple/10 flex items-center justify-center flex-shrink-0">
-            <GitBranch size={9} className="text-brand-purple" />
-          </div>
-          <span className="text-[12.5px] font-medium truncate flex-1">{node.name}</span>
-        </button>
-        <button onClick={onOpen} className="text-[10px] text-text-3 hover:text-text-1 px-[4px] py-[2px] rounded-[4px] hover:bg-border/50 transition-colors flex-shrink-0">
-          open
-        </button>
-      </div>
-
-      {open && (
-        <div className="pl-[38px] pb-[4px]">
-          {flows.map(flow => (
-            <FlowRow key={flow.id} flow={flow} journeyId={node.id} selScreenId={selScreenId} isCurrentJourney={currentJourneyId === node.id} onOpenJourney={onOpen} />
-          ))}
-          {flows.length === 0 && <div className="px-2 py-1 text-[10px] text-text-3">No flows yet</div>}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function FlowRow({ flow, journeyId, selScreenId, isCurrentJourney, onOpenJourney }: {
-  flow: Flow; journeyId: string; selScreenId: string | null; isCurrentJourney: boolean; onOpenJourney: () => void
-}) {
   const store = useStore()
-  const [open, setOpen] = useState(false)
+  const ebarSection = useStore(s => s.ebarSection)
+  const curProjectId = useStore(s => s.curProjectId)
 
-  return (
-    <div>
-      <button
-        onClick={() => { if (!isCurrentJourney) onOpenJourney(); store.setActiveFlow(journeyId, flow.id); setOpen(o => !o) }}
-        className="w-full flex items-center gap-[8px] px-2 py-[6px] text-left hover:bg-bg text-text-2 transition-colors"
-      >
-        <span className="text-text-3 flex-shrink-0">{open ? <ChevronDown size={10} /> : <ChevronRight size={10} />}</span>
-        <span className="text-[11.5px] truncate flex-1">{flow.name}</span>
-        <span className="text-[10px] font-mono text-text-3 flex-shrink-0">{flow.screens.length}</span>
-      </button>
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set())
 
-      {open && flow.screens.map(screen => (
-        <button
-          key={screen.id}
-          onClick={e => {
-            e.stopPropagation()
-            if (!isCurrentJourney) onOpenJourney()
-            store.setActiveFlow(journeyId, flow.id)
-            store.selectScreen(screen.id)
-          }}
-          className={cn(
-            'w-full flex items-center gap-1.5 pl-7 pr-2 py-[5px] text-left hover:bg-bg transition-colors',
-            selScreenId === screen.id ? 'text-text-1' : 'text-text-2',
+  const canvas = curProjectId ? store.canvasData[curProjectId] : null
+
+  const toggleExpanded = useCallback((nodeId: string) => {
+    setExpandedNodes(prev => {
+      const next = new Set(prev)
+      if (next.has(nodeId)) {
+        next.delete(nodeId)
+      } else {
+        next.add(nodeId)
+      }
+      return next
+    })
+  }, [])
+
+  const handleSelectNode = useCallback(
+    (nodeId: string) => {
+      store.selectNode(nodeId)
+    },
+    [store]
+  )
+
+  const handleDeleteNode = useCallback(
+    (e: React.MouseEvent, nodeId: string) => {
+      e.stopPropagation()
+      store.deleteNode(nodeId)
+    },
+    [store]
+  )
+
+  if (!canvas) {
+    return (
+      <div className={cn(
+        'w-60 bg-white border-r border-gray-200',
+        'flex flex-col flex-shrink-0',
+        'overflow-hidden'
+      )}>
+        <div className="px-4 py-6 text-center text-sm text-gray-500">
+          No project open
+        </div>
+      </div>
+    )
+  }
+
+  if (ebarSection === 'macro') {
+    return (
+      <div className={cn(
+        'w-60 bg-white border-r border-gray-200',
+        'flex flex-col flex-shrink-0',
+        'overflow-hidden'
+      )}>
+        {/* Header */}
+        <div className={cn(
+          'px-4 py-3 border-b border-gray-200',
+          'sticky top-0 bg-white',
+          'flex-shrink-0'
+        )}>
+          <h3 className="text-xs font-bold uppercase text-gray-500 tracking-wide">
+            Nodes & Journeys
+          </h3>
+          <p className="text-xs text-gray-400 mt-1">
+            {canvas.nodes.length} node{canvas.nodes.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto">
+          {canvas.nodes.length === 0 ? (
+            <div className="px-4 py-6 text-center text-sm text-gray-400">
+              No nodes yet. Use FAB to create one.
+            </div>
+          ) : (
+            canvas.nodes.map(node => {
+              const isExpanded = expandedNodes.has(node.id)
+              const nodeFlows = canvas.flows[node.id] || []
+              const isJourney = node.type === 'journey'
+              const nodeIcon = node.type === 'ds' ? '◈' : '⬡'
+
+              return (
+                <div key={node.id}>
+                  {/* Node item */}
+                  <div
+                    className={cn(
+                      'px-4 py-2 flex items-center gap-2',
+                      'cursor-pointer hover:bg-gray-50',
+                      'border-l-2 border-transparent hover:border-gray-300',
+                      'transition-all duration-150',
+                      'group'
+                    )}
+                    onClick={() => handleSelectNode(node.id)}
+                    role="button"
+                    tabIndex={0}
+                    title={node.description || node.name}
+                  >
+                    {/* Expand/collapse toggle (journey only) */}
+                    {isJourney && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleExpanded(node.id)
+                        }}
+                        className={cn(
+                          'flex-shrink-0 p-0.5 -ml-1',
+                          'rounded hover:bg-gray-200 transition-colors'
+                        )}
+                        aria-label={isExpanded ? 'Collapse' : 'Expand'}
+                      >
+                        <ChevronRight
+                          size={16}
+                          className={cn(
+                            'transition-transform duration-200',
+                            isExpanded && 'rotate-90'
+                          )}
+                        />
+                      </button>
+                    )}
+
+                    {/* Spacer if not expandable */}
+                    {!isJourney && (
+                      <div className="w-6 flex-shrink-0" />
+                    )}
+
+                    {/* Node type icon */}
+                    <span className="text-xs flex-shrink-0 font-bold">
+                      {nodeIcon}
+                    </span>
+
+                    {/* Node name */}
+                    <span className="text-sm font-medium text-gray-900 flex-1 truncate">
+                      {node.name}
+                    </span>
+
+                    {/* Delete button (appears on hover) */}
+                    <button
+                      onClick={(e) => handleDeleteNode(e, node.id)}
+                      className={cn(
+                        'flex-shrink-0 p-1 -mr-2',
+                        'text-gray-400 hover:text-red-600 hover:bg-red-50',
+                        'rounded transition-all duration-150',
+                        'opacity-0 group-hover:opacity-100'
+                      )}
+                      title="Delete node"
+                      aria-label="Delete"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+
+                  {/* Flows (if journey is expanded) */}
+                  {isJourney && isExpanded && nodeFlows.length > 0 && (
+                    <div className="bg-gray-50 border-l-2 border-gray-200">
+                      {nodeFlows.map(flow => (
+                        <div
+                          key={flow.id}
+                          className={cn(
+                            'px-6 py-1.5 text-xs font-medium text-gray-600',
+                            'hover:bg-gray-100 cursor-pointer',
+                            'border-l-2 border-transparent hover:border-gray-400',
+                            'transition-all duration-150'
+                          )}
+                          title={flow.name}
+                        >
+                          ├─ {flow.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Empty state for journey with no flows */}
+                  {isJourney && isExpanded && nodeFlows.length === 0 && (
+                    <div className="px-6 py-2 text-xs text-gray-400 bg-gray-50">
+                      ├─ (no flows)
+                    </div>
+                  )}
+                </div>
+              )
+            })
           )}
-        >
-          <FileText size={10} className="text-text-3 flex-shrink-0" />
-          <span className="text-[11px] truncate">{screen.name}</span>
-        </button>
-      ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Components section (placeholder for Phase 3)
+  return (
+    <div className={cn(
+      'w-60 bg-white border-r border-gray-200',
+      'flex flex-col flex-shrink-0',
+      'overflow-hidden'
+    )}>
+      <div className="px-4 py-3 border-b border-gray-200">
+        <h3 className="text-xs font-bold uppercase text-gray-500 tracking-wide">
+          Components
+        </h3>
+      </div>
+      <div className="flex-1 flex items-center justify-center text-sm text-gray-400">
+        Coming in Phase 3
+      </div>
     </div>
   )
 }

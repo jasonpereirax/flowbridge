@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Menu, Maximize2, Zap } from 'lucide-react'
 import { useStore, useTransform, useView } from '@/lib/store'
@@ -58,7 +58,7 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
     }
     const onUp = (e: PointerEvent) => {
       const el = document.elementFromPoint(e.clientX, e.clientY)
-      const toId = (el?.closest('[data-journey-id]') as HTMLElement | null)?.dataset.journeyId
+      const toId = (el?.closest('[data-macro-id]') as HTMLElement | null)?.dataset.macroId
       if (toId && pendingConn.fromId && store.curProjectId) {
         const s = useStore.getState()
         if (!s.connExists(pendingConn.fromId, toId)) s.addConn(makeConn(pendingConn.fromId, toId, store.curProjectId))
@@ -157,7 +157,13 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
                 className="absolute top-0 left-0 origin-top-left"
                 style={{ transform: `translate(${transform.x}px,${transform.y}px) scale(${transform.scale})`, width: 8000, height: 8000 }}
               >
-                <ConnectorLayer pendingConn={pendingConn} />
+                <ConnectorLayer 
+                  nodes={macroNodes} 
+                  conns={canvas?.conns ?? []} 
+                  selectedConnId={null}
+                  transform={transform}
+                  onConnSelect={(connId) => store.selectConn(connId)}
+                />
 
                 {view === 'macro' && macroNodes.map(node => (
                   <MacroNodeCard key={node.id} node={node} onConnDragStart={handleConnDragStart} />

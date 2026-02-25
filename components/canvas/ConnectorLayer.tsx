@@ -1,112 +1,204 @@
 'use client'
 
-import { useStore } from '@/lib/store'
-import type { Connection, MacroNode } from '@/types'
-import { NODE_WIDTH, CONN_HANDLE_Y } from '@/components/nodes/MacroNode'
+import { useMemo } from 'react'
+import { cn } from '@/utils'
+import type { MacroNode, Connection } from '@/types'
 
-interface PendingConn {
-  fromId: string
+interface ConnectorLayerProps {
+  nodes: MacroNode[]
+  conns: Connection[]
+  selectedConnId: string | null
+  transform: { x: number; y: number; scale: number }
+  onConnSelect?: (connId: string) => void
+}
+
+interface PathData {
+  id: string
+  path: string
   x1: number
   y1: number
   x2: number
   y2: number
 }
 
-interface ConnectorLayerProps {
-  pendingConn?: PendingConn | null
-}
+/**
+ * ConnectorLayer
+ * 
+ * SVG layer rendering bezier curves between macro nodes.
+ * 
+ * Features:
+ * - Smooth quadratic bezier curves
+ * - Arrowhead endpoints
+ * - Selection highlighting
+ * - Hover effects
+ * - Click to select
+ * - Canvas transform-aware
+ */
+export function ConnectorLayer({
+  nodes,
+  conns,
+  selectedConnId,
+  transform,
+  onConnSelect,
+}: ConnectorLayerProps) {
+  // Memoize path calculations
+  const paths = useMemo<PathData[]>(() => {
+    return conns
+      .map((conn) => {
+        const fromNode = nodes.find(n => n.id === conn.fromId)
+        const toNode = nodes.find(n => n.id === conn.toId)
 
-function bezierPath(x1: number, y1: number, x2: number, y2: number): string {
-  const cp = Math.abs(x2 - x1) * 0.4 + 60
-  return `M ${x1} ${y1} C ${x1 + cp} ${y1} ${x2 - cp} ${y2} ${x2} ${y2}`
-}
+        if (!fromNode || !toNode) return null
 
-function getEndpoints(conn: Connection, nodes: MacroNode[]): { x1: number; y1: number; x2: number; y2: number } | null {
-  const from = nodes.find(n => n.id === conn.fromId)
-  const to   = nodes.find(n => n.id === conn.toId)
-  if (!from || !to) return null
-  return {
-    x1: from.position.x + NODE_WIDTH,
-    y1: from.position.y + CONN_HANDLE_Y,
-    x2: to.position.x,
-    y2: to.position.y + CONN_HANDLE_Y,
+        // Calculate positions (center of nodes)
+        // MacroNode width = 224px (w-56), approximate height = 100px
+        const nodeWidth = 224
+        const nodeHeight = 100
+
+        const x1 = fromNode.position.x + nodeWidth / 2
+        const y1 = fromNode.position.y + nodeHeight
+
+        const x2 = toNode.position.x + nodeWidth / 2
+        const y2 = toNode.position.y
+
+        // Quadratic bezier control point
+        // Place it midway horizontally, below the curve to create arc
+        const cpX = (x1 + x2) / 2
+        const cpY = (y1 + y2) / 2 - 80
+
+        // Generate SVG path data
+        const pathData = `M ${x1} ${y1} Q ${cpX} ${cpY} ${x2} ${y2}`
+
+        return {
+          id: conn.id,
+          path: pathData,
+          x1,
+          y1,
+          x2,
+          y2,
+        }
+      })
+      .filter((p) => p !== null) as PathData[]
+  }, [nodes, conns])
+
+  const isSelected = (connId: string) => selectedConnId === connId
+
+  const handlePathClick = (connId: string) => {
+    onConnSelect?.(connId)
   }
-}
-
-export function ConnectorLayer({ pendingConn }: ConnectorLayerProps) {
-  const store     = useStore()
-  const canvas    = useStore(s => s.canvas())
-  const selConnId = useStore(s => s.selConnId)
-
-  if (!canvas) return null
-
-  const { nodes, conns } = canvas
 
   return (
     <svg
-      className="absolute inset-0 overflow-visible"
-      width={8000}
-      height={8000}
-      style={{ pointerEvents: 'none' }}
+      className={cn(
+        'absolute inset-0 w-full h-full',
+        'pointer-events-none' // Will enable pointerEvents on individual elements
+      )}
+      style={{
+        transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+        transformOrigin: '0 0',
+      }}
     >
-      {/* Static connectors */}
-      {conns.map(conn => {
-        const ep = getEndpoints(conn, nodes)
-        if (!ep) return null
-        const isSelected = selConnId === conn.id
-        const d = bezierPath(ep.x1, ep.y1, ep.x2, ep.y2)
+      {/* Define arrowhead marker */}
+      <defs>
+        <marker
+          id="arrowhead-default"
+          markerWidth="10"
+          markerHeight="10"
+          refX="8"
+          refY="3"
+          orient="auto"
+          markerUnits="strokeWidth"
+        >
+          <polygon
+            points="0 0, 10 3, 0 6"
+            fill="currentColor"
+            className="text-gray-400"
+          />
+        </marker>
+
+        <marker
+          id="arrowhead-selected"
+          markerWidth="10"
+          markerHeight="10"
+          refX="8"
+          refY="3"
+          orient="auto"
+          markerUnits="strokeWidth"
+        >
+          <polygon
+            points="0 0, 10 3, 0 6"
+            fill="currentColor"
+            className="text-blue-500"
+          />
+        </marker>
+
+        {/* Shadow filter for better visibility */}
+        <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow
+            dx="0"
+            dy="0"
+            stdDeviation="2"
+            floodOpacity="0.1"
+          />
+        </filter>
+      </defs>
+
+      {/* Render connector paths */}
+      {paths.map((p) => {
+        const selected = isSelected(p.id)
+
         return (
-          <g key={conn.id} style={{ pointerEvents: 'all' }}>
-            {/* Wide invisible hit area */}
+          <g
+            key={p.id}
+            className="connector-group"
+            style={{ pointerEvents: 'auto' }}
+          >
+            {/* Invisible thick hitbox for easier clicking */}
             <path
-              d={d}
-              fill="none"
+              d={p.path}
               stroke="transparent"
-              strokeWidth={12}
-              style={{ cursor: 'pointer' }}
-              onPointerDown={e => e.stopPropagation()}
-              onClick={e => { e.stopPropagation(); store.selectConn(conn.id) }}
-            />
-            {/* Visible connector */}
-            <path
-              d={d}
+              strokeWidth="24"
               fill="none"
-              stroke={isSelected ? '#18181A' : '#C9C9C3'}
-              strokeWidth={isSelected ? 2 : 1.5}
-              strokeLinejoin="round"
-              style={{ pointerEvents: 'none' }}
+              className="cursor-pointer"
+              style={{ pointerEvents: 'stroke' }}
+              onClick={() => handlePathClick(p.id)}
+              title={`Connection ${p.id.slice(0, 8)}`}
+              role="button"
+              tabIndex={0}
             />
-            {/* Arrowhead at target */}
-            <ConnArrow x={ep.x2} y={ep.y2} selected={isSelected} />
+
+            {/* Visible path with shadow */}
+            <g filter="url(#shadow)">
+              <path
+                d={p.path}
+                stroke={selected ? '#2563EB' : '#D1D5DB'}
+                strokeWidth={selected ? 3 : 2}
+                fill="none"
+                markerEnd={selected ? 'url(#arrowhead-selected)' : 'url(#arrowhead-default)'}
+                className={cn(
+                  'transition-all duration-150 ease-out',
+                  selected && 'opacity-100',
+                  !selected && 'opacity-75 hover:opacity-100'
+                )}
+                pointerEvents="none"
+              />
+            </g>
+
+            {/* Optional: selection glow on top */}
+            {selected && (
+              <path
+                d={p.path}
+                stroke="#2563EB"
+                strokeWidth="6"
+                fill="none"
+                opacity="0.2"
+                pointerEvents="none"
+                className="transition-opacity duration-150"
+              />
+            )}
           </g>
         )
       })}
-
-      {/* Pending connector drag */}
-      {pendingConn && (
-        <g style={{ pointerEvents: 'none' }}>
-          <path
-            d={bezierPath(pendingConn.x1, pendingConn.y1, pendingConn.x2, pendingConn.y2)}
-            fill="none"
-            stroke="#2563EB"
-            strokeWidth={1.5}
-            strokeDasharray="6 4"
-            strokeLinejoin="round"
-          />
-          <circle cx={pendingConn.x2} cy={pendingConn.y2} r={4} fill="#2563EB" />
-        </g>
-      )}
     </svg>
-  )
-}
-
-function ConnArrow({ x, y, selected }: { x: number; y: number; selected: boolean }) {
-  const color = selected ? '#18181A' : '#C9C9C3'
-  return (
-    <polygon
-      points={`${x},${y} ${x - 7},${y - 4} ${x - 7},${y + 4}`}
-      fill={color}
-      style={{ pointerEvents: 'none' }}
-    />
   )
 }

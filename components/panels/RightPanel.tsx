@@ -1,363 +1,431 @@
 'use client'
 
-import { useState } from 'react'
-import { X, Plus, Trash2 } from 'lucide-react'
+import { useCallback } from 'react'
 import { useStore } from '@/lib/store'
-import { cn, screenCompleteness } from '@/utils'
-import type { RpanelTab, ApiEndpoint, MacroNode, Screen } from '@/types'
+import { cn } from '@/utils'
+import { X } from 'lucide-react'
+import type { RpanelTab } from '@/types'
 
-const RING_R    = 14
-const RING_CIRC = 2 * Math.PI * RING_R
-
-const TABS: { id: RpanelTab; label: string }[] = [
-  { id: 'properties', label: 'Properties' },
-  { id: 'context',    label: 'Context'    },
-  { id: 'info',       label: 'Info'       },
-]
-
-const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const
-
+/**
+ * RightPanel
+ * 
+ * Right sidebar with tabbed interface for editing node/screen properties.
+ * 
+ * Tabs:
+ * - Properties: Name, description, tags (nodes); Name, route (screens)
+ * - Context: Purpose, userIntent, components, APIs (screens only)
+ * - Info: Metadata, timestamps, status
+ */
 export function RightPanel() {
-  const store        = useStore()
-  const rpanelOpen   = useStore(s => s.rpanelOpen)
-  const rpanelTab    = useStore(s => s.rpanelTab)
-  const selNodeId    = useStore(s => s.selNodeId)
-  const selScreenId  = useStore(s => s.selScreenId)
-  const canvas       = useStore(s => s.canvas())
-  const curJourneyId = useStore(s => s.curJourneyId)
-  const activeFlow   = useStore(s => s.activeFlow())
+  const store = useStore()
+  const rpanelOpen = useStore(s => s.rpanelOpen)
+  const rpanelTab = useStore(s => s.rpanelTab)
+  const selNodeId = useStore(s => s.selNodeId)
+  const selScreenId = useStore(s => s.selScreenId)
+  const curProjectId = store.curProjectId
+
+  const canvas = curProjectId ? store.canvasData[curProjectId] : null
+  const node = canvas?.nodes.find(n => n.id === selNodeId)
+  const journey = canvas?.nodes.find(n => n.id === store.curJourneyId)
+  const activeFlow = store.curJourneyId ? canvas?.curFlow[store.curJourneyId] : null
+
+  const screen = activeFlow
+    ? (canvas?.flows[store.curJourneyId!] || [])
+      .find(f => f.id === activeFlow)
+      ?.screens.find(s => s.id === selScreenId)
+    : undefined
+
+  const selectedItem = screen || node
+
+  // Event handlers
+  const handleTabClick = useCallback(
+    (tab: RpanelTab) => {
+      store.setRpanelTab(tab)
+    },
+    [store]
+  )
+
+  const handleClose = useCallback(() => {
+    store.togglePanels('rpanel')
+  }, [store])
+
+  const handleNodeNameChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (node) {
+        store.updateNode(node.id, { name: e.target.value })
+      }
+    },
+    [node, store]
+  )
+
+  const handleNodeDescriptionChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      if (node) {
+        store.updateNode(node.id, { description: e.target.value })
+      }
+    },
+    [node, store]
+  )
+
+  const handleScreenNameChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (screen && store.curJourneyId && activeFlow) {
+        store.updateScreen(store.curJourneyId, activeFlow, screen.id, {
+          name: e.target.value,
+        })
+      }
+    },
+    [screen, store, activeFlow]
+  )
+
+  const handleScreenRouteChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (screen && store.curJourneyId && activeFlow) {
+        store.updateScreenContext(store.curJourneyId, activeFlow, screen.id, {
+          route: e.target.value,
+        })
+      }
+    },
+    [screen, store, activeFlow]
+  )
+
+  const handleScreenPurposeChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      if (screen && store.curJourneyId && activeFlow) {
+        store.updateScreenContext(store.curJourneyId, activeFlow, screen.id, {
+          purpose: e.target.value,
+        })
+      }
+    },
+    [screen, store, activeFlow]
+  )
+
+  const handleScreenIntentChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      if (screen && store.curJourneyId && activeFlow) {
+        store.updateScreenContext(store.curJourneyId, activeFlow, screen.id, {
+          userIntent: e.target.value,
+        })
+      }
+    },
+    [screen, store, activeFlow]
+  )
 
   if (!rpanelOpen) return null
 
-  const selNode   = selNodeId  ? canvas?.nodes.find(n => n.id === selNodeId) ?? null : null
-  const selScreen = selScreenId && curJourneyId && activeFlow
-    ? activeFlow.screens.find(s => s.id === selScreenId) ?? null : null
-
-  const entity        = selScreen ? 'screen' : selNode ? 'node' : null
-  const availableTabs = entity === 'screen' ? TABS : TABS.filter(t => t.id !== 'context')
-
   return (
-    <div className="w-[280px] flex-shrink-0 border-l border-border bg-surface flex flex-col overflow-hidden z-20 panel-enter">
-
-      {/* header */}
-      <div className="flex items-center justify-between px-[14px] py-[10px] border-b border-border flex-shrink-0">
-        <div>
-          <div className="text-[12px] font-semibold text-text-1 leading-tight">
-            {entity === 'screen' ? 'Screen' : entity === 'node' ? 'Node' : 'Inspector'}
-          </div>
-          {entity === 'screen' && selScreen && (
-            <div className="text-[11px] text-text-3 font-mono truncate mt-px">{selScreen.name}</div>
-          )}
-        </div>
+    <div className={cn(
+      'w-80 bg-white border-l border-gray-200',
+      'flex flex-col flex-shrink-0',
+      'overflow-hidden',
+      'shadow-lg'
+    )}>
+      {/* Header */}
+      <div className={cn(
+        'px-6 py-4 border-b border-gray-200',
+        'flex items-center justify-between',
+        'flex-shrink-0',
+        'bg-gray-50'
+      )}>
+        <h3 className="text-sm font-bold text-gray-900 truncate">
+          {selectedItem?.name || 'No selection'}
+        </h3>
         <button
-          onClick={() => store.closeRpanel()}
-          className="w-[22px] h-[22px] flex items-center justify-center rounded-[4px] text-text-3 hover:bg-bg hover:text-text-1 transition-colors"
+          onClick={handleClose}
+          className={cn(
+            'text-gray-400 hover:text-gray-600 hover:bg-gray-200',
+            'p-1 rounded transition-colors'
+          )}
+          title="Close panel"
+          aria-label="Close"
         >
-          <X size={12} />
+          <X size={18} />
         </button>
       </div>
 
-      {/* tabs */}
-      <div className="flex border-b border-border bg-bg flex-shrink-0">
-        {availableTabs.map(tab => (
+      {/* Tabs */}
+      <div className={cn(
+        'flex border-b border-gray-200',
+        'flex-shrink-0',
+        'bg-white'
+      )}>
+        {(['properties', 'context', 'info'] as const).map(tab => (
           <button
-            key={tab.id}
-            onClick={() => store.setRpTab(tab.id)}
+            key={tab}
+            onClick={() => handleTabClick(tab)}
             className={cn(
-              'flex-1 py-[7px] text-[12px] font-medium text-center border-b-[2px] transition-all',
-              rpanelTab === tab.id
-                ? 'text-text-1 border-text-1 bg-surface'
-                : 'text-text-3 border-transparent hover:text-text-2',
+              'flex-1 py-3 px-4 text-xs font-medium uppercase',
+              'transition-all duration-150',
+              'tracking-wide',
+              rpanelTab === tab
+                ? 'border-b-2 border-blue-500 text-blue-600 bg-blue-50'
+                : 'text-gray-500 border-b-2 border-transparent hover:text-gray-700'
             )}
+            role="tab"
+            aria-selected={rpanelTab === tab}
           >
-            {tab.label}
+            {tab}
           </button>
         ))}
       </div>
 
-      {/* content */}
-      <div className="flex-1 overflow-y-auto">
-        {entity === 'screen' && selScreen && curJourneyId && activeFlow && (
-          <>
-            {rpanelTab === 'properties' && <ScreenProperties screen={selScreen} journeyId={curJourneyId} flowId={activeFlow.id} />}
-            {rpanelTab === 'context'    && <ScreenContextForm screen={selScreen} journeyId={curJourneyId} flowId={activeFlow.id} />}
-            {rpanelTab === 'info'       && <EntityInfo id={selScreen.id} createdAt={selScreen.createdAt} extra={[{ label: 'Flow', value: activeFlow.name }, { label: 'Status', value: selScreen.status }]} />}
-          </>
-        )}
-        {entity === 'node' && selNode && (
-          <>
-            {rpanelTab === 'properties' && <NodeProperties node={selNode} />}
-            {rpanelTab === 'info'       && <EntityInfo id={selNode.id} createdAt={selNode.createdAt} extra={[{ label: 'Type', value: selNode.type }]} />}
-          </>
-        )}
-        {!entity && (
-          <div className="p-6 text-[12px] text-text-3 text-center leading-relaxed mt-2">
-            Select a node or screen<br />to inspect.
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6">
+        {!selectedItem ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-sm text-gray-500 text-center">
+              Select a node or screen to edit
+            </p>
           </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ── Screen Properties ─────────────────────────────────────────────────────────
-
-function ScreenProperties({ screen, journeyId, flowId }: { screen: Screen; journeyId: string; flowId: string }) {
-  const store = useStore()
-  return (
-    <div className="p-4 space-y-4">
-      <Field label="Name">
-        <input type="text" defaultValue={screen.name}
-          onBlur={e => store.updateScreen(journeyId, flowId, screen.id, { name: e.target.value })}
-          className="w-full text-[12.5px] px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors"
-        />
-      </Field>
-      <div className="flex items-center gap-4">
-        <label className="flex items-center gap-[7px] cursor-pointer">
-          <input type="checkbox" checked={screen.isEntry ?? false}
-            onChange={e => store.updateScreen(journeyId, flowId, screen.id, { isEntry: e.target.checked })}
-            className="rounded" />
-          <span className="text-[12px] text-text-2">Entry</span>
-        </label>
-        <label className="flex items-center gap-[7px] cursor-pointer">
-          <input type="checkbox" checked={screen.isError ?? false}
-            onChange={e => store.updateScreen(journeyId, flowId, screen.id, { isError: e.target.checked })}
-            className="rounded" />
-          <span className="text-[12px] text-text-2">Error</span>
-        </label>
-      </div>
-    </div>
-  )
-}
-
-// ── Screen Context Form ───────────────────────────────────────────────────────
-
-function ScreenContextForm({ screen, journeyId, flowId }: { screen: Screen; journeyId: string; flowId: string }) {
-  const store  = useStore()
-  const canvas = useStore(s => s.canvas())
-  const ctx    = screen.context
-  const pct    = screenCompleteness(screen)
-  const offset = RING_CIRC - (pct / 100) * RING_CIRC
-
-  const conns   = canvas?.conns.filter(c => c.toId === journeyId) ?? []
-  const dsNodes = canvas?.nodes.filter(n => n.type === 'ds' && conns.some(c => c.fromId === n.id)) ?? []
-  const allTags = Array.from(new Set(dsNodes.flatMap(n => n.tags)))
-
-  function update(patch: Partial<typeof ctx>) { store.updateScreenContext(journeyId, flowId, screen.id, patch) }
-  function addEndpoint() { update({ apiEndpoints: [...ctx.apiEndpoints, { method: 'GET', path: '', description: '' }] }) }
-  function updateEndpoint(i: number, patch: Partial<ApiEndpoint>) {
-    update({ apiEndpoints: ctx.apiEndpoints.map((ep, idx) => idx === i ? { ...ep, ...patch } : ep) })
-  }
-  function removeEndpoint(i: number) { update({ apiEndpoints: ctx.apiEndpoints.filter((_, idx) => idx !== i) }) }
-  function toggleComponent(tag: string) {
-    const comps = ctx.components.includes(tag) ? ctx.components.filter(c => c !== tag) : [...ctx.components, tag]
-    update({ components: comps })
-  }
-
-  const ringColor = pct >= 80 ? '#16A34A' : pct >= 20 ? '#D97706' : '#ADADAD'
-
-  return (
-    <div className="p-4 space-y-5">
-      {/* completeness ring */}
-      <div className="flex items-center gap-3 p-3 bg-bg rounded-[10px] border border-border">
-        <svg width="36" height="36" className="-rotate-90 flex-shrink-0" viewBox="0 0 36 36">
-          <circle cx="18" cy="18" r={RING_R} fill="none" stroke="#E3E3DF" strokeWidth="3" />
-          <circle cx="18" cy="18" r={RING_R} fill="none" stroke={ringColor} strokeWidth="3"
-            strokeDasharray={RING_CIRC} strokeDashoffset={offset} strokeLinecap="round"
-            style={{ transition: 'stroke-dashoffset .3s ease' }}
+        ) : rpanelTab === 'properties' ? (
+          <PropertiesTab
+            node={node}
+            screen={screen}
+            onNodeNameChange={handleNodeNameChange}
+            onNodeDescriptionChange={handleNodeDescriptionChange}
+            onScreenNameChange={handleScreenNameChange}
+            onScreenRouteChange={handleScreenRouteChange}
           />
-        </svg>
-        <div>
-          <div className="text-[13px] font-semibold text-text-1">{pct}% complete</div>
-          <div className="text-[10px] text-text-3">{pct < 80 ? 'Add context for better output' : 'Ready to generate'}</div>
-        </div>
+        ) : rpanelTab === 'context' ? (
+          <ContextTab
+            screen={screen}
+            onPurposeChange={handleScreenPurposeChange}
+            onIntentChange={handleScreenIntentChange}
+          />
+        ) : (
+          <InfoTab item={selectedItem} />
+        )}
       </div>
-
-      <Field label="Route">
-        <input type="text" value={ctx.route} onChange={e => update({ route: e.target.value })}
-          placeholder="/auth/login"
-          className="w-full text-[12.5px] font-mono px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors"
-        />
-      </Field>
-      <Field label="Purpose">
-        <textarea value={ctx.purpose} onChange={e => update({ purpose: e.target.value })}
-          placeholder="Allow user to sign in with email + password" rows={2}
-          className="w-full text-[12.5px] px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors resize-none"
-        />
-      </Field>
-      <Field label="User Intent">
-        <textarea value={ctx.userIntent} onChange={e => update({ userIntent: e.target.value })}
-          placeholder="User wants to access their account" rows={2}
-          className="w-full text-[12.5px] px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors resize-none"
-        />
-      </Field>
-
-      <div className="flex items-center justify-between">
-        <span className="text-[12px] font-medium text-text-2">Requires Auth</span>
-        <button onClick={() => update({ requiresAuth: !ctx.requiresAuth })}
-          className={cn('relative w-9 h-5 rounded-full transition-colors', ctx.requiresAuth ? 'bg-text-1' : 'bg-border-strong')}
-        >
-          <span className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all', ctx.requiresAuth ? 'left-4' : 'left-0.5')} />
-        </button>
-      </div>
-
-      {allTags.length > 0 && (
-        <Field label="Components">
-          <div className="flex flex-wrap gap-1.5">
-            {allTags.map(tag => (
-              <button key={tag} onClick={() => toggleComponent(tag)}
-                className={cn('text-[11px] px-2 py-[3px] rounded-[6px] border transition-colors',
-                  ctx.components.includes(tag) ? 'bg-text-1 text-white border-text-1' : 'bg-bg border-border text-text-2 hover:border-border-strong'
-                )}
-              >{tag}</button>
-            ))}
-          </div>
-        </Field>
-      )}
-      {allTags.length === 0 && (
-        <div className="text-[11px] text-text-3 p-[10px] bg-bg rounded-[8px] border border-border leading-snug">
-          Connect a DS node to this journey to pick components.
-        </div>
-      )}
-
-      <Field label="API Endpoints">
-        <div className="space-y-2">
-          {ctx.apiEndpoints.map((ep, i) => (
-            <div key={i} className="flex items-start gap-1">
-              <select value={ep.method} onChange={e => updateEndpoint(i, { method: e.target.value as ApiEndpoint['method'] })}
-                className="text-[11px] font-mono px-[8px] py-[6px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 w-20 flex-shrink-0"
-              >
-                {HTTP_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-              <input type="text" value={ep.path} onChange={e => updateEndpoint(i, { path: e.target.value })}
-                placeholder="/api/auth"
-                className="flex-1 text-[11px] font-mono px-[8px] py-[6px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors min-w-0"
-              />
-              <button onClick={() => removeEndpoint(i)} className="w-6 h-6 flex items-center justify-center text-text-3 hover:text-brand-red transition-colors flex-shrink-0 mt-0.5">
-                <Trash2 size={12} />
-              </button>
-            </div>
-          ))}
-          <button onClick={addEndpoint} className="flex items-center gap-1 text-[11px] text-text-2 hover:text-text-1 transition-colors">
-            <Plus size={11} /> Add endpoint
-          </button>
-        </div>
-      </Field>
-
-      <Field label="Architecture Notes">
-        <textarea value={ctx.notes} onChange={e => update({ notes: e.target.value })}
-          placeholder="Architecture decisions, patterns to follow…" rows={3}
-          className="w-full text-[12.5px] px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors resize-none"
-        />
-      </Field>
-      <Field label="Generation Rules">
-        <textarea value={ctx.genRules} onChange={e => update({ genRules: e.target.value })}
-          placeholder="Use Server Action for form, prefer RSC…" rows={2}
-          className="w-full text-[12.5px] px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors resize-none"
-        />
-      </Field>
     </div>
   )
 }
 
-// ── Node Properties ───────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Tab Components
+// ─────────────────────────────────────────────────────────────────────────────
 
-function NodeProperties({ node }: { node: MacroNode }) {
-  const store = useStore()
-  const [tagsInput, setTagsInput] = useState(node.tags.join(', '))
+interface PropertiesTabProps {
+  node: any
+  screen: any
+  onNodeNameChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onNodeDescriptionChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
+  onScreenNameChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onScreenRouteChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+}
 
-  function updateNode(patch: Partial<MacroNode>) { store.updateNode(node.id, patch) }
-  function commitTags(value: string) { updateNode({ tags: value.split(',').map(t => t.trim()).filter(Boolean) }) }
-
+function PropertiesTab({
+  node,
+  screen,
+  onNodeNameChange,
+  onNodeDescriptionChange,
+  onScreenNameChange,
+  onScreenRouteChange,
+}: PropertiesTabProps) {
   return (
-    <div className="p-4 space-y-4">
-      <Field label="Name">
-        <input type="text" defaultValue={node.name}
-          onBlur={e => updateNode({ name: e.target.value })}
-          className="w-full text-[12.5px] px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors"
-        />
-      </Field>
-      <Field label="Description">
-        <textarea defaultValue={node.description} onBlur={e => updateNode({ description: e.target.value })} rows={2}
-          className="w-full text-[12.5px] px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors resize-none"
-        />
-      </Field>
-
-      {node.type === 'ds' && (
+    <div className="space-y-4">
+      {screen ? (
         <>
-          <Field label="Components (comma-separated)">
-            <input type="text" value={tagsInput}
-              onChange={e => setTagsInput(e.target.value)} onBlur={e => commitTags(e.target.value)}
-              placeholder="Button, Input, Card, Modal…"
-              className="w-full text-[12.5px] px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors"
+          <FormGroup label="Screen Name">
+            <input
+              type="text"
+              value={screen.name}
+              onChange={onScreenNameChange}
+              className={cn(
+                'w-full px-3 py-2 border border-gray-300 rounded',
+                'text-sm focus:outline-none focus:ring-2 focus:ring-blue-500',
+                'transition-colors'
+              )}
+              placeholder="e.g., Login Form"
             />
-          </Field>
-          <Field label="Figma File URL">
-            <input type="text" defaultValue={node.figmaFileUrl ?? ''}
-              onBlur={e => {
-                const url = e.target.value.trim()
-                updateNode({ figmaFileUrl: url || undefined, figmaFileKey: url ? extractFigmaKey(url) : undefined })
-              }}
-              placeholder="https://figma.com/design/…"
-              className="w-full text-[12.5px] font-mono px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors"
+          </FormGroup>
+
+          <FormGroup label="Route">
+            <input
+              type="text"
+              value={screen.context.route}
+              onChange={onScreenRouteChange}
+              className={cn(
+                'w-full px-3 py-2 border border-gray-300 rounded',
+                'text-sm focus:outline-none focus:ring-2 focus:ring-blue-500',
+                'transition-colors'
+              )}
+              placeholder="/path/to/page"
             />
-          </Field>
+          </FormGroup>
+
+          <div className="text-xs text-gray-500">
+            💡 Switch to <strong>Context</strong> tab to add purpose, components, APIs
+          </div>
         </>
-      )}
-      {node.type === 'journey' && (
-        <Field label="Status">
-          <select value={node.status ?? 'draft'} onChange={e => updateNode({ status: e.target.value as MacroNode['status'] })}
-            className="w-full text-[12.5px] px-[10px] py-[7px] rounded-[8px] border border-border bg-bg outline-none focus:border-text-1 transition-colors"
-          >
-            <option value="draft">Draft</option>
-            <option value="in-progress">In Progress</option>
-            <option value="ready">Ready</option>
-            <option value="generated">Generated</option>
-          </select>
-        </Field>
-      )}
+      ) : node ? (
+        <>
+          <FormGroup label="Name">
+            <input
+              type="text"
+              value={node.name}
+              onChange={onNodeNameChange}
+              className={cn(
+                'w-full px-3 py-2 border border-gray-300 rounded',
+                'text-sm focus:outline-none focus:ring-2 focus:ring-blue-500',
+                'transition-colors'
+              )}
+              placeholder="e.g., Design System v1"
+            />
+          </FormGroup>
+
+          <FormGroup label="Description">
+            <textarea
+              value={node.description}
+              onChange={onNodeDescriptionChange}
+              rows={3}
+              className={cn(
+                'w-full px-3 py-2 border border-gray-300 rounded',
+                'text-sm focus:outline-none focus:ring-2 focus:ring-blue-500',
+                'transition-colors resize-none'
+              )}
+              placeholder="Describe this node..."
+            />
+          </FormGroup>
+
+          {node.tags.length > 0 && (
+            <FormGroup label="Tags">
+              <div className="flex flex-wrap gap-1">
+                {node.tags.map(tag => (
+                  <span
+                    key={tag}
+                    className={cn(
+                      'px-2 py-1 bg-gray-100 text-gray-700',
+                      'rounded text-xs font-medium'
+                    )}
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </FormGroup>
+          )}
+        </>
+      ) : null}
     </div>
   )
 }
 
-// ── Entity Info ───────────────────────────────────────────────────────────────
+interface ContextTabProps {
+  screen: any
+  onPurposeChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
+  onIntentChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
+}
 
-function EntityInfo({ id, createdAt, extra }: { id: string; createdAt: string; extra?: { label: string; value: string }[] }) {
+function ContextTab({
+  screen,
+  onPurposeChange,
+  onIntentChange,
+}: ContextTabProps) {
+  if (!screen) {
+    return (
+      <p className="text-sm text-gray-500">
+        Context is available for screens only.
+      </p>
+    )
+  }
+
   return (
-    <div className="p-4 space-y-3">
-      <InfoRow label="ID"><span className="font-mono break-all">{id}</span></InfoRow>
-      <InfoRow label="Created">
-        {new Date(createdAt).toLocaleDateString()} {new Date(createdAt).toLocaleTimeString()}
-      </InfoRow>
-      {extra?.map(({ label, value }) => <InfoRow key={label} label={label}>{value}</InfoRow>)}
+    <div className="space-y-4">
+      <FormGroup label="Purpose">
+        <textarea
+          value={screen.context.purpose}
+          onChange={onPurposeChange}
+          rows={2}
+          className={cn(
+            'w-full px-3 py-2 border border-gray-300 rounded',
+            'text-sm focus:outline-none focus:ring-2 focus:ring-blue-500',
+            'transition-colors resize-none'
+          )}
+          placeholder="What is this screen for? E.g., 'Allow user to sign in with email + password'"
+        />
+      </FormGroup>
+
+      <FormGroup label="User Intent">
+        <textarea
+          value={screen.context.userIntent}
+          onChange={onIntentChange}
+          rows={2}
+          className={cn(
+            'w-full px-3 py-2 border border-gray-300 rounded',
+            'text-sm focus:outline-none focus:ring-2 focus:ring-blue-500',
+            'transition-colors resize-none'
+          )}
+          placeholder="What does the user want to accomplish? E.g., 'User wants to access their account'"
+        />
+      </FormGroup>
+
+      <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
+        🔜 Priority 2: Form fields for components, APIs, auth toggle
+      </div>
     </div>
   )
 }
 
-function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
+interface InfoTabProps {
+  item: any
+}
+
+function InfoTab({ item }: InfoTabProps) {
+  return (
+    <div className="space-y-3 text-sm">
+      <InfoRow label="Type" value={item.type} />
+      <InfoRow
+        label="ID"
+        value={item.id.slice(0, 8) + '...'}
+        mono
+      />
+      <InfoRow
+        label="Created"
+        value={new Date(item.createdAt || '').toLocaleDateString()}
+      />
+      {item.context?.route && (
+        <InfoRow label="Route" value={item.context.route} />
+      )}
+      {item.status && (
+        <InfoRow label="Status" value={item.status} />
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UI Primitives
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface FormGroupProps {
+  label: string
+  children: React.ReactNode
+}
+
+function FormGroup({ label, children }: FormGroupProps) {
   return (
     <div>
-      <div className="text-[10px] font-mono text-text-3 mb-[3px] uppercase tracking-wider">{label}</div>
-      <div className="text-[11px] font-mono text-text-2">{children}</div>
-    </div>
-  )
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="text-[10.5px] font-medium text-text-3 mb-[6px] block uppercase tracking-[0.04em]">{label}</label>
+      <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">
+        {label}
+      </label>
       {children}
     </div>
   )
 }
 
-function extractFigmaKey(url: string): string | undefined {
-  try {
-    const parts = new URL(url).pathname.split('/')
-    const idx = parts.indexOf('design')
-    return idx >= 0 ? parts[idx + 1] : undefined
-  } catch { return undefined }
+interface InfoRowProps {
+  label: string
+  value: string
+  mono?: boolean
+}
+
+function InfoRow({ label, value, mono }: InfoRowProps) {
+  return (
+    <div className="flex justify-between gap-2">
+      <span className="font-bold text-gray-700 flex-shrink-0">{label}:</span>
+      <span className={cn('text-gray-600', mono && 'font-mono text-xs')}>
+        {value}
+      </span>
+    </div>
+  )
 }
