@@ -1,158 +1,207 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Menu, Maximize2, Zap } from 'lucide-react'
 import { useStore, useTransform, useView } from '@/lib/store'
 import { useCanvasInteraction } from '@/hooks/useCanvasInteraction'
+import { makeConn } from '@/utils'
 
-interface Props {
-  projectId: string
-}
+import { MacroNodeCard }  from '@/components/nodes/MacroNode'
+import { ScreenNodeCard } from '@/components/nodes/ScreenNode'
+import { ConnectorLayer } from '@/components/canvas/ConnectorLayer'
+import { Ibar }           from '@/components/sidebar/Ibar'
+import { Ebar }           from '@/components/sidebar/Ebar'
+import { FlowPanel }      from '@/components/panels/FlowPanel'
+import { RightPanel }     from '@/components/panels/RightPanel'
+import { FAB }            from '@/components/ui/FAB'
 
-// Entry point for the canvas — sets up the project and delegates to sub-components.
-// Everything here is client-side; no server data fetching.
-export function CanvasWorkspace({ projectId }: Props) {
-  const router     = useRouter()
-  const canvasRef  = useRef<HTMLDivElement>(null)
-  const store      = useStore()
-  const transform  = useTransform()
-  const view       = useView()
-  const project    = store.projects.find(p => p.id === projectId)
+interface PendingConn { fromId: string; x1: number; y1: number; x2: number; y2: number }
+
+export function CanvasWorkspace({ projectId }: { projectId: string }) {
+  const router    = useRouter()
+  const canvasRef = useRef<HTMLDivElement>(null)
+  const store     = useStore()
+  const transform = useTransform()
+  const view      = useView()
+  const project   = store.projects.find(p => p.id === projectId)
+
+  const canvas     = useStore(s => s.canvas())
+  const journey    = useStore(s => s.journey())
+  const activeFlow = useStore(s => s.activeFlow())
+
+  const [pendingConn, setPendingConn] = useState<PendingConn | null>(null)
 
   useCanvasInteraction(canvasRef as React.RefObject<HTMLDivElement>)
 
-  // Open project on mount if not already open
   useEffect(() => {
-    if (projectId !== store.curProjectId) {
-      store.openProject(projectId)
-    }
+    if (projectId !== store.curProjectId) store.openProject(projectId)
   }, [projectId, store])
+
+  function screenToCanvas(clientX: number, clientY: number) {
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return { x: 0, y: 0 }
+    const { x, y, scale } = useStore.getState().transform
+    return { x: (clientX - rect.left - x) / scale, y: (clientY - rect.top - y) / scale }
+  }
+
+  function handleConnDragStart(fromId: string, clientX: number, clientY: number) {
+    const cp = screenToCanvas(clientX, clientY)
+    setPendingConn({ fromId, x1: cp.x, y1: cp.y, x2: cp.x, y2: cp.y })
+  }
+
+  useEffect(() => {
+    if (!pendingConn) return
+    const onMove = (e: PointerEvent) => {
+      const cp = screenToCanvas(e.clientX, e.clientY)
+      setPendingConn(prev => prev ? { ...prev, x2: cp.x, y2: cp.y } : null)
+    }
+    const onUp = (e: PointerEvent) => {
+      const el = document.elementFromPoint(e.clientX, e.clientY)
+      const toId = (el?.closest('[data-journey-id]') as HTMLElement | null)?.dataset.journeyId
+      if (toId && pendingConn.fromId && store.curProjectId) {
+        const s = useStore.getState()
+        if (!s.connExists(pendingConn.fromId, toId)) s.addConn(makeConn(pendingConn.fromId, toId, store.curProjectId))
+      }
+      setPendingConn(null)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp) }
+  }, [pendingConn?.fromId])
 
   if (!project) {
     return (
-      <div className="flex h-screen items-center justify-center text-text-2 text-sm">
-        Project not found.{' '}
-        <button onClick={() => router.push('/')} className="ml-2 underline">
-          Back to dashboard
-        </button>
+      <div className="flex h-screen items-center justify-center text-text-2 text-[13px]">
+        Project not found.
+        <button onClick={() => router.push('/')} className="ml-2 underline hover:text-text-1 transition-colors">Back</button>
       </div>
     )
   }
 
+  const macroNodes  = canvas?.nodes ?? []
+  const screenNodes = activeFlow?.screens ?? []
+
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-bg">
+    <div className="flex h-screen overflow-hidden bg-bg">
+      <Ibar />
+      <Ebar />
 
-      {/* ── Nav bar ─────────────────────────────────────────────────── */}
-      <nav className="h-[46px] bg-surface border-b border-border flex items-center justify-between px-4 z-50 flex-shrink-0">
-        <div className="flex items-center gap-1.5">
-          {/* Logo → dashboard */}
-          <button
-            onClick={() => router.push('/')}
-            className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-bg transition-colors"
-          >
-            <div className="w-6 h-6 bg-text-1 rounded-md flex items-center justify-center text-white font-serif italic text-sm">F</div>
-            <span className="text-[13px] font-semibold tracking-tight text-text-2">{project.name}</span>
-          </button>
+      <div className="flex flex-col flex-1 min-w-0">
 
-          {/* Breadcrumb — only in micro view */}
-          {view === 'micro' && (
-            <>
-              <span className="text-text-3 text-xs">›</span>
-              <button
-                onClick={() => store.goMacro()}
-                className="text-[12px] text-text-2 hover:text-text-1 px-2 py-1 rounded transition-colors"
-              >
-                Workspace
-              </button>
-              {store.journey() && (
-                <>
-                  <span className="text-text-3 text-xs">›</span>
-                  <span className="text-[12px] text-text-1 font-medium px-2">
-                    {store.journey()?.name}
-                  </span>
-                </>
-              )}
-            </>
-          )}
-        </div>
+        {/* ── Navbar ── */}
+        <nav className="h-[46px] bg-surface border-b border-border flex items-center justify-between z-30 flex-shrink-0">
+          <div className="flex items-center h-full">
 
-        {/* Generate button */}
-        <button className="flex items-center gap-1.5 px-3 py-1.5 bg-text-1 text-white text-[13px] font-medium rounded-lg hover:bg-neutral-800 transition-colors">
-          <span>⚡</span> Generate
-        </button>
-      </nav>
+            {/* hamburger */}
+            <button
+              onClick={() => store.toggleEbar()}
+              className="w-[46px] h-full border-r border-border flex items-center justify-center text-text-2 hover:bg-bg hover:text-text-1 transition-colors flex-shrink-0"
+            >
+              <Menu size={15} />
+            </button>
 
-      {/* ── Canvas ──────────────────────────────────────────────────── */}
-      <div
-        ref={canvasRef}
-        className="canvas-root canvas-dots flex-1 relative overflow-hidden cursor-grab"
-        data-canvas
-      >
-        {/* Scene — single transformed container */}
-        <div
-          className="absolute top-0 left-0 origin-top-left"
-          style={{
-            transform: `translate(${transform.x}px,${transform.y}px) scale(${transform.scale})`,
-            width: 8000,
-            height: 8000,
-          }}
-        >
-          {/* SVG layer for connectors — sits below nodes */}
-          <svg
-            className="absolute inset-0 overflow-visible pointer-events-none"
-            width={8000}
-            height={8000}
-          />
+            {/* logo + project */}
+            <button
+              onClick={() => router.push('/')}
+              className="flex items-center gap-[7px] px-[12px] h-full border-r border-border hover:opacity-75 transition-opacity"
+            >
+              <div className="w-[22px] h-[22px] bg-text-1 rounded-[5px] flex items-center justify-center text-white font-serif italic text-[12px] leading-none select-none">F</div>
+              <span className="text-[12px] font-semibold text-text-1 tracking-tight">{project.name}</span>
+            </button>
 
-          {/* TODO: <MacroLayer /> or <MicroLayer /> depending on view */}
-          {/* Placeholder node to confirm canvas is working */}
-          <div
-            className="absolute bg-surface border border-border rounded-xl shadow-sm p-4 w-52 text-sm text-text-2"
-            style={{ left: 200, top: 180 }}
-          >
-            <div className="text-[11px] font-mono text-text-3 mb-1">Journey node</div>
-            <div className="font-medium text-text-1">Auth Flow</div>
+            {/* breadcrumb — micro view */}
+            {view === 'micro' && (
+              <div className="flex items-center gap-[2px] px-[10px]">
+                <button
+                  onClick={() => store.goMacro()}
+                  className="text-[12px] text-text-2 hover:text-text-1 transition-colors px-[6px] py-[3px] rounded-[5px] hover:bg-bg"
+                >
+                  Workspace
+                </button>
+                {journey && (
+                  <>
+                    <span className="text-text-3 text-[13px] px-[1px]">›</span>
+                    <div className="flex items-center gap-[5px] px-[6px] py-[3px] rounded-[5px]">
+                      <div className="w-[14px] h-[14px] rounded-[3px] bg-brand-purple/10 flex items-center justify-center flex-shrink-0">
+                        <svg width="7" height="10" viewBox="0 0 7 10" fill="none"><path d="M1 1.5L5.5 5L1 8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-brand-purple"/></svg>
+                      </div>
+                      <span className="text-[12px] font-medium text-text-1">{journey.name}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
-          <div
-            className="absolute bg-surface border border-border rounded-xl shadow-sm p-4 w-52 text-sm text-text-2"
-            style={{ left: 520, top: 180 }}
-          >
-            <div className="text-[11px] font-mono text-text-3 mb-1">DS node</div>
-            <div className="font-medium text-text-1">Design System</div>
+
+          {/* generate */}
+          <div className="px-[14px]">
+            <button className="flex items-center gap-[5px] px-[12px] py-[6px] bg-text-1 text-white text-[12px] font-medium rounded-[8px] hover:bg-neutral-800 active:scale-95 transition-all shadow-sm">
+              <Zap size={12} />
+              Generate
+            </button>
+          </div>
+        </nav>
+
+        {/* ── Canvas ── */}
+        <div className="flex flex-1 overflow-hidden">
+          {view === 'micro' && <FlowPanel />}
+
+          <div className="flex-1 relative">
+            <div
+              ref={canvasRef}
+              data-canvas
+              className="canvas-root canvas-dots absolute inset-0 overflow-hidden cursor-grab active:cursor-grabbing"
+            >
+              <div
+                className="absolute top-0 left-0 origin-top-left"
+                style={{ transform: `translate(${transform.x}px,${transform.y}px) scale(${transform.scale})`, width: 8000, height: 8000 }}
+              >
+                <ConnectorLayer pendingConn={pendingConn} />
+
+                {view === 'macro' && macroNodes.map(node => (
+                  <MacroNodeCard key={node.id} node={node} onConnDragStart={handleConnDragStart} />
+                ))}
+
+                {view === 'micro' && activeFlow && journey && screenNodes.map((screen, i) => (
+                  <ScreenNodeCard key={screen.id} screen={screen} journeyId={journey.id} flowId={activeFlow.id} index={i} />
+                ))}
+
+                {view === 'macro' && macroNodes.length === 0 && (
+                  <div className="absolute flex flex-col items-center gap-[6px] text-center" style={{ left: '50%', top: '40%', transform: 'translate(-50%,-50%)' }}>
+                    <div className="text-[13px] text-text-3">Add a DS node and a Journey node to start</div>
+                    <div className="text-[11px] font-mono text-text-3">use the + button below</div>
+                  </div>
+                )}
+
+                {view === 'micro' && activeFlow && screenNodes.length === 0 && (
+                  <div className="absolute flex flex-col items-center gap-[6px] text-center" style={{ left: '50%', top: '40%', transform: 'translate(-50%,-50%)' }}>
+                    <div className="text-[13px] text-text-3">No screens in this flow</div>
+                    <div className="text-[11px] font-mono text-text-3">use the + button below</div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ── Zoom bar ────────────────────────────────────────────────── */}
-      <div className="fixed bottom-5 right-5 bg-surface border border-border rounded-xl shadow-md flex items-center overflow-hidden z-50">
-        <button
-          onClick={() => store.setTransform({ scale: Math.max(0.15, transform.scale - 0.15) })}
-          className="w-8 h-8 flex items-center justify-center text-text-2 hover:bg-bg transition-colors text-base"
-        >
-          −
-        </button>
-        <button
-          onClick={() => store.setTransform({ scale: 1 })}
-          className="text-[11px] font-mono text-text-2 px-2 hover:bg-bg transition-colors h-8"
-        >
+      <RightPanel />
+
+      {/* ── Zoom bar ── */}
+      <div className="fixed bottom-5 right-5 bg-surface border border-border rounded-[10px] shadow-md flex items-center overflow-hidden z-40">
+        <button onClick={() => store.setTransform({ scale: Math.max(0.15, transform.scale - 0.15) })} className="w-8 h-8 flex items-center justify-center text-text-2 hover:bg-bg transition-colors text-[16px] leading-none select-none">−</button>
+        <button onClick={() => store.setTransform({ scale: 1 })} className="text-[11px] font-mono text-text-2 px-2 hover:bg-bg transition-colors h-8 min-w-[46px] text-center">
           {Math.round(transform.scale * 100)}%
         </button>
-        <button
-          onClick={() => store.setTransform({ scale: Math.min(2.5, transform.scale + 0.15) })}
-          className="w-8 h-8 flex items-center justify-center text-text-2 hover:bg-bg transition-colors text-base"
-        >
-          +
-        </button>
-        <div className="w-px h-4 bg-border mx-0.5" />
-        <button
-          onClick={() => store.fitView()}
-          className="w-8 h-8 flex items-center justify-center text-text-2 hover:bg-bg transition-colors text-base"
-          title="Fit view (F)"
-        >
-          ⊞
+        <button onClick={() => store.setTransform({ scale: Math.min(2.5, transform.scale + 0.15) })} className="w-8 h-8 flex items-center justify-center text-text-2 hover:bg-bg transition-colors text-[16px] leading-none select-none">+</button>
+        <div className="w-px h-4 bg-border mx-px" />
+        <button onClick={() => store.fitView()} title="Fit (F)" className="w-8 h-8 flex items-center justify-center text-text-2 hover:bg-bg transition-colors">
+          <Maximize2 size={12} />
         </button>
       </div>
 
+      <FAB />
     </div>
   )
 }

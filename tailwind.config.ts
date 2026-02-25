@@ -34,10 +34,11 @@ const config: Config = {
         },
       },
       boxShadow: {
-        sm:  '0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04)',
-        md:  '0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04)',
-        lg:  '0 8px 24px rgba(0,0,0,.1), 0 4px 8px rgba(0,0,0,.05)',
-        xl:  '0 20px 40px rgba(0,0,0,.12), 0 8px 16px rgba(0,0,0,.05)',
+        sm:    '0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)',
+        md:    '0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04)',
+        lg:    '0 8px 24px rgba(0,0,0,.09), 0 4px 8px rgba(0,0,0,.04)',
+        xl:    '0 20px 40px rgba(0,0,0,.12), 0 8px 16px rgba(0,0,0,.05)',
+        panel: '-2px 0 16px rgba(0,0,0,.07)',
       },
       borderRadius: {
         DEFAULT: '8px',
@@ -45,7 +46,7 @@ const config: Config = {
         xl:      '16px',
       },
       keyframes: {
-        spin: { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(360deg)' } },
+        spin:   { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(360deg)' } },
         fadein: { from: { opacity: '0', transform: 'translateY(4px)' }, to: { opacity: '1', transform: 'none' } },
       },
       animation: {

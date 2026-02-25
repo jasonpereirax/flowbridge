@@ -1,16 +1,25 @@
 import { createServerClient } from '@supabase/ssr'
+import type { CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  // If Supabase env vars are not configured, skip auth middleware
+  if (!supabaseUrl || !supabaseKey) {
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseKey,
     {
       cookies: {
         getAll: () => request.cookies.getAll(),
-        setAll: (cookiesToSet) => {
+        setAll: (cookiesToSet: { name: string; value: string; options: CookieOptions }[]) => {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
@@ -23,16 +32,8 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh session — critical, do not remove
-  const { data: { user } } = await supabase.auth.getUser()
-
-  // Protect canvas routes — redirect to login if not authenticated
-  const isCanvas = request.nextUrl.pathname.startsWith('/projects/')
-  if (isCanvas && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
-  }
+  // Refresh session to keep cookies in sync
+  await supabase.auth.getUser()
 
   return supabaseResponse
 }
