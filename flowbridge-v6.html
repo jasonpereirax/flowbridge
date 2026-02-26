@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Flowbridge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F5F5F3;--surf:#FFF;--surf2:#FAFAF8;
+  --bdr:#E3E3DF;--bdr2:#C9C9C3;
+  --t1:#18181A;--t2:#6B6B6B;--t3:#ADADAD;
+  --blu:#2563EB;--blu-bg:#EFF6FF;--blu-bd:#BFDBFE;
+  --grn:#16A34A;--grn-bg:#F0FDF4;--grn-bd:#BBF7D0;
+  --pur:#7C3AED;--pur-bg:#F5F3FF;--pur-bd:#DDD6FE;
+  --red:#DC2626;--red-bg:#FEF2F2;--red-bd:#FECACA;
+  --amb:#D97706;--amb-bg:#FFFBEB;--amb-bd:#FDE68A;
+  --r:8px;--rl:12px;--rxl:16px;
+  --sh:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
+  --shm:0 4px 12px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);
+  --shl:0 8px 24px rgba(0,0,0,.1),0 4px 8px rgba(0,0,0,.05);
+  --shxl:0 20px 40px rgba(0,0,0,.12),0 8px 16px rgba(0,0,0,.05);
+  --f:'Geist',system-ui,sans-serif;
+  --fm:'Geist Mono',monospace;
+  --fs:'Instrument Serif',Georgia,serif;
+  --IW:52px;--EW:240px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;user-select:none}
+body{font-family:var(--f);font-size:14px;background:var(--bg);color:var(--t1)}
+button,input,textarea,select{font-family:var(--f)}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:3px}
+
+/* ─ BUTTONS ─ */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:7px 14px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;outline:none;transition:all .14s;white-space:nowrap;line-height:1}
+.bp{background:var(--t1);color:#fff;border-color:var(--t1)}.bp:hover{background:#2d2d2d}
+.bs{background:var(--surf);color:var(--t1);border-color:var(--bdr)}.bs:hover{background:var(--bg);border-color:var(--bdr2)}
+.bg{background:transparent;color:var(--t2);border-color:transparent}.bg:hover{background:var(--bg);color:var(--t1)}
+.b-sm{padding:5px 10px;font-size:12px}
+.b-xs{padding:3px 8px;font-size:11px;border-radius:6px}
+.bw{width:100%}
+.bdg{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-family:var(--fm);font-weight:500;padding:2px 7px;border-radius:20px}
+.dg-grn{background:var(--grn-bg);color:var(--grn);border:1px solid var(--grn-bd)}
+.dg-blu{background:var(--blu-bg);color:var(--blu);border:1px solid var(--blu-bd)}
+.dg-pur{background:var(--pur-bg);color:var(--pur);border:1px solid var(--pur-bd)}
+.dg-neu{background:var(--bg);color:var(--t2);border:1px solid var(--bdr)}
+
+/* ══ DASHBOARD ══════════════════════════════════ */
+#D{position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;flex-direction:column}
+#D.off{display:none}
+.d-bar{height:52px;background:var(--surf);border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0}
+.d-brand{display:flex;align-items:center;gap:9px;cursor:pointer}
+.d-mark{width:30px;height:30px;background:var(--t1);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--fs);font-style:italic;font-size:16px}
+.d-wm{font-size:15px;font-weight:700;letter-spacing:-.03em}.d-wm span{opacity:.35}
+.d-rgt{display:flex;align-items:center;gap:10px}
+.d-av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:600;cursor:pointer}
+.d-body{flex:1;overflow:hidden;display:flex}
+.d-nav{width:210px;flex-shrink:0;border-right:1px solid var(--bdr);background:var(--surf);padding:14px 10px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.dn-lbl{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--t3);padding:8px 8px 4px}
+.dn-it{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r);cursor:pointer;transition:all .12s;font-size:13px;color:var(--t2);border:1px solid transparent}
+.dn-it:hover{background:var(--bg);color:var(--t1)}.dn-it.on{background:var(--bg);color:var(--t1);font-weight:500;border-color:var(--bdr)}
+.dn-ic{font-size:13px;width:18px;text-align:center}
+.dn-sep{height:1px;background:var(--bdr);margin:5px 0}
+.d-main{flex:1;overflow-y:auto;padding:32px 40px}
+.dm-ttl{font-size:20px;font-weight:700;letter-spacing:-.03em;margin-bottom:4px}
+.dm-sub{font-size:13px;color:var(--t2);margin-bottom:24px}
+/* projects grid */
+.pg{display:grid;grid-template-columns:repeat(auto-fill,minmax(236px,1fr));gap:14px;margin-bottom:28px}
+.pc{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rl);overflow:hidden;cursor:pointer;transition:all .17s;position:relative}
+.pc:hover{box-shadow:var(--shm);border-color:var(--bdr2);transform:translateY(-2px)}
+.pc-prev{height:130px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.pc-body{padding:13px 15px;border-top:1px solid var(--bdr)}
+.pc-name{font-size:13.5px;font-weight:600;letter-spacing:-.01em;margin-bottom:3px}
+.pc-meta{font-size:11.5px;color:var(--t2);display:flex;align-items:center;gap:7px}
+.pc-dot{width:3px;height:3px;border-radius:50%;background:var(--t3)}
+.pc-menu{position:absolute;top:9px;right:9px;width:24px;height:24px;border-radius:6px;background:rgba(255,255,255,.92);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;font-size:12px;opacity:0;transition:opacity .14s;cursor:pointer;color:var(--t2)}
+.pc:hover .pc-menu{opacity:1}.pc-menu:hover{background:var(--bg);color:var(--t1)}
+.pn{border:1.5px dashed var(--bdr2);background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:190px;cursor:pointer;border-radius:var(--rl);transition:all .14s;color:var(--t3)}
+.pn:hover{border-color:var(--t1);color:var(--t1);background:var(--surf)}
+.pn-ic{width:38px;height:38px;border-radius:var(--r);border:1.5px dashed currentColor;display:flex;align-items:center;justify-content:center;font-size:20px}
+/* recent */
+.rl-item{display:flex;align-items:center;gap:11px;padding:9px 13px;border-radius:var(--r);cursor:pointer;transition:all .12s;border:1px solid transparent;margin-bottom:3px}
+.rl-item:hover{background:var(--surf);border-color:var(--bdr)}
+.rl-ic{width:34px;height:26px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.rl-name{font-size:13px;font-weight:500;flex:1}
+.rl-meta{font-size:11.5px;font-family:var(--fm);color:var(--t3)}
+/* profile panel */
+.d-prof{width:280px;flex-shrink:0;border-left:1px solid var(--bdr);background:var(--surf);padding:22px;display:flex;flex-direction:column;gap:18px;overflow-y:auto}
+.prof-av-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;padding-bottom:18px;border-bottom:1px solid var(--bdr)}
+.prof-av{width:66px;height:66px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:600}
+.prof-name{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.prof-email{font-size:12px;color:var(--t2)}
+.prof-sect{display:flex;flex-direction:column;gap:7px}
+.prof-sect-lbl{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--t3)}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.stat-cell{background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);padding:9px 11px}
+.stat-n{font-size:19px;font-weight:700;letter-spacing:-.03em}
+.stat-l{font-size:11px;color:var(--t2);margin-top:1px}
+/* settings rows */
+.sett-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);margin-bottom:6px}
+.sett-lbl{font-size:13px;color:var(--t2)}
+.sett-val{font-size:12px;font-weight:500;font-family:var(--fm);color:var(--t1)}
+select.sett-sel{background:var(--bg);border:1px solid var(--bdr);border-radius:6px;padding:3px 8px;font-size:12px;font-family:var(--fm);color:var(--t1);cursor:pointer;outline:none}
+
+/* ══ APP VIEW ══════════════════════════════════ */
+#A{position:fixed;inset:0;display:none;flex-direction:column}
+#A.on{display:flex}
+/* nav */
+.nav{height:46px;background:var(--surf);border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;z-index:200;flex-shrink:0;position:relative}
+.nav-l{display:flex;align-items:center;height:100%}
+.nav-tog{width:var(--IW);height:46px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--t2);font-size:16px;transition:all .14s;flex-shrink:0;border-right:1px solid var(--bdr)}
+.nav-tog:hover{background:var(--bg);color:var(--t1)}
+.nav-logo{display:flex;align-items:center;gap:7px;padding:0 12px;border-right:1px solid var(--bdr);height:100%;cursor:pointer}
+.nav-logo:hover .nbm{background:#2d2d2d}
+.nbm{width:22px;height:22px;background:var(--t1);border-radius:5px;display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--fs);font-style:italic;font-size:12px;transition:background .14s}
+.nav-proj-name{font-size:12px;font-weight:600;color:var(--t1)}
+.nav-bc{display:flex;align-items:center;padding-left:12px}
+.bc-home{font-size:13px;font-weight:500;color:var(--t1);padding:3px 8px;border-radius:6px;cursor:pointer;transition:background .12s}
+.bc-home:hover{background:var(--bg)}.bc-home.root{cursor:default}.bc-home.root:hover{background:transparent}
+.bc-sep{font-size:13px;color:var(--t3);padding:0 2px}
+.bc-crumb{display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:13px;color:var(--t2);cursor:pointer;transition:all .12s}
+.bc-crumb:hover{background:var(--bg);color:var(--t1)}.bc-crumb.on{color:var(--t1);font-weight:500;cursor:default}.bc-crumb.on:hover{background:transparent}
+.bc-ic{width:15px;height:15px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px;flex-shrink:0}
+.bc-ic.j{background:var(--pur-bg);color:var(--pur)}.bc-ic.f{background:var(--bg);color:var(--t2);border:1px solid var(--bdr)}
+.nav-r{display:flex;align-items:center;gap:8px;padding-right:14px}
+/* icon sidebar */
+.ibar{position:fixed;top:46px;left:0;bottom:0;width:var(--IW);background:var(--surf);border-right:1px solid var(--bdr);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px;z-index:150;transition:transform .2s cubic-bezier(.16,1,.3,1)}
+.ibar.gone{transform:translateX(-100%)}
+.ib{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;color:var(--t3);transition:all .14s;border:1px solid transparent;position:relative;flex-shrink:0}
+.ib:hover{background:var(--bg);color:var(--t2);border-color:var(--bdr)}.ib.on{background:var(--bg);color:var(--t1);border-color:var(--bdr)}
+.ib .tip{position:absolute;left:calc(100% + 9px);top:50%;transform:translateY(-50%);background:var(--t1);color:#fff;font-size:11px;font-weight:500;padding:3px 8px;border-radius:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .14s;z-index:10;font-family:var(--f)}
+.ib:hover .tip{opacity:1}
+.ib-sep{width:24px;height:1px;background:var(--bdr);margin:3px 0;flex-shrink:0}
+.ib-bot{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:2px}
+/* expanded sidebar */
+.ebar{position:fixed;top:46px;left:var(--IW);bottom:0;width:var(--EW);background:var(--surf);border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow:hidden;transform:translateX(calc(-1 * var(--EW)));transition:transform .22s cubic-bezier(.16,1,.3,1);z-index:140;box-shadow:var(--shl)}
+.ebar.on{transform:translateX(0)}
+.ibar.gone ~ .ebar{left:0}
+.eb-head{padding:11px 13px 9px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.eb-ttl{font-size:13px;font-weight:600;letter-spacing:-.01em}
+.eb-x{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;cursor:pointer;color:var(--t3);transition:all .13s}
+.eb-x:hover{background:var(--bg);color:var(--t1)}
+.eb-body{flex:1;overflow-y:auto;padding:6px 0 16px}
+/* tree */
+.tg{margin-bottom:1px}
+.tg-h{display:flex;align-items:center;justify-content:space-between;padding:5px 10px 5px 8px;cursor:pointer;transition:background .1s;border-radius:6px;margin:0 4px}
+.tg-h:hover{background:var(--bg)}
+.tg-l{display:flex;align-items:center;gap:5px;min-width:0;flex:1}
+.tt{font-size:8px;color:var(--t3);transition:transform .15s;flex-shrink:0;width:12px;text-align:center}
+.tt.o{transform:rotate(90deg)}
+.ni{width:17px;height:17px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0}
+.ni-ds{background:var(--blu-bg);color:var(--blu)}.ni-j{background:var(--pur-bg);color:var(--pur)}.ni-sc{background:var(--bg);color:var(--t2);border:1px solid var(--bdr)}.ni-co{background:var(--grn-bg);color:var(--grn)}
+.tn{font-size:12.5px;font-weight:500;color:var(--t1);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tg-r{display:flex;align-items:center;gap:3px;opacity:0;transition:opacity .13s;flex-shrink:0}
+.tg-h:hover .tg-r{opacity:1}
+.ta{width:17px;height:17px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer;color:var(--t3);transition:all .12s}
+.ta:hover{background:var(--bg);color:var(--t1)}.ta.del:hover{background:var(--red-bg);color:var(--red)}
+.tch{padding-left:18px;display:none}
+.tch.o{display:block}
+.tl{display:flex;align-items:center;gap:5px;padding:4px 10px 4px 8px;cursor:pointer;transition:background .1s;border-radius:6px;margin:0 4px 1px;min-width:0}
+.tl:hover{background:var(--bg)}.tl.on{background:var(--bg)}
+.tl-n{font-size:12px;color:var(--t2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl.on .tl-n{color:var(--t1);font-weight:500}
+.tl-r{display:flex;align-items:center;gap:3px;opacity:0;transition:opacity .12s;flex-shrink:0}
+.tl:hover .tl-r{opacity:1}
+.ts{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.ts-g{background:var(--grn)}.ts-a{background:var(--amb)}.ts-e{background:var(--bdr2)}
+.eb-add{display:flex;align-items:center;gap:5px;padding:5px 12px;font-size:12px;font-weight:500;color:var(--t3);cursor:pointer;transition:all .12s;border-radius:6px;margin:1px 4px}
+.eb-add:hover{background:var(--bg);color:var(--t1)}
+.eb-sec-lbl{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--t3);padding:10px 12px 4px}
+/* canvas */
+.cw{position:fixed;top:46px;right:0;bottom:0;overflow:hidden;background:var(--bg);transition:left .22s cubic-bezier(.16,1,.3,1)}
+.cw.i0{left:0}.cw.i1{left:var(--IW)}.cw.i2{left:calc(var(--IW) + var(--EW))}
+.cdots{position:absolute;inset:0;background-image:radial-gradient(circle,#CCC 1px,transparent 1px);background-size:24px 24px;pointer-events:none}
+.cv{position:absolute;inset:0;cursor:grab}.cv.g{cursor:grabbing}
+.scene{position:absolute;top:0;left:0;width:0;height:0;transform-origin:0 0}
+.ssv{position:absolute;top:0;left:0;width:8000px;height:8000px;pointer-events:none;overflow:visible}
+/* connectors — pointer-events:all so they can be clicked */
+.conn{fill:none;stroke:var(--bdr2);stroke-width:1.8;stroke-dasharray:5 4;cursor:pointer;transition:stroke .14s,stroke-width .14s}
+.conn:hover{stroke:var(--t2);stroke-width:2}
+.conn.sel{stroke:var(--blu);stroke-dasharray:none;stroke-width:2.2}
+.conn.hi{stroke:var(--blu)}
+.conn-arr{pointer-events:none;transition:fill .14s}
+.conn-arr.sel{fill:var(--blu)}
+.wire{fill:none;stroke:var(--t3);stroke-width:1.5;stroke-dasharray:4 3;pointer-events:none}
+/* conn delete button */
+.cdel{position:absolute;width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid #fff;box-shadow:var(--shm);pointer-events:all;z-index:8;transition:transform .14s}
+.cdel:hover{transform:scale(1.18)}
+/* ── MACRO NODES ── */
+.node{position:absolute;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rl);box-shadow:var(--sh);cursor:pointer;transition:box-shadow .14s,border-color .14s;width:220px;z-index:5}
+.node:hover{box-shadow:var(--shm);border-color:var(--bdr2)}
+.node.sel{border-color:var(--t1);box-shadow:0 0 0 3px rgba(24,24,26,.07),var(--shm)}
+.node.ds{border-top:3px solid var(--blu)}.node.ds.sel{border-color:var(--blu);box-shadow:0 0 0 3px rgba(37,99,235,.1),var(--shm)}
+.node.jn{border-top:3px solid var(--pur)}.node.jn.sel{border-color:var(--pur);box-shadow:0 0 0 3px rgba(124,58,237,.1),var(--shm)}
+.n-hd{display:flex;align-items:center;gap:9px;padding:11px 13px 9px}
+.n-ic{width:29px;height:29px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.nic-ds{background:var(--blu-bg);color:var(--blu)}.nic-jn{background:var(--pur-bg);color:var(--pur)}
+.n-tp{font-size:9.5px;font-family:var(--fm);font-weight:500;letter-spacing:.04em;text-transform:uppercase;margin-bottom:1px}
+.nt-ds{color:var(--blu)}.nt-jn{color:var(--pur)}
+.n-nm{font-size:13px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.n-bd{padding:0 13px 10px}
+.n-dc{font-size:11.5px;color:var(--t2);line-height:1.4;margin-bottom:7px}
+.n-tags{display:flex;flex-wrap:wrap;gap:3px}
+.n-tag{font-size:10px;font-family:var(--fm);padding:1px 6px;border-radius:20px;background:var(--bg);color:var(--t3);border:1px solid var(--bdr)}
+.n-ft{display:flex;align-items:center;justify-content:space-between;padding:7px 13px;border-top:1px solid var(--bdr)}
+.n-st{font-size:11px;font-family:var(--fm);color:var(--t3)}
+.n-ht{font-size:10.5px;color:var(--t3);opacity:.7}
+/* handles */
+.hdl{position:absolute;top:50%;width:10px;height:10px;border-radius:50%;background:var(--surf);border:2px solid var(--bdr2);cursor:crosshair;transition:all .14s;z-index:6}
+.hdl.out{right:-5px;transform:translateY(-50%)}.hdl.in{left:-5px;transform:translateY(-50%);cursor:default;pointer-events:none}
+.hdl.out:hover{background:var(--blu);border-color:var(--blu);transform:translateY(-50%) scale(1.3)}
+/* ── SCREEN NODES ── */
+.snode{position:absolute;width:170px;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rl);box-shadow:var(--sh);cursor:pointer;transition:box-shadow .14s,border-color .14s;z-index:5}
+.snode:hover{box-shadow:var(--shm);border-color:var(--bdr2)}.snode.sel{border-color:var(--t1);box-shadow:0 0 0 3px rgba(24,24,26,.06),var(--shm)}
+.snode.done{border-top:2px solid var(--grn)}
+.sn-pv{height:88px;background:var(--bg);border-radius:10px 10px 0 0;border-bottom:1px solid var(--bdr);overflow:hidden;position:relative}
+.snm{display:flex;flex-direction:column;gap:3px;padding:8px}
+.sb{height:4px;border-radius:2px;background:var(--bdr)}.sb.a{background:#93C5FD;width:55%}.sb.b{width:75%}.sb.c{width:45%}
+.sl{height:9px;border-radius:3px;background:var(--bdr)}.sl.bl{background:#DBEAFE}.sl.rd{background:#FEE2E2}
+.sbtn{height:14px;border-radius:3px;background:var(--t1);margin-top:2px}
+.sc{height:14px;border-radius:3px;background:var(--bg);border:1px solid var(--bdr)}
+.sn-pin{position:absolute;top:5px;left:5px;font-size:9px;font-family:var(--fm);font-weight:500;padding:1px 5px;border-radius:20px}
+.pin-e{background:var(--grn-bg);color:var(--grn);border:1px solid var(--grn-bd)}.pin-err{background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd)}
+.sn-b{padding:8px 10px}.sn-nm{font-size:12px;font-weight:600;color:var(--t1);margin-bottom:2px}
+.sn-cx{font-size:11px;color:var(--t3);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sn-cx.h{color:var(--t2)}
+.sn-ft{display:flex;align-items:center;justify-content:space-between;padding:5px 10px;border-top:1px solid var(--bdr)}
+.sn-st{font-size:10.5px;font-family:var(--fm);color:var(--t3);display:flex;align-items:center;gap:3px}
+.pip{width:5px;height:5px;border-radius:50%;background:var(--grn)}
+.snode .hdl{top:42px}
+/* FAB center-bottom */
+.fab-w{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:180;display:flex;flex-direction:column;align-items:center;gap:8px}
+.fab-opts{display:flex;gap:10px;align-items:flex-end;opacity:0;pointer-events:none;transform:translateY(5px);transition:all .18s cubic-bezier(.16,1,.3,1)}
+.fab-opts.o{opacity:1;pointer-events:auto;transform:translateY(0)}
+.fab-opt{display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer}
+.fo-ic{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:var(--shm);transition:transform .14s}
+.fo-ic:hover,.fab-opt:hover .fo-ic{transform:scale(1.08)}
+.fo-ic.ds{background:var(--blu-bg);border:1px solid var(--blu-bd);color:var(--blu)}.fo-ic.jn{background:var(--pur-bg);border:1px solid var(--pur-bd);color:var(--pur)}.fo-ic.sc{background:var(--bg);border:1px solid var(--bdr2);color:var(--t2)}
+.fo-lbl{font-size:11px;font-weight:500;color:var(--t1);background:var(--surf);border:1px solid var(--bdr);padding:2px 8px;border-radius:20px;box-shadow:var(--sh);white-space:nowrap}
+.fab{width:42px;height:42px;border-radius:13px;background:var(--t1);color:#fff;border:none;cursor:pointer;font-size:22px;font-weight:300;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(24,24,26,.22),0 1px 4px rgba(24,24,26,.12);transition:all .17s;outline:none}
+.fab:hover{transform:scale(1.05);box-shadow:0 6px 18px rgba(24,24,26,.28)}.fab:active{transform:scale(.97)}.fab.o{transform:rotate(45deg)}
+/* zoom+fit bar — right bottom */
+.zb{position:fixed;bottom:20px;right:20px;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rl);box-shadow:var(--shm);display:flex;align-items:center;overflow:hidden;z-index:180}
+.zbb{width:30px;height:32px;display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;color:var(--t2);border:none;background:transparent;transition:all .12s}
+.zbb:hover{background:var(--bg);color:var(--t1)}
+.zb-s{width:1px;height:18px;background:var(--bdr)}
+.zb-p{font-size:11px;font-family:var(--fm);color:var(--t2);padding:0 8px;min-width:40px;text-align:center;cursor:pointer;line-height:32px}
+.zb-p:hover{color:var(--t1)}
+/* flow panel left */
+.lpanel{position:fixed;top:46px;bottom:0;width:210px;background:var(--surf);border-right:1px solid var(--bdr);display:flex;flex-direction:column;transform:translateX(-300px);transition:all .2s cubic-bezier(.16,1,.3,1);z-index:120}
+.lpanel.o{transform:translateX(0)}
+.lp-hd{padding:11px 12px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.lp-tt{font-size:13px;font-weight:600}
+.lp-b{flex:1;overflow-y:auto;padding:7px}
+.fi{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:var(--r);cursor:pointer;transition:all .12s;border:1px solid transparent;margin-bottom:1px}
+.fi:hover{background:var(--bg);border-color:var(--bdr)}.fi.on{background:var(--bg);border-color:var(--bdr2)}
+.fi-dot{width:6px;height:6px;border-radius:50%;background:var(--bdr2);flex-shrink:0}.fi.on .fi-dot{background:var(--pur)}
+.fi-nm{font-size:12.5px;font-weight:500;flex:1}.fi-cn{font-size:11px;font-family:var(--fm);color:var(--t3)}
+.lp-ft{padding:8px;border-top:1px solid var(--bdr);flex-shrink:0}
+/* right panel */
+.rp{position:fixed;top:46px;right:0;bottom:0;width:280px;background:var(--surf);border-left:1px solid var(--bdr);transform:translateX(100%);transition:transform .2s cubic-bezier(.16,1,.3,1);z-index:120;display:flex;flex-direction:column;box-shadow:var(--shl)}
+.rp.o{transform:translateX(0)}
+.rp-hd{padding:12px 14px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.rp-tt{font-size:13px;font-weight:600;letter-spacing:-.01em}.rp-sb{font-size:11.5px;color:var(--t3);font-family:var(--fm);margin-top:1px}
+.rp-cl{width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;color:var(--t3);transition:all .12s}
+.rp-cl:hover{background:var(--bg);color:var(--t1)}
+.rp-tabs{display:flex;border-bottom:1px solid var(--bdr);background:var(--bg)}
+.rp-tab{flex:1;padding:7px;font-size:12px;font-weight:500;color:var(--t3);cursor:pointer;text-align:center;border-bottom:2px solid transparent;transition:all .14s}
+.rp-tab:hover{color:var(--t2)}.rp-tab.on{color:var(--t1);border-bottom-color:var(--t1);background:var(--surf)}
+.rp-b{flex:1;overflow-y:auto;padding:13px;display:flex;flex-direction:column;gap:11px}
+.fl{font-size:11.5px;font-weight:500;color:var(--t2);margin-bottom:4px}
+.fi-in{width:100%;background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);padding:7px 10px;color:var(--t1);font-size:12.5px;line-height:1.5;outline:none;resize:none;transition:all .14s}
+.fi-in:focus{border-color:var(--bdr2);background:var(--surf);box-shadow:0 0 0 3px rgba(24,24,26,.05)}
+.fi-in::placeholder{color:var(--t3)}
+.ring-row{display:flex;align-items:center;gap:9px;padding:9px 11px;background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r)}
+.ring-info .ri-lbl{font-size:11.5px;font-weight:500;color:var(--t2)}.ring-info .ri-sub{font-size:11px;font-family:var(--fm);color:var(--t3)}
+.rp-ft{padding:10px;border-top:1px solid var(--bdr);flex-shrink:0}
+/* context menu */
+.ctxm{position:fixed;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);box-shadow:var(--shl);padding:4px;display:none;z-index:500;min-width:150px}
+.ctxm.o{display:block}
+.cm-it{display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--t1);transition:background .1s}
+.cm-it:hover{background:var(--bg)}.cm-it.dl{color:var(--red)}
+.cm-ic{font-size:13px;width:16px;text-align:center;color:var(--t3)}.cm-it.dl .cm-ic{color:var(--red)}
+.cm-sep{height:1px;background:var(--bdr);margin:3px 0}
+/* gen overlay */
+.gen-ov{position:fixed;inset:0;background:rgba(245,245,243,.95);backdrop-filter:blur(6px);z-index:600;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+.gen-ov.o{display:flex}
+.gen-br{width:44px;height:44px;background:var(--t1);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--fs);font-style:italic;font-size:20px}
+.gen-ttl{font-family:var(--fs);font-size:20px;font-style:italic}
+.gen-lst{display:flex;flex-direction:column;gap:4px;width:300px}
+.gi{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);transition:all .2s}
+.gi.act{border-color:var(--bdr2);background:var(--bg)}.gi.dn{border-color:var(--grn-bd);background:var(--grn-bg)}
+.gi-ic{width:20px;height:20px;border-radius:4px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;color:var(--t3);transition:all .2s}
+.gi.act .gi-ic{background:var(--t1);color:#fff}.gi.dn .gi-ic{background:var(--grn);color:#fff}
+.gi-t{font-size:12px;color:var(--t3);transition:color .2s}.gi.act .gi-t{color:var(--t1)}.gi.dn .gi-t{color:var(--grn)}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+/* code modal */
+.mbg{position:fixed;inset:0;background:rgba(24,24,26,.4);backdrop-filter:blur(4px);z-index:700;display:none;align-items:center;justify-content:center;padding:22px}
+.mbg.o{display:flex}
+.modal{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rxl);width:100%;max-width:880px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shxl)}
+.m-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 17px;border-bottom:1px solid var(--bdr)}
+.m-ttl{font-family:var(--fs);font-size:17px;font-style:italic;display:flex;align-items:center;gap:9px}
+.m-tabs{display:flex;border-bottom:1px solid var(--bdr);background:var(--bg);padding:0 17px;gap:2px}
+.mt{padding:7px 10px;font-size:11.5px;font-family:var(--fm);font-weight:500;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:all .14s}
+.mt:hover{color:var(--t2)}.mt.o{color:var(--t1);border-bottom-color:var(--t1)}
+.m-body{flex:1;display:flex;overflow:hidden}
+.ca{flex:1;overflow:auto;padding:13px;background:var(--bg)}
+.cb{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rl);overflow:hidden;margin-bottom:9px}
+.cb-hd{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-bottom:1px solid var(--bdr);background:var(--bg)}
+.cb-f{display:flex;align-items:center;gap:6px;font-size:11.5px;font-family:var(--fm);color:var(--t2)}
+.cb-ext{width:17px;height:17px;border-radius:3px;background:var(--t1);color:#fff;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700}
+pre{padding:12px;font-family:var(--fm);font-size:11.5px;line-height:1.65;overflow-x:auto;color:var(--t2)}
+.kw{color:#7C3AED}.str{color:var(--grn)}.cmp{color:var(--blu)}.prp{color:var(--amb)}.cmt{color:var(--t3);font-style:italic}.tg{color:var(--red)}
+.prev-p{width:170px;border-left:1px solid var(--bdr);background:var(--bg);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.pp-hd{padding:7px 10px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;font-size:10.5px;font-family:var(--fm);color:var(--t3)}
+.pp-live{display:flex;align-items:center;gap:2px;color:var(--grn);font-size:9px}
+.pp-ld{width:4px;height:4px;border-radius:50%;background:var(--grn)}
+.pp-dev{flex:1;display:flex;align-items:center;justify-content:center;padding:9px}
+.dv{width:96px;height:172px;background:var(--surf);border:1.5px solid var(--bdr2);border-radius:13px;overflow:hidden;box-shadow:var(--shl)}
+.dv-n{width:34px;height:7px;background:var(--bdr2);border-radius:0 0 5px 5px;margin:0 auto}
+.dv-s{padding:4px;display:flex;flex-direction:column;gap:3px}
+.dv-nav{height:12px;background:var(--bg);border-radius:2px;display:flex;align-items:center;padding:0 3px;gap:2px}
+.dv-logo{width:5px;height:5px;background:var(--t1);border-radius:1px}
+.dv-sp{flex:1}
+.dv-dot{width:2px;height:2px;border-radius:50%;background:var(--bdr2)}
+.dv-hero{height:30px;background:linear-gradient(135deg,#EFF6FF,#F5F3FF);border-radius:3px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.dv-h{width:42px;height:3px;background:rgba(24,24,26,.3);border-radius:2px}
+.dv-s2{width:30px;height:2px;background:rgba(24,24,26,.1);border-radius:2px}
+.dv-cards{display:flex;gap:2px}
+.dv-card{flex:1;height:20px;background:var(--bg);border:1px solid var(--bdr);border-radius:2px;padding:2px}
+.dv-cb{height:2px;border-radius:1px;background:var(--bdr2);margin-bottom:1px}.dv-cb.b{background:#93C5FD}
+.dv-cta{height:13px;background:var(--t1);border-radius:2px}
+.pp-bot{padding:0 9px 9px;display:flex;flex-direction:column;gap:4px}
+.m-ft{padding:10px 17px;border-top:1px solid var(--bdr);background:var(--bg);display:flex;align-items:center;justify-content:space-between}
+.m-ft-meta{font-size:11px;font-family:var(--fm);color:var(--t3)}
+/* new project modal */
+.npm{position:fixed;inset:0;background:rgba(24,24,26,.4);backdrop-filter:blur(4px);z-index:800;display:none;align-items:center;justify-content:center}
+.npm.o{display:flex}
+.npm-box{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rxl);width:430px;box-shadow:var(--shxl);overflow:hidden}
+.npm-hd{padding:17px 19px 15px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between}
+.npm-tt{font-size:15px;font-weight:600;letter-spacing:-.02em}
+.npm-b{padding:18px;display:flex;flex-direction:column;gap:13px}
+.npm-lbl{font-size:12px;font-weight:500;color:var(--t2);margin-bottom:4px}
+.npm-in{width:100%;background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);padding:8px 11px;font-size:13px;color:var(--t1);outline:none;transition:all .14s}
+.npm-in:focus{border-color:var(--bdr2);box-shadow:0 0 0 3px rgba(24,24,26,.05)}
+.npm-in::placeholder{color:var(--t3)}
+.clr-row{display:flex;gap:7px}
+.clr{width:26px;height:26px;border-radius:7px;cursor:pointer;transition:transform .14s;border:2px solid transparent}
+.clr:hover{transform:scale(1.12)}.clr.on{border-color:var(--t1);transform:scale(1.08)}
+.npm-ft{padding:13px 18px;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:7px;background:var(--bg)}
+/* toast */
+.toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(5px);background:var(--t1);color:#fff;border-radius:var(--r);padding:7px 13px;font-size:12px;font-family:var(--fm);opacity:0;transition:all .2s;z-index:999;box-shadow:var(--shl);pointer-events:none;white-space:nowrap}
+.toast.o{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- ════ DASHBOARD ═══════════════════════════════ -->
+<div id="D">
+  <div class="d-bar">
+    <div class="d-brand" onclick="showDS('home')">
+      <div class="d-mark">F</div>
+      <div class="d-wm">Flowbridge <span>Studio</span></div>
+    </div>
+    <div class="d-rgt">
+      <button class="btn bp b-sm" onclick="showNPM()">+ New Project</button>
+      <div class="d-av" onclick="showDS('profile')" title="Profile">J</div>
+    </div>
+  </div>
+  <div class="d-body">
+    <div class="d-nav" id="dNav">
+      <div class="dn-lbl">Workspace</div>
+      <div class="dn-it on" id="dnt-home" onclick="showDS('home')"><span class="dn-ic">⊞</span>Home</div>
+      <div class="dn-it" id="dnt-projects" onclick="showDS('projects')"><span class="dn-ic">◈</span>Projects</div>
+      <div class="dn-it" id="dnt-recent" onclick="showDS('recent')"><span class="dn-ic">◌</span>Recent</div>
+      <div class="dn-sep"></div>
+      <div class="dn-lbl">Account</div>
+      <div class="dn-it" id="dnt-profile" onclick="showDS('profile')"><span class="dn-ic">○</span>Profile</div>
+      <div class="dn-it" id="dnt-settings" onclick="showDS('settings')"><span class="dn-ic">⚙</span>Settings</div>
+    </div>
+    <div class="d-main" id="dMain"></div>
+    <div class="d-prof" id="dProf" style="display:none"></div>
+  </div>
+</div>
+
+<!-- ════ APP VIEW ════════════════════════════════ -->
+<div id="A">
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="nav-l">
+      <div class="nav-tog" id="navTog" onclick="toggleIbar()" title="Toggle sidebar">☰</div>
+      <div class="nav-logo" onclick="goToDash()" title="Back to projects">
+        <div class="nbm">F</div>
+        <span class="nav-proj-name" id="navProjName">—</span>
+      </div>
+      <div class="nav-bc" id="navBc"></div>
+    </div>
+    <div class="nav-r">
+      <button class="btn bs b-sm" onclick="triggerGen()">⚡ Generate</button>
+    </div>
+  </nav>
+  <!-- ICON SIDEBAR -->
+  <div class="ibar" id="ibar">
+    <div class="ib on" id="ib-macro" onclick="toggleEbar('macro')">⬡<span class="tip">Macro Nodes</span></div>
+    <div class="ib" id="ib-comp" onclick="toggleEbar('comp')">◈<span class="tip">Components</span></div>
+    <div class="ib-sep"></div>
+    <div class="ib" id="ib-fit" onclick="fitView()">⊞<span class="tip">Fit View</span></div>
+    <div class="ib-bot">
+      <div class="ib-sep"></div>
+      <div class="ib" onclick="goToDash()">←<span class="tip">Back to Projects</span></div>
+    </div>
+  </div>
+  <!-- EXPANDED SIDEBAR -->
+  <div class="ebar on" id="ebar">
+    <div class="eb-head">
+      <span class="eb-ttl" id="ebarTitle">Macro Nodes</span>
+      <span class="eb-x" onclick="closeEbar()">✕</span>
+    </div>
+    <div class="eb-body" id="ebarBody"></div>
+  </div>
+  <!-- CANVAS -->
+  <div class="cw i2" id="cw">
+    <div class="cdots"></div>
+    <div class="cv" id="cv">
+      <div class="scene" id="scene">
+        <svg class="ssv" id="ssv"></svg>
+      </div>
+    </div>
+  </div>
+  <!-- FLOW LEFT PANEL -->
+  <div class="lpanel" id="lp">
+    <div class="lp-hd"><span class="lp-tt">Flows</span><span class="eb-x" onclick="closeLp()">✕</span></div>
+    <div class="lp-b" id="lpBody"></div>
+    <div class="lp-ft"><button class="btn bs b-sm bw" onclick="addFlow()">+ Add Flow</button></div>
+  </div>
+  <!-- RIGHT PANEL -->
+  <div class="rp" id="rp">
+    <div class="rp-hd">
+      <div><div class="rp-tt" id="rpTt">Node</div><div class="rp-sb" id="rpSb">—</div></div>
+      <div class="rp-cl" onclick="closeRp()">✕</div>
+    </div>
+    <div class="rp-tabs">
+      <div class="rp-tab on" onclick="setRTab(this,'rt0')">Properties</div>
+      <div class="rp-tab" onclick="setRTab(this,'rt1')">Context</div>
+      <div class="rp-tab" onclick="setRTab(this,'rt2')">Info</div>
+    </div>
+    <div class="rp-b">
+      <div id="rt0">
+        <div><div class="fl">Name</div><input class="fi-in" type="text" id="rpNm" oninput="onNm(this.value)" placeholder="Name…"></div>
+        <div><div class="fl">Description</div><textarea class="fi-in" rows="3" id="rpDs" oninput="onDs(this.value)" placeholder="Describe…"></textarea></div>
+        <div id="rp-tags-wrap"><div class="fl">Tags</div><input class="fi-in" type="text" id="rpTg" oninput="onTg(this.value)" placeholder="tag1, tag2…"></div>
+        <div id="rp-ctx-wrap" style="display:none"><div class="fl">Screen Context</div><textarea class="fi-in" rows="3" id="rpCx" oninput="onCx(this.value)" placeholder="Screen purpose…"></textarea></div>
+        <div id="rp-figma-wrap" style="display:none"><div class="fl">Figma URL</div><input class="fi-in" type="text" id="rpFg" placeholder="figma.com/design/…"></div>
+        <div class="ring-row" id="rpRing" style="display:none">
+          <svg width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="13" fill="none" stroke="var(--bdr)" stroke-width="2.5"/><circle cx="17" cy="17" r="13" fill="none" stroke="var(--grn)" stroke-width="2.5" stroke-dasharray="82" stroke-dashoffset="82" stroke-linecap="round" transform="rotate(-90 17 17)" id="ringPath"/></svg>
+          <div class="ring-info"><div class="ri-lbl">Context</div><div class="ri-sub" id="ringSub">0% — empty</div></div>
+        </div>
+      </div>
+      <div id="rt1" style="display:none">
+        <div><div class="fl">Architecture Notes</div><textarea class="fi-in" rows="4" placeholder="Role in architecture…"></textarea></div>
+        <div><div class="fl">Generation Rules</div><textarea class="fi-in" rows="3" placeholder="Stack, patterns, constraints…"></textarea></div>
+      </div>
+      <div id="rt2" style="display:none">
+        <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);padding:10px 12px;display:flex;flex-direction:column;gap:5px">
+          <div style="font-size:9.5px;font-family:var(--fm);color:var(--t3)">NODE ID</div><div style="font-size:12px;font-family:var(--fm);color:var(--t2)" id="rpId">—</div>
+          <div style="font-size:9.5px;font-family:var(--fm);color:var(--t3);margin-top:4px">TYPE</div><div style="font-size:12px;font-family:var(--fm);color:var(--t2)" id="rpTyp">—</div>
+          <div style="font-size:9.5px;font-family:var(--fm);color:var(--t3);margin-top:4px">CONNECTIONS</div><div style="font-size:12px;font-family:var(--fm);color:var(--t2)" id="rpCnn">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- FAB -->
+  <div class="fab-w" id="fabW">
+    <div class="fab-opts" id="fabOpts">
+      <div class="fab-opt" id="fab-sc" onclick="addScFab()" style="display:none">
+        <div class="fo-ic sc">▭</div><div class="fo-lbl">Screen</div>
+      </div>
+      <div class="fab-opt" onclick="addNodeFab('ds')">
+        <div class="fo-ic ds">◈</div><div class="fo-lbl">DS / Lib</div>
+      </div>
+      <div class="fab-opt" onclick="addNodeFab('jn')">
+        <div class="fo-ic jn">⬡</div><div class="fo-lbl">Journey</div>
+      </div>
+    </div>
+    <button class="fab" id="fab" onclick="toggleFab()">+</button>
+  </div>
+  <!-- ZOOM BAR -->
+  <div class="zb">
+    <button class="zbb" onclick="zoom(-0.15)" title="Zoom out">−</button>
+    <div class="zb-s"></div>
+    <div class="zb-p" id="zpct" onclick="zoom(1-S)" title="Reset">100%</div>
+    <div class="zb-s"></div>
+    <button class="zbb" onclick="zoom(0.15)" title="Zoom in">+</button>
+    <div class="zb-s"></div>
+    <button class="zbb" onclick="fitView()" title="Fit view">⊞</button>
+  </div>
+</div>
+
+<!-- CONTEXT MENU -->
+<div class="ctxm" id="ctxm">
+  <div class="cm-it" onclick="ctxEdit()"><span class="cm-ic">✏</span>Edit</div>
+  <div class="cm-it" id="ctx-open" onclick="ctxOpen()" style="display:none"><span class="cm-ic">→</span>Open Flows</div>
+  <div class="cm-sep"></div>
+  <div class="cm-it" onclick="ctxDupe()"><span class="cm-ic">⧉</span>Duplicate</div>
+  <div class="cm-sep"></div>
+  <div class="cm-it dl" onclick="ctxDel()"><span class="cm-ic">✕</span>Delete</div>
+</div>
+<!-- GEN OVERLAY -->
+<div class="gen-ov" id="genOv">
+  <div class="gen-br">F</div>
+  <div class="gen-ttl">Generating your code</div>
+  <div class="gen-lst">
+    <div class="gi" id="gi0"><div class="gi-ic">⬡</div><div class="gi-t">Reading Figma design context</div></div>
+    <div class="gi" id="gi1"><div class="gi-ic">◈</div><div class="gi-t">Mapping components to Design System</div></div>
+    <div class="gi" id="gi2"><div class="gi-ic">⊞</div><div class="gi-t">Compiling semantic context graph</div></div>
+    <div class="gi" id="gi3"><div class="gi-ic">⚡</div><div class="gi-t">Generating with Claude API</div></div>
+    <div class="gi" id="gi4"><div class="gi-ic">✓</div><div class="gi-t">Finalizing output</div></div>
+  </div>
+</div>
+<!-- CODE MODAL -->
+<div class="mbg" id="mbg">
+  <div class="modal">
+    <div class="m-hd"><div class="m-ttl">Generated Code <span class="bdg dg-grn">✓ Ready</span></div><button class="btn bg b-xs" onclick="closeMdl()">✕</button></div>
+    <div class="m-tabs">
+      <div class="mt o" onclick="setMt(this,'mc0')">page.tsx</div>
+      <div class="mt" onclick="setMt(this,'mc1')">login.tsx</div>
+      <div class="mt" onclick="setMt(this,'mc2')">dashboard.tsx</div>
+    </div>
+    <div class="m-body">
+      <div class="ca" id="mc0"><div class="cb"><div class="cb-hd"><div class="cb-f"><div class="cb-ext">tsx</div>app/(auth)/page.tsx</div><button class="btn bg b-xs" onclick="toast('Copied!')">Copy</button></div><pre><span class="cmt">// Welcome — entry point</span>
+<span class="kw">import</span> { <span class="cmp">Button</span> } <span class="kw">from</span> <span class="str">"@/components/ui/button"</span>
+<span class="kw">export default function</span> <span class="cmp">Page</span>() {
+  <span class="kw">return</span> <span class="tg">&lt;main&gt;</span><span class="tg">&lt;</span><span class="cmp">Button</span><span class="tg">&gt;</span>Sign In<span class="tg">&lt;/</span><span class="cmp">Button</span><span class="tg">&gt;</span><span class="tg">&lt;/main&gt;</span>
+}</pre></div></div>
+      <div class="ca" id="mc1" style="display:none"><div class="cb"><div class="cb-hd"><div class="cb-f"><div class="cb-ext">tsx</div>login/page.tsx</div><button class="btn bg b-xs" onclick="toast('Copied!')">Copy</button></div><pre><span class="cmt">// Login form</span>
+<span class="kw">"use client"</span>
+<span class="kw">export default function</span> <span class="cmp">Login</span>() { <span class="kw">return</span> <span class="tg">&lt;form&gt;</span>…<span class="tg">&lt;/form&gt;</span> }</pre></div></div>
+      <div class="ca" id="mc2" style="display:none"><div class="cb"><div class="cb-hd"><div class="cb-f"><div class="cb-ext">tsx</div>dashboard/page.tsx</div><button class="btn bg b-xs" onclick="toast('Copied!')">Copy</button></div><pre><span class="cmt">// Dashboard</span>
+<span class="kw">export default async function</span> <span class="cmp">Dash</span>() { <span class="kw">return</span> <span class="tg">&lt;div&gt;</span>…<span class="tg">&lt;/div&gt;</span> }</pre></div></div>
+      <div class="prev-p">
+        <div class="pp-hd"><span>Preview</span><div class="pp-live"><div class="pp-ld"></div>Live</div></div>
+        <div class="pp-dev"><div class="dv"><div class="dv-n"></div><div class="dv-s"><div class="dv-nav"><div class="dv-logo"></div><div class="dv-sp"></div><div class="dv-dot"></div><div class="dv-dot"></div></div><div class="dv-hero"><div class="dv-h"></div><div class="dv-s2"></div></div><div class="dv-cards"><div class="dv-card"><div class="dv-cb b"></div><div class="dv-cb"></div></div><div class="dv-card"><div class="dv-cb"></div><div class="dv-cb b"></div></div></div><div class="dv-cta"></div></div></div></div>
+        <div class="pp-bot"><button class="btn bs b-sm" style="width:100%;font-size:11px" onclick="toast('Opening…')">Sandbox ↗</button></div>
+      </div>
+    </div>
+    <div class="m-ft"><span class="m-ft-meta">5 files · ~340 lines · 2.1s</span><div style="display:flex;gap:7px"><button class="btn bs b-sm" onclick="toast('Copied all')">Copy all</button><button class="btn bp b-sm" onclick="toast('Committing…')">Commit →</button></div></div>
+  </div>
+</div>
+<!-- NEW PROJECT MODAL -->
+<div class="npm" id="npmModal">
+  <div class="npm-box">
+    <div class="npm-hd"><span class="npm-tt">New Project</span><button class="btn bg b-xs" onclick="closeNPM()">✕</button></div>
+    <div class="npm-b">
+      <div><div class="npm-lbl">Project name</div><input class="npm-in" id="npmNm" type="text" placeholder="e.g. Trampolim App…"></div>
+      <div><div class="npm-lbl">Description</div><textarea class="npm-in" id="npmDs" rows="2" style="resize:none" placeholder="What is this project about?"></textarea></div>
+      <div>
+        <div class="npm-lbl">Color</div>
+        <div class="clr-row" id="clrRow">
+          <div class="clr on" data-c="#18181A" style="background:#18181A" onclick="setClr(this)"></div>
+          <div class="clr" data-c="#2563EB" style="background:#2563EB" onclick="setClr(this)"></div>
+          <div class="clr" data-c="#7C3AED" style="background:#7C3AED" onclick="setClr(this)"></div>
+          <div class="clr" data-c="#16A34A" style="background:#16A34A" onclick="setClr(this)"></div>
+          <div class="clr" data-c="#D97706" style="background:#D97706" onclick="setClr(this)"></div>
+          <div class="clr" data-c="#DC2626" style="background:#DC2626" onclick="setClr(this)"></div>
+        </div>
+      </div>
+    </div>
+    <div class="npm-ft">
+      <button class="btn bs b-sm" onclick="closeNPM()">Cancel</button>
+      <button class="btn bp b-sm" onclick="createProj()">Create Project</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toastEl"><span id="toastMsg"></span></div>
+
+<script>
+'use strict';
+// ════════════════════════════════════════════════
+//  GLOBAL STATE
+// ════════════════════════════════════════════════
+let projects = [
+  {id:'p1',name:'Trampolim App',desc:'Gov job platform · São Paulo',color:'#2563EB',updated:'Today'},
+  {id:'p2',name:'Dashboard Analytics',desc:'Executive reporting',color:'#7C3AED',updated:'Yesterday'},
+  {id:'p3',name:'Gauge Design System',desc:'Component library',color:'#16A34A',updated:'2 days ago'},
+];
+let curPid = null;       // current project id
+let npmColor = '#18181A';
+// per-project data
+const PD = {};           // PD[pid] = {nodes[], conns[], flows:{jid:[]}, curFlow:{jid:fid}}
+function pd(pid){ if(!PD[pid]) PD[pid]={nodes:[],conns:[],flows:{},curFlow:{}}; return PD[pid]; }
+
+// canvas
+let VIEW='macro', curJid=null;
+let selNid=null, selCid=null, selSid=null;
+let S=1, TX=0, TY=0;
+let panning=false, panSt={x:0,y:0};
+let ibarOn=true, ebarOn=true, ebarSec='macro';
+let fabOn=false;
+let _nid=0, _cid=0, _fid=0, _sid=0;
+const nid=()=>'n'+(++_nid), cid=()=>'c'+(++_cid), fid=()=>'f'+(++_fid), sid=()=>'s'+(++_sid);
+
+// ════════════════════════════════════════════════
+//  SEED DEMO DATA
+// ════════════════════════════════════════════════
+function seedP1(){
+  const p=pd('p1'); if(p.nodes.length) return;
+  const ds1=addN(p,'ds','Design System v2',180,150,'shadcn/ui · Tailwind · Figma tokens',['shadcn/ui','tailwind','tokens']);
+  const ds2=addN(p,'ds','Icon Library',180,330,'Lucide icons · React',['lucide','react']);
+  const j1 =addN(p,'jn','Auth Flow',520,190,'Login · Register · Recovery',['auth','login']);
+  const j2 =addN(p,'jn','Dashboard',520,360,'Post-auth home + metrics',['home','metrics']);
+  addC(p,ds1,j1); addC(p,ds1,j2); addC(p,ds2,j1);
+  const f1=fid(),f2=fid(),f3=fid();
+  p.flows[j1]=[
+    {id:f1,name:'Sign In',screens:[
+      {id:sid(),name:'Welcome',x:80,y:140,ctx:'Entry point. Brand + 2 CTAs.',done:true,isEntry:true},
+      {id:sid(),name:'Login',x:320,y:100,ctx:'Email + password. POST /auth/login.',done:true},
+      {id:sid(),name:'Login Error',x:550,y:140,ctx:'Inline error state.',done:true,isErr:true},
+      {id:sid(),name:'Redirect',x:770,y:100,ctx:'',done:false},
+    ]},
+    {id:f2,name:'Password Recovery',screens:[
+      {id:sid(),name:'Forgot Password',x:80,y:140,ctx:'Email input → send link.',done:true,isEntry:true},
+      {id:sid(),name:'Check Email',x:320,y:140,ctx:'Confirmation + resend.',done:true},
+    ]},
+  ];
+  p.curFlow[j1]=f1;
+  p.flows[j2]=[{id:f3,name:'Main',screens:[
+    {id:sid(),name:'Home',x:80,y:140,ctx:'3 metric cards + chart.',done:true,isEntry:true},
+    {id:sid(),name:'Analytics',x:320,y:140,ctx:'',done:false},
+    {id:sid(),name:'Settings',x:550,y:140,ctx:'',done:false},
+  ]}];
+  p.curFlow[j2]=f3;
+}
+function addN(p,type,name,x,y,desc='',tags=[]){const id=nid();p.nodes.push({id,type,name,x,y,desc,tags});return id;}
+function addC(p,from,to){p.conns.push({id:cid(),from,to});}
+const p = ()=>pd(curPid);
+
+// ════════════════════════════════════════════════
+//  DASHBOARD
+// ════════════════════════════════════════════════
+let dSec='home';
+function showDS(s){
+  dSec=s;
+  document.querySelectorAll('.dn-it').forEach(e=>e.classList.remove('on'));
+  document.getElementById('dnt-'+s)?.classList.add('on');
+  const prof=document.getElementById('dProf');
+  prof.style.display=s==='profile'?'flex':'none';
+  if(s==='profile') renderProf();
+  renderDMain(s);
+}
+function renderDMain(s){
+  const m=document.getElementById('dMain');
+  if(s==='home'||s==='projects'){
+    const totalN=projects.reduce((a,pr)=>{const d=pd(pr.id);return a+d.nodes.length},0);
+    const totalF=projects.reduce((a,pr)=>{const d=pd(pr.id);return a+Object.values(d.flows).reduce((b,v)=>b+v.length,0)},0);
+    const totalSc=projects.reduce((a,pr)=>{const d=pd(pr.id);return a+Object.values(d.flows).reduce((b,fl)=>b+fl.reduce((c,f)=>c+f.screens.length,0),0)},0);
+    m.innerHTML=`
+      <div class="dm-ttl">Projects</div>
+      <div class="dm-sub">Open a project to start building your pipeline. <span style="font-family:var(--fm);font-size:11px;color:var(--t3)">${totalN} nodes · ${totalF} flows · ${totalSc} screens</span></div>
+      <div class="pg" id="pg"></div>`;
+    renderPG();
+  } else if(s==='recent'){
+    m.innerHTML=`<div class="dm-ttl">Recent</div><div class="dm-sub">Projects you worked on lately.</div>
+      ${projects.map(pr=>`<div class="rl-item" onclick="openP('${pr.id}')">
+        <div class="rl-ic" style="background:${pr.color}22;color:${pr.color};border:1px solid ${pr.color}33">⬡</div>
+        <div class="rl-name">${pr.name}</div>
+        <div class="rl-meta">${pr.updated}</div>
+      </div>`).join('')}`;
+  } else if(s==='settings'){
+    m.innerHTML=`<div class="dm-ttl">Settings</div><div class="dm-sub">Workspace preferences.</div>
+      ${[['Default framework','next'],['Component library','shadcn/ui'],['CSS framework','tailwind'],['Icon set','lucide'],['AI Model','claude-sonnet-4-6']].map(([l,v])=>`
+      <div class="sett-row"><span class="sett-lbl">${l}</span>
+        ${['next','shadcn/ui','tailwind','lucide'].includes(v)?`<select class="sett-sel"><option>${v}</option></select>`:`<span class="sett-val">${v}</span>`}
+      </div>`).join('')}`;
+  } else if(s==='profile'){
+    m.innerHTML=`<div class="dm-ttl">Profile</div><div class="dm-sub">Your account details.</div>
+      ${[['Name','Jason'],['Email','jason@flowbridge.io'],['Plan','Pro'],['Since','Jan 2025']].map(([l,v])=>`
+      <div class="sett-row"><span class="sett-lbl">${l}</span><span class="sett-val">${v}</span></div>`).join('')}`;
+  }
+}
+function renderPG(){
+  const pg=document.getElementById('pg'); if(!pg) return;
+  const totalNodes=p=>pd(p.id).nodes.length;
+  const totalFlows=p=>Object.values(pd(p.id).flows).reduce((a,v)=>a+v.length,0);
+  pg.innerHTML=projects.map(pr=>`
+    <div class="pc" onclick="openP('${pr.id}')">
+      <div class="pc-prev" style="background:${pr.color}0D">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;opacity:.55">
+          <div style="display:flex;gap:7px">
+            ${pd(pr.id).nodes.filter(n=>n.type==='ds').slice(0,1).map(n=>`<div style="width:48px;height:34px;background:${pr.color}22;border:1px solid ${pr.color}44;border-top:3px solid ${pr.color};border-radius:7px;display:flex;align-items:center;justify-content:center;color:${pr.color};font-size:13px">◈</div>`).join('')}
+            ${pd(pr.id).nodes.filter(n=>n.type==='jn').slice(0,2).map(n=>`<div style="width:48px;height:34px;background:${pr.color}22;border:1px solid ${pr.color}44;border-top:3px solid ${pr.color};border-radius:7px;display:flex;align-items:center;justify-content:center;color:${pr.color};font-size:13px">⬡</div>`).join('')}
+            ${!pd(pr.id).nodes.length?`<div style="font-size:11px;color:${pr.color}99">Empty project</div>`:''}
+          </div>
+        </div>
+        <div class="pc-menu" onclick="event.stopPropagation();pcMenu('${pr.id}')">⋯</div>
+      </div>
+      <div class="pc-body">
+        <div class="pc-name">${pr.name}</div>
+        <div class="pc-meta"><span>${pr.desc}</span><span class="pc-dot"></span><span>${pr.updated}</span><span class="pc-dot"></span><span style="font-family:var(--fm);font-size:10.5px">${totalNodes(pr)}n · ${totalFlows(pr)}f</span></div>
+      </div>
+    </div>`).join('')+`
+    <div class="pn" onclick="showNPM()"><div class="pn-ic">+</div><div style="font-size:13px;font-weight:500">New Project</div></div>`;
+}
+function pcMenu(pid){
+  const pr=projects.find(p=>p.id===pid);
+  const menu=document.createElement('div');
+  menu.style.cssText=`position:fixed;background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);box-shadow:var(--shl);padding:4px;z-index:900;min-width:140px;top:${event.clientY}px;left:${event.clientX}px`;
+  menu.innerHTML=`<div class="cm-it" onclick="openP('${pid}');this.parentNode.remove()"><span class="cm-ic">→</span>Open</div>
+    <div class="cm-sep"></div>
+    <div class="cm-it dl" onclick="delProj('${pid}');this.parentNode.remove()"><span class="cm-ic">✕</span>Delete</div>`;
+  document.body.appendChild(menu);
+  setTimeout(()=>document.addEventListener('click',()=>menu.remove(),{once:true}),0);
+}
+function delProj(pid){
+  if(!confirm('Delete this project?')) return;
+  projects=projects.filter(p=>p.id!==pid);
+  delete PD[pid];
+  renderDMain(dSec);
+  toast('Project deleted');
+}
+function renderProf(){
+  const p2=document.getElementById('dProf');
+  const totalN=projects.reduce((a,pr)=>a+pd(pr.id).nodes.length,0);
+  p2.innerHTML=`
+    <div class="prof-av-wrap">
+      <div class="prof-av">J</div>
+      <div class="prof-name">Jason</div>
+      <div class="prof-email">jason@flowbridge.io</div>
+      <span class="bdg dg-blu">Pro Plan</span>
+    </div>
+    <div class="prof-sect">
+      <div class="prof-sect-lbl">Stats</div>
+      <div class="stat-grid">
+        <div class="stat-cell"><div class="stat-n">${projects.length}</div><div class="stat-l">Projects</div></div>
+        <div class="stat-cell"><div class="stat-n">${totalN}</div><div class="stat-l">Nodes</div></div>
+        <div class="stat-cell"><div class="stat-n">${projects.reduce((a,pr)=>a+Object.values(pd(pr.id).flows).reduce((b,v)=>b+v.length,0),0)}</div><div class="stat-l">Flows</div></div>
+        <div class="stat-cell"><div class="stat-n">${projects.reduce((a,pr)=>a+Object.values(pd(pr.id).flows).reduce((b,fl)=>b+fl.reduce((c,f)=>c+f.screens.length,0),0),0)}</div><div class="stat-l">Screens</div></div>
+      </div>
+    </div>
+    <div class="prof-sect">
+      <div class="prof-sect-lbl">Actions</div>
+      <button class="btn bs b-sm bw" onclick="showNPM()">+ New Project</button>
+      <button class="btn bg b-sm bw" style="margin-top:5px" onclick="showDS('settings')">⚙ Settings</button>
+    </div>`;
+}
+// ── NEW PROJECT MODAL ──
+function showNPM(){document.getElementById('npmModal').classList.add('o');document.getElementById('npmNm').focus()}
+function closeNPM(){document.getElementById('npmModal').classList.remove('o')}
+function setClr(el){document.querySelectorAll('.clr').forEach(e=>e.classList.remove('on'));el.classList.add('on');npmColor=el.dataset.c}
+function createProj(){
+  const nm=document.getElementById('npmNm').value.trim();
+  if(!nm){toast('Enter a project name');return}
+  const ds=document.getElementById('npmDs').value.trim();
+  const id='p'+Date.now();
+  projects.unshift({id,name:nm,desc:ds||'New project',color:npmColor,updated:'Just now'});
+  closeNPM();
+  document.getElementById('npmNm').value='';document.getElementById('npmDs').value='';
+  toast('Project created: '+nm);
+  openP(id);
+}
+// ── OPEN PROJECT ──
+function openP(pid){
+  curPid=pid;
+  if(pid==='p1') seedP1();
+  const pr=projects.find(p=>p.id===pid);
+  if(pr) pr.updated='Just now';
+  document.getElementById('D').classList.add('off');
+  document.getElementById('A').classList.add('on');
+  document.getElementById('navProjName').textContent=pr?.name||'Project';
+  VIEW='macro'; curJid=null; selNid=null; selCid=null; selSid=null;
+  S=1; TX=0; TY=0;
+  renderMacro();
+  setBc([{lbl:'Workspace',on:true}]);
+  applyT();
+  renderEbar(ebarSec);
+  updateCW();
+}
+function goToDash(){
+  document.getElementById('A').classList.remove('on');
+  document.getElementById('D').classList.remove('off');
+  closeRp(); closeFabEl();
+  renderDMain(dSec);
+}
+
+// ════════════════════════════════════════════════
+//  CANVAS TRANSFORM
+// ════════════════════════════════════════════════
+function applyT(){
+  document.getElementById('scene').style.transform=`translate(${TX}px,${TY}px) scale(${S})`;
+  document.getElementById('zpct').textContent=Math.round(S*100)+'%';
+}
+function zoom(delta){
+  S=Math.min(2.5,Math.max(.2,typeof delta==='number'&&Math.abs(delta)<1?S+delta:delta));
+  applyT();
+}
+function fitView(){
+  TX=60; TY=60; S=0.85; applyT();
+}
+
+// ════════════════════════════════════════════════
+//  RENDER MACRO
+// ════════════════════════════════════════════════
+function renderMacro(){
+  const sc=document.getElementById('scene');
+  sc.querySelectorAll('.node,.cdel').forEach(e=>e.remove());
+  document.getElementById('ssv').innerHTML='';
+  p().conns.forEach(c=>drawConn(c));
+  p().nodes.forEach(n=>sc.appendChild(mkNodeEl(n)));
+}
+
+// ── CONNECTORS (key fix: SVG is inside scene so transform applies uniformly) ──
+function drawConn(c){
+  const fn=p().nodes.find(n=>n.id===c.from);
+  const tn=p().nodes.find(n=>n.id===c.to);
+  if(!fn||!tn) return;
+  const x1=fn.x+220, y1=fn.y+65, x2=tn.x, y2=tn.y+65;
+  const cx=(x1+x2)/2;
+  const svg=document.getElementById('ssv');
+  const isSel=c.id===selCid;
+
+  const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d',`M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`);
+  path.setAttribute('class','conn'+(isSel?' sel':''));
+  // Make it easier to click: transparent wider hit area
+  path.style.cssText='pointer-events:stroke';
+  path.addEventListener('click',e=>{e.stopPropagation();selectConn(c.id)});
+  path.addEventListener('mouseenter',()=>path.classList.add('hi'));
+  path.addEventListener('mouseleave',()=>!isSel&&path.classList.remove('hi'));
+  svg.appendChild(path);
+
+  // arrowhead
+  const dx=x2-cx, dy=y2-y2;
+  const arr=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+  arr.setAttribute('points',`${x2},${y2} ${x2-9},${y2-5} ${x2-9},${y2+5}`);
+  arr.setAttribute('class','conn-arr'+(isSel?' sel':''));
+  arr.style.fill=isSel?'var(--blu)':'var(--bdr2)';
+  svg.appendChild(arr);
+
+  // delete button (inside scene so it moves with canvas)
+  if(isSel){
+    const btn=document.createElement('div');
+    btn.className='cdel';
+    btn.style.cssText=`left:${(x1+x2)/2-10}px;top:${(y1+y2)/2-10}px`;
+    btn.textContent='✕'; btn.title='Delete connection';
+    btn.addEventListener('click',e=>{e.stopPropagation();deleteConn(c.id)});
+    document.getElementById('scene').appendChild(btn);
+  }
+}
+function redrawConns(){
+  const svg=document.getElementById('ssv'); svg.innerHTML='';
+  document.querySelectorAll('.cdel').forEach(e=>e.remove());
+  p().conns.forEach(c=>drawConn(c));
+}
+function selectConn(id){
+  // deselect node/screen
+  selNid=null; selSid=null;
+  document.querySelectorAll('.node,.snode').forEach(e=>e.classList.remove('sel'));
+  closeRp();
+  selCid=selCid===id?null:id;
+  redrawConns();
+}
+function deleteConn(id){
+  p().conns=p().conns.filter(c=>c.id!==id);
+  selCid=null; redrawConns(); toast('Connection deleted');
+  renderEbar(ebarSec);
+}
+
+function mkNodeEl(n){
+  const el=document.createElement('div');
+  el.className=`node ${n.type}${n.id===selNid?' sel':''}`;
+  el.style.cssText=`left:${n.x}px;top:${n.y}px`;
+  el.dataset.nid=n.id;
+  const icon=n.type==='ds'?'◈':'⬡';
+  const outC=p().conns.filter(c=>c.from===n.id).length;
+  const inC=p().conns.filter(c=>c.to===n.id).length;
+  const stat=n.type==='ds'?`feeds ${outC} journey${outC!==1?'s':''}`:`${inC} source${inC!==1?'s':''} · ${(p().flows[n.id]||[]).length} flows`;
+  el.innerHTML=`
+    <div class="hdl in"></div>
+    <div class="n-hd">
+      <div class="n-ic ${n.type==='ds'?'nic-ds':'nic-jn'}">${icon}</div>
+      <div><div class="n-tp ${n.type==='ds'?'nt-ds':'nt-jn'}">${n.type==='ds'?'Assets · DS · Lib':'Journey · Flow'}</div>
+      <div class="n-nm">${n.name}</div></div>
+    </div>
+    <div class="n-bd">
+      <div class="n-dc">${n.desc||'No description.'}</div>
+      <div class="n-tags">${n.tags.map(t=>`<span class="n-tag">${t}</span>`).join('')}</div>
+    </div>
+    <div class="n-ft"><div class="n-st">${stat}</div>${n.type==='jn'?'<div class="n-ht">dbl-click</div>':''}</div>
+    <div class="hdl out" data-nid="${n.id}"></div>`;
+  el.addEventListener('mousedown',e=>{
+    if(e.target.classList.contains('out')) return;
+    if(e.button!==0) return;
+    e.stopPropagation();
+    selectNode(n.id);
+    dragNode(e,n);
+  });
+  el.addEventListener('dblclick',()=>{if(n.type==='jn') openJourney(n.id)});
+  el.addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation();openCtxM(e,n.id)});
+  el.querySelector('.out').addEventListener('mousedown',e=>{e.stopPropagation();startWire(e,n.id)});
+  return el;
+}
+function dragNode(e,n){
+  const sx=e.clientX,sy=e.clientY,ox=n.x,oy=n.y;
+  const mv=e2=>{
+    n.x=ox+(e2.clientX-sx)/S; n.y=oy+(e2.clientY-sy)/S;
+    const el=document.querySelector(`[data-nid="${n.id}"]`);
+    if(el){el.style.left=n.x+'px';el.style.top=n.y+'px';}
+    redrawConns();
+  };
+  const up=()=>{document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up)};
+  document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+}
+
+// ── WIRE DRAWING ──
+function startWire(e,fromId){
+  const svg=document.getElementById('ssv');
+  const wp=document.createElementNS('http://www.w3.org/2000/svg','path');
+  wp.setAttribute('class','wire'); svg.appendChild(wp);
+  const fn=p().nodes.find(n=>n.id===fromId);
+  const x1=fn.x+220,y1=fn.y+65;
+  const mv=e2=>{
+    const r=document.getElementById('cw').getBoundingClientRect();
+    const mx=(e2.clientX-r.left-TX)/S, my=(e2.clientY-r.top-TY)/S;
+    const cx=(x1+mx)/2;
+    wp.setAttribute('d',`M${x1},${y1} C${cx},${y1} ${cx},${my} ${mx},${my}`);
+  };
+  const up=e2=>{
+    try{svg.removeChild(wp)}catch(ex){}
+    document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up);
+    const els=document.elementsFromPoint(e2.clientX,e2.clientY);
+    for(const el of els){
+      const tid=el.closest('.node')?.dataset?.nid;
+      if(tid&&tid!==fromId){
+        const fnd=p().nodes.find(n=>n.id===fromId);
+        const tnd=p().nodes.find(n=>n.id===tid);
+        if(fnd.type==='ds'&&tnd.type==='jn'){
+          if(!p().conns.find(c=>c.from===fromId&&c.to===tid)){
+            addC(p(),fromId,tid); renderMacro(); renderEbar(ebarSec);
+            toast(`${fnd.name} → ${tnd.name}`);
+          }
+        } else toast('Only DS/Lib → Journey allowed');
+        break;
+      }
+    }
+  };
+  document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+}
+
+// ════════════════════════════════════════════════
+//  MICRO VIEW
+// ════════════════════════════════════════════════
+function renderMicro(jid){
+  const sc=document.getElementById('scene');
+  sc.querySelectorAll('.node,.snode,.cdel').forEach(e=>e.remove());
+  document.getElementById('ssv').innerHTML='';
+  const flows=p().flows[jid]||[];
+  const fid2=p().curFlow[jid];
+  const flow=flows.find(f=>f.id===fid2);
+  if(!flow||!flow.screens.length){
+    const es=document.createElement('div');
+    es.style.cssText='position:absolute;left:160px;top:150px;display:flex;flex-direction:column;align-items:center;gap:10px;opacity:.4;pointer-events:none';
+    es.innerHTML='<div style="font-size:26px">▭</div><div style="font-size:13px;font-weight:500">No screens yet</div><div style="font-size:12px">Use + button or sidebar to add</div>';
+    sc.appendChild(es);
+    renderLp(jid); return;
+  }
+  // draw sequential connectors
+  for(let i=0;i<flow.screens.length-1;i++){
+    const a=flow.screens[i],b=flow.screens[i+1];
+    const x1=a.x+170,y1=a.y+80,x2=b.x,y2=b.y+80;
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',`M${x1},${y1} L${x2},${y2}`);
+    path.setAttribute('class','conn');
+    document.getElementById('ssv').appendChild(path);
+    const arr=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    arr.setAttribute('points',`${x2},${y2} ${x2-8},${y2-5} ${x2-8},${y2+5}`);
+    arr.setAttribute('class','conn-arr'); arr.style.fill='var(--bdr2)';
+    document.getElementById('ssv').appendChild(arr);
+  }
+  flow.screens.forEach((sc2,i)=>sc.appendChild(mkScrEl(sc2,i,jid)));
+  // inline add button
+  const last=flow.screens[flow.screens.length-1];
+  const ab=document.createElement('div');
+  ab.style.cssText=`position:absolute;left:${last.x+180}px;top:${last.y+63}px;display:flex;align-items:center;gap:7px;z-index:6`;
+  ab.innerHTML=`<div style="width:28px;height:1px;background:var(--bdr2)"></div><button class="btn bs b-sm" style="pointer-events:all" onclick="addScreen('${jid}')">+ Screen</button>`;
+  sc.appendChild(ab);
+  renderLp(jid);
+}
+function redrawMicroConns(jid){
+  const svg=document.getElementById('ssv'); svg.innerHTML='';
+  const flow=(p().flows[jid]||[]).find(f=>f.id===p().curFlow[jid]);
+  if(!flow) return;
+  for(let i=0;i<flow.screens.length-1;i++){
+    const a=flow.screens[i],b=flow.screens[i+1];
+    const x1=a.x+170,y1=a.y+80,x2=b.x,y2=b.y+80;
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',`M${x1},${y1} L${x2},${y2}`);
+    path.setAttribute('class','conn');
+    svg.appendChild(path);
+    const arr=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    arr.setAttribute('points',`${x2},${y2} ${x2-8},${y2-5} ${x2-8},${y2+5}`);
+    arr.setAttribute('class','conn-arr'); arr.style.fill='var(--bdr2)';
+    svg.appendChild(arr);
+  }
+}
+const MOCKS=[
+  `<div class="snm"><div class="sb a"></div><div class="sl bl"></div><div class="sb c"></div><div class="sbtn"></div></div>`,
+  `<div class="snm"><div class="sb"></div><div class="sl"></div><div class="sb b"></div><div class="sl"></div><div class="sbtn"></div></div>`,
+  `<div class="snm"><div class="sl rd"></div><div class="sb c"></div><div class="sl"></div><div class="sbtn"></div></div>`,
+  `<div class="snm"><div class="sb a"></div><div style="display:flex;gap:2px"><div class="sc" style="flex:1"></div><div class="sc" style="flex:1"></div></div><div class="sl"></div></div>`,
+  `<div class="snm"><div class="sb"></div><div class="sl"></div><div class="sb b"></div></div>`,
+];
+function mkScrEl(sc,idx,jid){
+  const el=document.createElement('div');
+  el.className=`snode${sc.done?' done':''}${sc.id===selSid?' sel':''}`;
+  el.style.cssText=`left:${sc.x}px;top:${sc.y}px`; el.dataset.sid=sc.id;
+  const pin=sc.isEntry?'<span class="sn-pin pin-e">Entry</span>':sc.isErr?'<span class="sn-pin pin-err">Error</span>':'';
+  el.innerHTML=`<div class="sn-pv">${MOCKS[idx%MOCKS.length]}${pin}</div>
+    <div class="sn-b"><div class="sn-nm">${sc.name}</div><div class="sn-cx${sc.ctx?' h':''}">${sc.ctx||'Add context…'}</div></div>
+    <div class="sn-ft"><div class="sn-st">${sc.done?'<span class="pip"></span>done':'○ empty'}</div><div class="sn-st">${idx===0?'entry':'step '+(idx+1)}</div></div>`;
+  el.addEventListener('mousedown',e=>{
+    if(e.button!==0) return; e.stopPropagation();
+    const sx=e.clientX,sy=e.clientY,ox=sc.x,oy=sc.y;
+    const mv=e2=>{sc.x=ox+(e2.clientX-sx)/S;sc.y=oy+(e2.clientY-sy)/S;el.style.left=sc.x+'px';el.style.top=sc.y+'px';redrawMicroConns(jid)};
+    const up=()=>{document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up)};
+    document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+  });
+  el.addEventListener('click',e=>{e.stopPropagation();selectScreen(sc,jid)});
+  el.addEventListener('contextmenu',e=>{
+    e.preventDefault(); e.stopPropagation();
+    const m=document.getElementById('ctxm');
+    m.innerHTML=`<div class="cm-it" onclick="selectScreen(window._selSc.sc,window._selSc.jid);this.closest('.ctxm').classList.remove('o')"><span class="cm-ic">✏</span>Edit</div>
+      <div class="cm-sep"></div>
+      <div class="cm-it dl" onclick="delScreen('${jid}','${sc.id}');this.closest('.ctxm').classList.remove('o')"><span class="cm-ic">✕</span>Delete</div>`;
+    window._selSc={sc,jid};
+    m.style.left=e.clientX+'px'; m.style.top=e.clientY+'px'; m.classList.add('o');
+  });
+  return el;
+}
+function addScreen(jid){
+  const flow=(p().flows[jid]||[]).find(f=>f.id===p().curFlow[jid]);
+  if(!flow) return;
+  const nm=prompt('Screen name:','Screen '+(flow.screens.length+1));
+  if(!nm) return;
+  const last=flow.screens[flow.screens.length-1];
+  flow.screens.push({id:sid(),name:nm,x:(last?.x||80)+240,y:(last?.y||140),ctx:'',done:false});
+  renderMicro(jid); renderEbar(ebarSec); toast('Screen added: '+nm);
+}
+function addScFab(){
+  closeFabEl();
+  if(VIEW==='micro'&&curJid) addScreen(curJid);
+  else toast('Open a Journey first to add screens');
+}
+function delScreen(jid,scId){
+  const flow=(p().flows[jid]||[]).find(f=>f.id===p().curFlow[jid]);
+  if(!flow) return;
+  if(!confirm('Delete screen?')) return;
+  flow.screens=flow.screens.filter(s=>s.id!==scId);
+  if(selSid===scId) closeRp();
+  renderMicro(jid); renderEbar(ebarSec); toast('Screen deleted');
+}
+
+// ════════════════════════════════════════════════
+//  NODE / SCREEN SELECTION
+// ════════════════════════════════════════════════
+function selectNode(nid2){
+  selNid=nid2; selCid=null; selSid=null;
+  document.querySelectorAll('.node').forEach(e=>e.classList.toggle('sel',e.dataset.nid===nid2));
+  document.querySelectorAll('.snode').forEach(e=>e.classList.remove('sel'));
+  const n=p().nodes.find(n=>n.id===nid2); if(!n) return;
+  document.getElementById('rpTt').textContent=n.name;
+  document.getElementById('rpSb').textContent=n.type==='ds'?'Assets · DS · Lib':'Journey · Flow';
+  document.getElementById('rpNm').value=n.name;
+  document.getElementById('rpDs').value=n.desc||'';
+  document.getElementById('rpTg').value=n.tags.join(', ');
+  document.getElementById('rp-tags-wrap').style.display='block';
+  document.getElementById('rp-ctx-wrap').style.display='none';
+  document.getElementById('rp-figma-wrap').style.display=n.type==='ds'?'block':'none';
+  document.getElementById('rpRing').style.display='none';
+  document.getElementById('rpId').textContent=n.id;
+  document.getElementById('rpTyp').textContent=n.type==='ds'?'Assets / DS / Lib':'Journey / Flow';
+  const out=p().conns.filter(c=>c.from===n.id).length,inn=p().conns.filter(c=>c.to===n.id).length;
+  document.getElementById('rpCnn').textContent=`${inn} in · ${out} out`;
+  window._selNode=n; window._selSc=null;
+  document.getElementById('rp').classList.add('o');
+}
+function selectScreen(sc,jid){
+  selSid=sc.id; selNid=null; selCid=null;
+  document.querySelectorAll('.snode').forEach(e=>e.classList.toggle('sel',e.dataset.sid===sc.id));
+  document.querySelectorAll('.node').forEach(e=>e.classList.remove('sel'));
+  document.getElementById('rpTt').textContent=sc.name;
+  document.getElementById('rpSb').textContent='screen · '+sc.id;
+  document.getElementById('rpNm').value=sc.name;
+  document.getElementById('rpDs').value=sc.ctx||'';
+  document.getElementById('rp-tags-wrap').style.display='none';
+  document.getElementById('rp-ctx-wrap').style.display='block';
+  document.getElementById('rpCx').value=sc.ctx||'';
+  document.getElementById('rp-figma-wrap').style.display='none';
+  const pct=sc.ctx?Math.min(100,Math.round((sc.ctx.length/80)*100)):0;
+  document.getElementById('ringPath').style.strokeDashoffset=82-(82*pct/100);
+  document.getElementById('ringSub').textContent=`${pct}% · ${sc.ctx?'has context':'no context'}`;
+  document.getElementById('rpRing').style.display='flex';
+  window._selSc={sc,jid}; window._selNode=null;
+  document.getElementById('rp').classList.add('o');
+}
+// ── REALTIME PROPS ──
+function onNm(v){
+  if(window._selNode){
+    window._selNode.name=v;
+    const el=document.querySelector(`[data-nid="${window._selNode.id}"] .n-nm`); if(el) el.textContent=v;
+    renderEbar(ebarSec);
+  }
+  if(window._selSc){
+    window._selSc.sc.name=v;
+    const el=document.querySelector(`[data-sid="${window._selSc.sc.id}"] .sn-nm`); if(el) el.textContent=v;
+    renderEbar(ebarSec);
+  }
+}
+function onDs(v){
+  if(window._selNode){
+    window._selNode.desc=v;
+    const el=document.querySelector(`[data-nid="${window._selNode.id}"] .n-dc`); if(el) el.textContent=v||'No description.';
+  }
+  if(window._selSc){
+    window._selSc.sc.ctx=v;
+    updateScCtx(window._selSc.sc,v);
+  }
+}
+function onTg(v){
+  if(window._selNode){
+    window._selNode.tags=v.split(',').map(t=>t.trim()).filter(Boolean);
+    const el=document.querySelector(`[data-nid="${window._selNode.id}"] .n-tags`);
+    if(el) el.innerHTML=window._selNode.tags.map(t=>`<span class="n-tag">${t}</span>`).join('');
+  }
+}
+function onCx(v){
+  if(window._selSc){
+    window._selSc.sc.ctx=v;
+    updateScCtx(window._selSc.sc,v);
+  }
+  // sync desc field too
+  document.getElementById('rpDs').value=v;
+}
+function updateScCtx(sc,v){
+  sc.done=v.length>10;
+  const el=document.querySelector(`[data-sid="${sc.id}"] .sn-cx`);
+  if(el){el.textContent=v||'Add context…';el.className='sn-cx'+(v?' h':'');}
+  const pct=Math.min(100,Math.round((v.length/80)*100));
+  document.getElementById('ringPath').style.strokeDashoffset=82-(82*pct/100);
+  document.getElementById('ringSub').textContent=`${pct}% · ${v?'has context':'no context'}`;
+}
+function closeRp(){
+  selNid=null; selSid=null; window._selNode=null; window._selSc=null;
+  document.querySelectorAll('.node,.snode').forEach(e=>e.classList.remove('sel'));
+  document.getElementById('rp').classList.remove('o');
+}
+function setRTab(el,id){
+  document.querySelectorAll('.rp-tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  ['rt0','rt1','rt2'].forEach(i=>document.getElementById(i).style.display=i===id?'block':'none');
+}
+
+// ════════════════════════════════════════════════
+//  NAVIGATION (breadcrumb)
+// ════════════════════════════════════════════════
+function openJourney(jid){
+  VIEW='micro'; curJid=jid;
+  const n=p().nodes.find(n=>n.id===jid);
+  const flow=(p().flows[jid]||[]).find(f=>f.id===p().curFlow[jid]);
+  setBc([{lbl:'Workspace',fn:'goMacro'},{lbl:n.name,ic:'j'},{lbl:flow?.name||'Flow',ic:'f',on:true}]);
+  selNid=null; selCid=null; closeRp();
+  document.getElementById('fab-sc').style.display='flex';
+  TX=80; TY=80; S=1;
+  renderMicro(jid); applyT();
+}
+function goMacro(){
+  VIEW='macro'; curJid=null;
+  setBc([{lbl:'Workspace',on:true}]);
+  closeLp(); selNid=null; selCid=null; selSid=null; closeRp();
+  document.getElementById('fab-sc').style.display='none';
+  TX=0; TY=0; S=1;
+  renderMacro(); applyT();
+}
+function setBc(items){
+  const bc=document.getElementById('navBc'); let h='';
+  items.forEach((it,i)=>{
+    if(i===0) h+=`<span class="bc-home${it.on?' root':''}" ${!it.on&&it.fn?`onclick="${it.fn}()"`:''} >${it.lbl}</span>`;
+    else {
+      const ic=it.ic?`<span class="bc-ic ${it.ic}">${it.ic==='j'?'⬡':'◌'}</span>`:'';
+      h+=`<span class="bc-sep">›</span><span class="bc-crumb${it.on?' on':''}">${ic}${it.lbl}</span>`;
+    }
+  });
+  bc.innerHTML=h;
+}
+
+// ════════════════════════════════════════════════
+//  FLOW LEFT PANEL
+// ════════════════════════════════════════════════
+function renderLp(jid){
+  const flows=p().flows[jid]||[], active=p().curFlow[jid];
+  document.getElementById('lpBody').innerHTML=flows.map(f=>`
+    <div class="fi${f.id===active?' on':''}" onclick="switchFlow('${jid}','${f.id}')">
+      <div class="fi-dot"></div>
+      <div class="fi-nm">${f.name}</div>
+      <div class="fi-cn">${f.screens.length}</div>
+    </div>`).join('');
+  const lp=document.getElementById('lp');
+  lp.style.left=ibarOn?`var(--IW)`:'0';
+  lp.classList.add('o');
+}
+function closeLp(){document.getElementById('lp').classList.remove('o')}
+function switchFlow(jid,fid2){
+  p().curFlow[jid]=fid2;
+  const n=p().nodes.find(n=>n.id===jid);
+  const flow=(p().flows[jid]||[]).find(f=>f.id===fid2);
+  setBc([{lbl:'Workspace',fn:'goMacro'},{lbl:n.name,ic:'j'},{lbl:flow?.name||'Flow',ic:'f',on:true}]);
+  renderMicro(jid);
+}
+function addFlow(){
+  if(!curJid) return;
+  const nm=prompt('Flow name:','New Flow'); if(!nm) return;
+  if(!p().flows[curJid]) p().flows[curJid]=[];
+  const id=fid();
+  p().flows[curJid].push({id,name:nm,screens:[{id:sid(),name:'Screen 1',x:80,y:140,ctx:'',done:false,isEntry:true}]});
+  p().curFlow[curJid]=id;
+  renderMicro(curJid); renderEbar(ebarSec); toast('Flow: '+nm);
+}
+
+// ════════════════════════════════════════════════
+//  SIDEBAR
+// ════════════════════════════════════════════════
+function toggleIbar(){
+  ibarOn=!ibarOn;
+  document.getElementById('ibar').classList.toggle('gone',!ibarOn);
+  updateCW();
+}
+function toggleEbar(sec){
+  const already=ebarOn&&ebarSec===sec;
+  ebarSec=sec; ebarOn=!already;
+  document.getElementById('ebar').classList.toggle('on',ebarOn);
+  document.querySelectorAll('.ib').forEach(b=>b.classList.remove('on'));
+  if(ebarOn){ document.getElementById('ib-'+sec)?.classList.add('on'); renderEbar(sec); }
+  else document.getElementById('ib-'+sec)?.classList.remove('on');
+  updateCW();
+}
+function closeEbar(){
+  ebarOn=false; document.getElementById('ebar').classList.remove('on');
+  document.querySelectorAll('.ib').forEach(b=>b.classList.remove('on'));
+  updateCW();
+}
+function updateCW(){
+  const cw=document.getElementById('cw');
+  if(!ibarOn) cw.className='cw'+(ebarOn?' i2':' i0');
+  else cw.className='cw'+(ebarOn?' i2':' i1');
+}
+
+function renderEbar(sec){
+  const titles={macro:'Macro Nodes',comp:'Components'};
+  document.getElementById('ebarTitle').textContent=titles[sec]||sec;
+  const body=document.getElementById('ebarBody');
+  if(!curPid){body.innerHTML='';return;}
+  const ds=p().nodes.filter(n=>n.type==='ds');
+  const jn=p().nodes.filter(n=>n.type==='jn');
+
+  if(sec==='macro'){
+    let h=`<div class="eb-sec-lbl">Assets / DS / Lib</div>`;
+    ds.forEach(n=>{
+      h+=`<div class="tg">
+        <div class="tg-h" onclick="toggleTC('tc-${n.id}','tt-${n.id}')">
+          <div class="tg-l"><span class="tt o" id="tt-${n.id}">▶</span><div class="ni ni-ds">◈</div><span class="tn">${n.name}</span></div>
+          <div class="tg-r">
+            <div class="ta" onclick="event.stopPropagation();selectNode('${n.id}')" title="Edit">✏</div>
+            <div class="ta del" onclick="event.stopPropagation();delNodeById('${n.id}')" title="Delete">✕</div>
+          </div>
+        </div>
+        <div class="tch o" id="tc-${n.id}">
+          ${n.tags.length?n.tags.map(t=>`<div class="tl"><div class="ni ni-co" style="font-size:8px">◇</div><span class="tl-n">${t}</span></div>`).join('')
+          :'<div class="tl" style="opacity:.5"><span class="tl-n" style="font-style:italic">No tags / components</span></div>'}
+        </div>
+      </div>`;
+    });
+    h+=`<div class="eb-add" onclick="addNodeFromSidebar('ds')">+ Add DS / Lib</div>`;
+
+    h+=`<div class="eb-sec-lbl" style="margin-top:8px">Journey Nodes</div>`;
+    jn.forEach(n=>{
+      const flows=p().flows[n.id]||[];
+      h+=`<div class="tg">
+        <div class="tg-h" onclick="toggleTC('tc-${n.id}','tt-${n.id}')">
+          <div class="tg-l"><span class="tt o" id="tt-${n.id}">▶</span><div class="ni ni-j">⬡</div><span class="tn">${n.name}</span></div>
+          <div class="tg-r">
+            <div class="ta" onclick="event.stopPropagation();goMacro();setTimeout(()=>selectNode('${n.id}'),50)" title="Select">✏</div>
+            <div class="ta del" onclick="event.stopPropagation();delNodeById('${n.id}')" title="Delete">✕</div>
+          </div>
+        </div>
+        <div class="tch o" id="tc-${n.id}">
+          ${flows.map(f=>`
+            <div class="tl" onclick="openJourney('${n.id}');setTimeout(()=>switchFlow('${n.id}','${f.id}'),60)">
+              <div class="ni ni-sc" style="font-size:8px">◌</div>
+              <span class="tl-n">${f.name}</span>
+              <span style="font-size:10px;font-family:var(--fm);color:var(--t3)">${f.screens.length}</span>
+            </div>`).join('')}
+          <div class="tl" style="opacity:.5" onclick="openJourney('${n.id}');setTimeout(addFlow,80)">
+            <div class="ni" style="font-size:9px;color:var(--t3)">+</div><span class="tl-n" style="color:var(--t3)">Add flow</span>
+          </div>
+        </div>
+      </div>`;
+    });
+    h+=`<div class="eb-add" onclick="addNodeFromSidebar('jn')">+ Add Journey</div>`;
+    body.innerHTML=h;
+
+  } else if(sec==='comp'){
+    let h=`<div class="eb-sec-lbl">Linked from DS / Lib</div>`;
+    if(!ds.length){ h+=`<div style="padding:14px;font-size:12px;color:var(--t3);text-align:center">No DS / Lib nodes yet.</div>`; }
+    ds.forEach(n=>{
+      const comps=['Button','Input','Label','Card','Alert','Sidebar','Sheet','Badge','Avatar','Checkbox','Select','Toast'];
+      h+=`<div class="tg">
+        <div class="tg-h" onclick="toggleTC('cp-${n.id}','ctt-${n.id}')">
+          <div class="tg-l"><span class="tt o" id="ctt-${n.id}">▶</span><div class="ni ni-ds">◈</div><span class="tn">${n.name}</span></div>
+          <div class="tg-r"><div class="ta" onclick="event.stopPropagation();goMacro();setTimeout(()=>selectNode('${n.id}'),50)" title="Edit">✏</div></div>
+        </div>
+        <div class="tch o" id="cp-${n.id}">
+          ${comps.map(c=>`<div class="tl"><div class="ni ni-co">◈</div><span class="tl-n">${c}</span><div class="ts ts-g" title="mapped"></div></div>`).join('')}
+          ${n.tags.filter(t=>!comps.includes(t)).map(t=>`<div class="tl"><div class="ni ni-co" style="font-size:8px">◇</div><span class="tl-n">${t}</span><div class="ts ts-a"></div></div>`).join('')}
+          <div class="tl" style="opacity:.5" onclick="goMacro();setTimeout(()=>selectNode('${n.id}'),50)"><div class="ni" style="font-size:9px;color:var(--t3)">+</div><span class="tl-n" style="color:var(--t3)">Add component tag</span></div>
+        </div>
+      </div>`;
+    });
+    body.innerHTML=h;
+  }
+}
+function toggleTC(chId,ttId){
+  const ch=document.getElementById(chId); const tt=document.getElementById(ttId);
+  if(!ch) return;
+  ch.classList.toggle('o'); if(tt) tt.classList.toggle('o',ch.classList.contains('o'));
+}
+function addNodeFromSidebar(type){
+  // switch to macro view first
+  if(VIEW!=='macro') goMacro();
+  setTimeout(()=>_addNode(type),VIEW==='macro'?0:60);
+}
+function delNodeById(id){
+  if(!confirm('Delete this node?')) return;
+  p().nodes=p().nodes.filter(n=>n.id!==id);
+  p().conns=p().conns.filter(c=>c.from!==id&&c.to!==id);
+  delete p().flows[id];
+  if(selNid===id) closeRp();
+  if(VIEW==='macro') renderMacro(); else if(curJid===id) goMacro();
+  renderEbar(ebarSec); toast('Node deleted');
+}
+
+// ════════════════════════════════════════════════
+//  FAB
+// ════════════════════════════════════════════════
+function toggleFab(){fabOn=!fabOn;document.getElementById('fab').classList.toggle('o',fabOn);document.getElementById('fabOpts').classList.toggle('o',fabOn)}
+function closeFabEl(){fabOn=false;document.getElementById('fab').classList.remove('o');document.getElementById('fabOpts').classList.remove('o')}
+function addNodeFab(type){closeFabEl();if(VIEW!=='macro'){goMacro();setTimeout(()=>_addNode(type),60);}else _addNode(type);}
+function _addNode(type){
+  const r=document.getElementById('cw').getBoundingClientRect();
+  const cx=(r.width/2-TX)/S-110, cy=(r.height/2-TY)/S-60;
+  const id=addN(p(),type,type==='ds'?'New DS / Lib':'New Journey',Math.max(20,cx),Math.max(20,cy),'', []);
+  if(type==='jn'){
+    const fid2=fid();
+    p().flows[id]=[{id:fid2,name:'Flow 1',screens:[{id:sid(),name:'Screen 1',x:80,y:140,ctx:'',done:false,isEntry:true}]}];
+    p().curFlow[id]=fid2;
+  }
+  renderMacro(); renderEbar(ebarSec); selectNode(id);
+  toast((type==='ds'?'DS / Lib':'Journey')+' created');
+}
+
+// ════════════════════════════════════════════════
+//  CONTEXT MENU
+// ════════════════════════════════════════════════
+let ctxTgt=null;
+function openCtxM(e,nid2){
+  ctxTgt=nid2;
+  const n=p().nodes.find(n=>n.id===nid2);
+  document.getElementById('ctx-open').style.display=n?.type==='jn'?'flex':'none';
+  // reset menu to default macro node items
+  document.getElementById('ctxm').innerHTML=`
+    <div class="cm-it" onclick="ctxEdit()"><span class="cm-ic">✏</span>Edit</div>
+    <div class="cm-it${n?.type==='jn'?'':' hidden'}" id="ctx-open" onclick="ctxOpen()" ${n?.type!=='jn'?'style="display:none"':''}><span class="cm-ic">→</span>Open Flows</div>
+    <div class="cm-sep"></div>
+    <div class="cm-it" onclick="ctxDupe()"><span class="cm-ic">⧉</span>Duplicate</div>
+    <div class="cm-sep"></div>
+    <div class="cm-it dl" onclick="ctxDel()"><span class="cm-ic">✕</span>Delete</div>`;
+  const m=document.getElementById('ctxm');
+  m.style.left=e.clientX+'px'; m.style.top=e.clientY+'px'; m.classList.add('o');
+}
+function ctxEdit(){document.getElementById('ctxm').classList.remove('o');if(ctxTgt)selectNode(ctxTgt)}
+function ctxOpen(){document.getElementById('ctxm').classList.remove('o');if(ctxTgt)openJourney(ctxTgt)}
+function ctxDupe(){
+  document.getElementById('ctxm').classList.remove('o');
+  const n=p().nodes.find(n=>n.id===ctxTgt); if(!n) return;
+  const id=addN(p(),n.type,n.name+' (copy)',n.x+28,n.y+28,n.desc,[...n.tags]);
+  if(n.type==='jn'&&p().flows[n.id]){
+    p().flows[id]=JSON.parse(JSON.stringify(p().flows[n.id]));
+    p().curFlow[id]=p().flows[id][0]?.id;
+  }
+  renderMacro(); renderEbar(ebarSec); toast('Duplicated');
+}
+function ctxDel(){document.getElementById('ctxm').classList.remove('o');delNodeById(ctxTgt)}
+
+// ════════════════════════════════════════════════
+//  PAN / ZOOM
+// ════════════════════════════════════════════════
+const cvEl=document.getElementById('cv');
+cvEl.addEventListener('mousedown',e=>{
+  if(e.button!==0) return;
+  // only pan if clicking canvas background
+  if(e.target.closest('.node,.snode,.hdl,.cdel,.btn')) return;
+  // clicking connector path (SVG) just selects it — handled in drawConn
+  selCid=null;
+  if(!e.target.closest('.node,.snode')) closeRp();
+  document.getElementById('ctxm').classList.remove('o');
+  panning=true; panSt={x:e.clientX-TX,y:e.clientY-TY}; cvEl.classList.add('g');
+});
+document.addEventListener('mousemove',e=>{if(!panning)return;TX=e.clientX-panSt.x;TY=e.clientY-panSt.y;applyT()});
+document.addEventListener('mouseup',()=>{if(panning){panning=false;cvEl.classList.remove('g')}});
+cvEl.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const ns=Math.min(2.5,Math.max(.2,S+(-e.deltaY*.0008*S)));
+  const r=document.getElementById('cw').getBoundingClientRect();
+  const mx=e.clientX-r.left,my=e.clientY-r.top;
+  TX=mx-(mx-TX)*(ns/S); TY=my-(my-TY)*(ns/S); S=ns; applyT();
+},{passive:false});
+
+// ════════════════════════════════════════════════
+//  GENERATE
+// ════════════════════════════════════════════════
+let gstep=0;const gT=[500,700,600,1100,400];
+function triggerGen(){
+  document.getElementById('genOv').classList.add('o');gstep=0;
+  for(let i=0;i<5;i++){const e=document.getElementById('gi'+i);e.classList.remove('act','dn')}
+  runG();
+}
+function runG(){
+  if(gstep>=5){setTimeout(()=>{document.getElementById('genOv').classList.remove('o');document.getElementById('mbg').classList.add('o')},300);return}
+  const e=document.getElementById('gi'+gstep);e.classList.add('act');
+  e.querySelector('.gi-ic').innerHTML='<span style="display:inline-block;animation:spin .7s linear infinite">◌</span>';
+  setTimeout(()=>{e.classList.remove('act');e.classList.add('dn');e.querySelector('.gi-ic').textContent='✓';gstep++;runG()},gT[gstep]);
+}
+function closeMdl(){document.getElementById('mbg').classList.remove('o')}
+document.getElementById('mbg').addEventListener('click',e=>{if(e.target.id==='mbg')closeMdl()});
+function setMt(el,id){
+  document.querySelectorAll('.mt').forEach(t=>t.classList.remove('o'));el.classList.add('o');
+  ['mc0','mc1','mc2'].forEach(m=>document.getElementById(m).style.display=m===id?'block':'none');
+}
+
+// ════════════════════════════════════════════════
+//  KEYBOARD SHORTCUTS
+// ════════════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+  if(e.key==='Delete'||e.key==='Backspace'){
+    if(selCid) deleteConn(selCid);
+    else if(selNid) delNodeById(selNid);
+    else if(selSid&&window._selSc) delScreen(window._selSc.jid,selSid);
+  }
+  if(e.key==='Escape'){closeRp();closeFabEl();document.getElementById('ctxm').classList.remove('o')}
+  if(e.key.toLowerCase()==='f') fitView();
+  if(e.key==='1') fitView();
+});
+
+// ════════════════════════════════════════════════
+//  GLOBAL DISMISS
+// ════════════════════════════════════════════════
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.ctxm')) document.getElementById('ctxm').classList.remove('o');
+  if(!e.target.closest('.fab-w')) closeFabEl();
+});
+document.getElementById('npmModal').addEventListener('click',e=>{if(e.target.id==='npmModal')closeNPM()});
+
+// ════════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════════
+let _tt;
+function toast(msg){
+  clearTimeout(_tt);
+  document.getElementById('toastMsg').textContent=msg;
+  const el=document.getElementById('toastEl');el.classList.add('o');
+  _tt=setTimeout(()=>el.classList.remove('o'),2600);
+}
+
+// ════════════════════════════════════════════════
+//  BOOT
+// ════════════════════════════════════════════════
+showDS('home');
+</script>
+</body>
+</html>
