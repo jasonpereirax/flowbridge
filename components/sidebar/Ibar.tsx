@@ -1,13 +1,10 @@
 'use client'
 
-import { useStore } from '@/lib/store'
 import { useRouter } from 'next/navigation'
-import { cn } from '@/utils'
 import { Home } from 'lucide-react'
 
 export function Ibar() {
   const router = useRouter()
-  const store  = useStore()
 
   return (
     <aside className="w-[48px] bg-surface border-r border-border flex flex-col flex-shrink-0 select-none z-20">
