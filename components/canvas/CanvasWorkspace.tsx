@@ -59,10 +59,17 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
     }
   }, [store.curProjectId])
 
+  // ── Node double-click → enter micro view for Journey nodes ──────────────
+  const onNodeDoubleClick = useCallback((id: string) => {
+    const node = useStore.getState().canvas()?.nodes.find(n => n.id === id)
+    if (node?.type === 'journey') store.openJourney(id)
+  }, [store])
+
   useCanvasInteraction(
     canvasRef as React.RefObject<HTMLDivElement>,
     onConnDragMove,
     onConnDragEnd,
+    onNodeDoubleClick,
   )
 
   if (!project) {
@@ -124,9 +131,14 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
               Canvas
             </button>
             <button
+              onClick={() => {
+                if (view === 'micro') return
+                const targetId = selNodeId ?? canvas?.nodes.find(n => n.type === 'journey')?.id
+                if (targetId) store.openJourney(targetId)
+              }}
               className={view === 'micro'
                 ? 'px-[8px] py-[3px] rounded-[6px] text-[11px] font-medium bg-surface shadow-sm text-text-1 transition-all'
-                : 'px-[8px] py-[3px] rounded-[6px] text-[11px] font-medium text-text-3 cursor-default transition-all'}
+                : 'px-[8px] py-[3px] rounded-[6px] text-[11px] font-medium text-text-3 hover:text-text-2 transition-all'}
             >
               Flow
             </button>
