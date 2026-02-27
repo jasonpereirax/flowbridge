@@ -1,28 +1,32 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useCallback } from 'react'
 import type { MacroNode, Connection } from '@/types'
 
-// Must match the MacroNode card dimensions (w-[220px])
 const NODE_W  = 220
-const NODE_H  = 116  // header ~68 + body ~48 — connector exits from right-center of header
+const NODE_H  = 116
+const HEADER_H = 44
 
 interface ConnectorLayerProps {
-  nodes:          MacroNode[]
-  conns:          Connection[]
-  pendingConn?:   { x1: number; y1: number; x2: number; y2: number } | null
-  selectedConnId: string | null
-  onConnSelect?:  (connId: string) => void
-  onConnDelete?:  (connId: string) => void
+  nodes:           MacroNode[]
+  conns:           Connection[]
+  pendingConn?:    { x1: number; y1: number; x2: number; y2: number } | null
+  selectedConnId:  string | null
+  onConnSelect?:   (connId: string) => void
+  onConnDelete?:   (connId: string) => void
+  /** Called when user starts dragging an endpoint to reconnect */
+  onReconnectStart?: (connId: string, endpoint: 'from' | 'to', x: number, y: number, pointerId: number) => void
 }
 
-/** Build a cubic bezier path between two points with horizontal handles.
- *  Exit right, enter left — standard flow-graph convention. */
 function cubicPath(x1: number, y1: number, x2: number, y2: number): string {
   const dx = Math.abs(x2 - x1)
-  // Handle strength: grow with distance, capped so it looks clean
   const h  = Math.max(60, Math.min(dx * 0.55, 220))
   return `M ${x1} ${y1} C ${x1 + h} ${y1}, ${x2 - h} ${y2}, ${x2} ${y2}`
+}
+
+function midpoint(x1: number, y1: number, x2: number, y2: number) {
+  // Approximate midpoint along bezier — good enough for badge placement
+  return { x: (x1 + x2) / 2, y: (y1 + y2) / 2 }
 }
 
 export function ConnectorLayer({
@@ -32,20 +36,17 @@ export function ConnectorLayer({
   selectedConnId,
   onConnSelect,
   onConnDelete,
+  onReconnectStart,
 }: ConnectorLayerProps) {
 
   const paths = useMemo(() => {
     return conns.flatMap(conn => {
       const from = nodes.find(n => n.id === conn.fromId)
       const to   = nodes.find(n => n.id === conn.toId)
-      // Skip conns where either endpoint doesn't exist in the current view's node list
       if (!from || !to) return []
 
-      // DS node: connector exits from right-center of the header area
       const x1 = from.position.x + NODE_W
-      const y1 = from.position.y + 44   // vertical center of DS header
-
-      // Journey node: connector enters from left-center
+      const y1 = from.position.y + HEADER_H
       const x2 = to.position.x
       const y2 = to.position.y + NODE_H / 2
 
@@ -54,46 +55,37 @@ export function ConnectorLayer({
   }, [nodes, conns])
 
   return (
-    // NOTE: this SVG sits *inside* the already-transformed canvas div.
-    // Do NOT add another transform — it would double-apply.
-    // IMPORTANT: no pointer-events-none on root — individual decorative paths
-    // get pointer-events:none. Hit areas need to receive click events.
     <svg
       className="absolute inset-0 overflow-visible"
       style={{ width: 8000, height: 8000 }}
     >
       <defs>
-        {/* Default arrowhead */}
         <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
           <path d="M0,0.5 L7,3.5 L0,6.5" fill="none" stroke="#C9C9C3" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
         </marker>
-        {/* Selected arrowhead */}
         <marker id="arr-sel" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
           <path d="M0,0.5 L7,3.5 L0,6.5" fill="none" stroke="#2563EB" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
         </marker>
-        {/* Hover arrowhead */}
-        <marker id="arr-hov" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
-          <path d="M0,0.5 L7,3.5 L0,6.5" fill="none" stroke="#18181A" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-        </marker>
       </defs>
 
-      {/* Real connections */}
       {paths.map(p => {
         const isSel = selectedConnId === p.id
+        const mid   = midpoint(p.x1, p.y1, p.x2, p.y2)
+
         return (
-          <g key={p.id} className="group" style={{ pointerEvents: 'auto' }}>
-            {/* Wide invisible hit area */}
+          <g key={p.id} className="group">
+
+            {/* Wide invisible hit area — receives click for select */}
             <path
               d={p.d}
               fill="none"
               stroke="transparent"
               strokeWidth={20}
-              style={{ cursor: 'pointer' }}
-              data-conn-hit
+              style={{ cursor: 'pointer', pointerEvents: 'stroke' }}
               onClick={e => { e.stopPropagation(); onConnSelect?.(p.id) }}
             />
 
-            {/* Glow behind when selected */}
+            {/* Glow when selected */}
             {isSel && (
               <path
                 d={p.d}
@@ -114,39 +106,82 @@ export function ConnectorLayer({
               strokeWidth={isSel ? 2 : 1.5}
               strokeLinecap="round"
               markerEnd={isSel ? 'url(#arr-sel)' : 'url(#arr)'}
-              className="transition-colors duration-100 group-hover:[stroke:#18181A]"
               style={{ pointerEvents: 'none' }}
+              className="transition-colors duration-100 group-hover:[stroke:#18181A]"
             />
 
-            {/* Delete badge — shown on hover near midpoint */}
-            {!isSel && (
-              <foreignObject
-                x={(p.x1 + p.x2) / 2 - 10}
-                y={(p.y1 + p.y2) / 2 - 10}
-                width={20}
-                height={20}
-                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ pointerEvents: 'auto' }}
-              >
-                <div
-                  className="w-[20px] h-[20px] rounded-full bg-surface border border-border flex items-center justify-center cursor-pointer shadow-sm hover:bg-[#FEF2F2] hover:border-[#FECACA] transition-colors"
-                  onClick={e => { e.stopPropagation(); onConnDelete?.(p.id) }}
-                  title="Delete connection"
-                >
-                  <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
-                    <path d="M2 2l6 6M8 2l-6 6" stroke="#DC2626" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
-                </div>
-              </foreignObject>
-            )}
+            {/* ── Delete badge — pure SVG, no foreignObject ── */}
+            {/* Visible on hover OR when selected */}
+            <g
+              style={{
+                opacity: isSel ? 1 : undefined,
+                cursor: 'pointer',
+                pointerEvents: 'all',
+              }}
+              className={isSel ? '' : 'opacity-0 group-hover:opacity-100 transition-opacity'}
+              onClick={e => { e.stopPropagation(); onConnDelete?.(p.id) }}
+            >
+              {/* Badge circle */}
+              <circle
+                cx={mid.x}
+                cy={mid.y}
+                r={10}
+                fill="white"
+                stroke={isSel ? '#FECACA' : '#E3E3DF'}
+                strokeWidth={1}
+                filter="drop-shadow(0 1px 2px rgba(0,0,0,.10))"
+              />
+              {/* X mark */}
+              <path
+                d={`M${mid.x-3.5} ${mid.y-3.5} L${mid.x+3.5} ${mid.y+3.5} M${mid.x+3.5} ${mid.y-3.5} L${mid.x-3.5} ${mid.y+3.5}`}
+                stroke="#DC2626"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                style={{ pointerEvents: 'none' }}
+              />
+            </g>
+
+            {/* ── Reconnect handles on both endpoints ── */}
+            {/* FROM handle (at DS side) */}
+            <circle
+              cx={p.x1}
+              cy={p.y1}
+              r={6}
+              fill="#7C3AED"
+              fillOpacity={0.15}
+              stroke="#7C3AED"
+              strokeWidth={1.5}
+              style={{ cursor: 'crosshair', pointerEvents: 'all' }}
+              className="opacity-0 group-hover:opacity-100 transition-opacity"
+              onPointerDown={e => {
+                e.stopPropagation()
+                onReconnectStart?.(p.id, 'from', p.x1, p.y1, e.pointerId)
+              }}
+            />
+            {/* TO handle (at Journey side) */}
+            <circle
+              cx={p.x2}
+              cy={p.y2}
+              r={6}
+              fill="#2563EB"
+              fillOpacity={0.15}
+              stroke="#2563EB"
+              strokeWidth={1.5}
+              style={{ cursor: 'crosshair', pointerEvents: 'all' }}
+              className="opacity-0 group-hover:opacity-100 transition-opacity"
+              onPointerDown={e => {
+                e.stopPropagation()
+                onReconnectStart?.(p.id, 'to', p.x2, p.y2, e.pointerId)
+              }}
+            />
+
           </g>
         )
       })}
 
-      {/* Pending (in-progress drag) connector */}
+      {/* Pending drag connector */}
       {pendingConn && (
         <g style={{ pointerEvents: 'none' }}>
-          {/* Dashed ghost line */}
           <path
             d={cubicPath(pendingConn.x1, pendingConn.y1, pendingConn.x2, pendingConn.y2)}
             fill="none"
@@ -156,7 +191,6 @@ export function ConnectorLayer({
             strokeLinecap="round"
             opacity={0.7}
           />
-          {/* Dot at cursor end */}
           <circle cx={pendingConn.x2} cy={pendingConn.y2} r={4} fill="#7C3AED" opacity={0.5} />
         </g>
       )}
