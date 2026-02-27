@@ -4,7 +4,10 @@ import { useState, useCallback } from 'react'
 import { useStore, useProject } from '@/lib/store'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/utils'
-import { ChevronLeft, ChevronRight, X, Trash2, Database, GitBranch, Plus, Component } from 'lucide-react'
+import {
+  ChevronLeft, ChevronRight, X, Trash2,
+  GitBranch, Layers, Database, Plus,
+} from 'lucide-react'
 
 export function Ebar() {
   const store        = useStore()
@@ -14,15 +17,26 @@ export function Ebar() {
   const ebarSection  = useStore(s => s.ebarSection)
   const curProjectId = useStore(s => s.curProjectId)
   const selNodeId    = useStore(s => s.selNodeId)
+  const view         = useStore(s => s.view)
+  const curJourneyId = useStore(s => s.curJourneyId)
 
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [expanded,    setExpanded]    = useState<Set<string>>(new Set())
+  const [dsExpanded,  setDsExpanded]  = useState<Set<string>>(new Set())
 
   const canvas = curProjectId ? store.canvasData[curProjectId] : null
 
   const toggleExpand = useCallback((id: string) => {
     setExpanded(prev => {
       const next = new Set(prev)
-      if (next.has(id)) { next.delete(id) } else { next.add(id) }
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }, [])
+
+  const toggleDsExpand = useCallback((id: string) => {
+    setDsExpanded(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
   }, [])
@@ -33,13 +47,18 @@ export function Ebar() {
   const journeyNodes = canvas?.nodes.filter(n => n.type === 'journey') ?? []
   const total        = canvas?.nodes.length ?? 0
 
+  // Counts for section headers
+  const totalScreens = journeyNodes.reduce((a, j) => {
+    const flows = canvas?.flows[j.id] ?? []
+    return a + flows.reduce((b, f) => b + f.screens.length, 0)
+  }, 0)
+  const totalComps = dsNodes.reduce((a, n) => a + n.tags.length, 0)
+
   return (
     <aside className="w-[240px] bg-surface border-r border-border flex flex-col flex-shrink-0 overflow-hidden panel-enter-left">
 
       {/* ── Project header ── */}
       <div className="px-[14px] pt-[11px] pb-[10px] border-b border-border flex-shrink-0">
-
-        {/* Top row: back link + close */}
         <div className="flex items-center justify-between mb-[9px]">
           <button
             onClick={() => router.push('/')}
@@ -57,7 +76,6 @@ export function Ebar() {
           </button>
         </div>
 
-        {/* Project identity */}
         <div className="flex items-center gap-[9px]">
           <div
             className="w-[24px] h-[24px] rounded-[6px] flex-shrink-0 shadow-sm"
@@ -74,43 +92,35 @@ export function Ebar() {
         </div>
       </div>
 
-      {/* ── Section tabs ── */}
-      <div className="flex border-b border-border flex-shrink-0 px-[10px] gap-[0px]">
-        {([
-          { key: 'macro', label: 'Layers'     },
-          { key: 'comp',  label: 'Components' },
-        ] as const).map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => store.toggleEbar(key)}
-            className={cn(
-              'px-[8px] py-[7px] text-[11.5px] font-medium transition-all border-b-[2px] -mb-px',
-              ebarSection === key
-                ? 'text-text-1 border-text-1'
-                : 'text-text-3 border-transparent hover:text-text-2'
-            )}
-          >
-            {label}
-          </button>
-        ))}
+      {/* ── Section heading (replaces tabs) ── */}
+      <div className="flex items-center gap-[7px] px-[14px] py-[8px] border-b border-border flex-shrink-0">
+        {ebarSection === 'macro' ? (
+          <>
+            <span className="w-[20px] h-[20px] rounded-[5px] bg-[#EFF6FF] flex items-center justify-center flex-shrink-0">
+              <GitBranch size={11} className="text-brand-blue" />
+            </span>
+            <span className="text-[12px] font-semibold text-text-1">Journeys</span>
+            <span className="ml-auto text-[10px] font-mono text-text-3 tabular-nums">
+              {journeyNodes.length}j · {totalScreens}s
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="w-[20px] h-[20px] rounded-[5px] bg-[#F5F3FF] flex items-center justify-center flex-shrink-0">
+              <Layers size={11} className="text-brand-purple" />
+            </span>
+            <span className="text-[12px] font-semibold text-text-1">Styles & DS</span>
+            <span className="ml-auto text-[10px] font-mono text-text-3 tabular-nums">
+              {dsNodes.length} lib{dsNodes.length !== 1 ? 's' : ''} · {totalComps} comps
+            </span>
+          </>
+        )}
       </div>
 
       {/* ── Body ── */}
       <div className="flex-1 overflow-y-auto overscroll-contain">
 
-        {/* Components placeholder */}
-        {ebarSection === 'comp' && (
-          <div className="flex flex-col items-center gap-[10px] px-[24px] py-[40px] text-center">
-            <div className="w-[38px] h-[38px] rounded-[10px] bg-bg border border-border flex items-center justify-center">
-              <Component size={16} className="text-text-3" />
-            </div>
-            <p className="text-[11.5px] text-text-2 leading-[1.55]">
-              Component browser<br />coming in Phase 3
-            </p>
-          </div>
-        )}
-
-        {/* Layers */}
+        {/* ── Journeys section ── */}
         {ebarSection === 'macro' && (
           <>
             {total === 0 ? (
@@ -128,7 +138,7 @@ export function Ebar() {
             ) : (
               <div className="py-[8px]">
 
-                {/* Design Systems */}
+                {/* DS nodes (shown in Journeys section for wiring context) */}
                 {dsNodes.length > 0 && (
                   <div className="mb-[4px]">
                     <GroupLabel label="Design Systems" count={dsNodes.length} />
@@ -150,7 +160,7 @@ export function Ebar() {
                   </div>
                 )}
 
-                {/* Journeys */}
+                {/* Journey nodes with integrated flows */}
                 {journeyNodes.length > 0 && (
                   <div>
                     <GroupLabel label="Journeys" count={journeyNodes.length} />
@@ -158,6 +168,7 @@ export function Ebar() {
                       const isExpanded  = expanded.has(node.id)
                       const flows       = canvas?.flows[node.id] ?? []
                       const screenCount = flows.reduce((a, f) => a + f.screens.length, 0)
+                      const activeFlowId = canvas?.curFlow[node.id]
 
                       return (
                         <div key={node.id}>
@@ -165,7 +176,14 @@ export function Ebar() {
                             label={node.name}
                             meta={flows.length > 0 ? `${flows.length}f · ${screenCount}s` : undefined}
                             isSelected={selNodeId === node.id}
-                            onSelect={() => store.selectNode(node.id)}
+                            onSelect={() => {
+                              if (view === 'micro') {
+                                // Already in micro: switch active journey
+                                store.openJourney(node.id)
+                              } else {
+                                store.selectNode(node.id)
+                              }
+                            }}
                             onDelete={() => store.deleteNode(node.id)}
                             expandable
                             isExpanded={isExpanded}
@@ -182,22 +200,57 @@ export function Ebar() {
                               {flows.length === 0 ? (
                                 <p className="pl-[42px] py-[4px] text-[10.5px] text-text-3 italic">no flows</p>
                               ) : (
-                                flows.map(flow => (
-                                  <button
-                                    key={flow.id}
-                                    onClick={() => { store.selectNode(node.id); store.setActiveFlow(node.id, flow.id) }}
-                                    className="w-full flex items-center gap-[8px] pl-[36px] pr-[12px] py-[4px] group hover:bg-bg transition-colors"
-                                  >
-                                    <div className="w-[1px] h-[14px] bg-border flex-shrink-0 self-center" />
-                                    <div className="w-[4px] h-[4px] rounded-full bg-border-strong flex-shrink-0" />
-                                    <span className="text-[11.5px] text-text-2 group-hover:text-text-1 flex-1 truncate text-left transition-colors">
-                                      {flow.name}
-                                    </span>
-                                    <span className="text-[10px] font-mono text-text-3 flex-shrink-0 tabular-nums">
-                                      {flow.screens.length}
-                                    </span>
-                                  </button>
-                                ))
+                                flows.map((flow, idx) => {
+                                  const isActiveFlow = view === 'micro'
+                                    && curJourneyId === node.id
+                                    && activeFlowId === flow.id
+                                  const isLast = idx === flows.length - 1
+
+                                  return (
+                                    <button
+                                      key={flow.id}
+                                      onClick={() => {
+                                        store.openJourney(node.id)
+                                        store.setActiveFlow(node.id, flow.id)
+                                      }}
+                                      className={cn(
+                                        'relative w-[calc(100%-12px)] mx-[6px] flex items-center gap-[7px]',
+                                        'pl-[34px] pr-[10px] py-[5px] rounded-[6px]',
+                                        'border-none text-left transition-colors',
+                                        isActiveFlow
+                                          ? 'bg-[#EFF6FF]'
+                                          : 'hover:bg-bg',
+                                      )}
+                                    >
+                                      {/* Tree connector line */}
+                                      <span
+                                        className="absolute left-[22px] top-0 w-px bg-border"
+                                        style={{ bottom: isLast ? '50%' : 0 }}
+                                      />
+                                      {/* Dot */}
+                                      <span className={cn(
+                                        'relative z-10 w-[5px] h-[5px] rounded-full border-[1.5px] flex-shrink-0 bg-surface transition-all',
+                                        isActiveFlow
+                                          ? 'bg-brand-blue border-brand-blue'
+                                          : 'border-border-strong',
+                                      )} />
+                                      <span className={cn(
+                                        'text-[12px] flex-1 truncate transition-colors',
+                                        isActiveFlow
+                                          ? 'text-brand-blue font-medium'
+                                          : 'text-text-2 group-hover:text-text-1',
+                                      )}>
+                                        {flow.name}
+                                      </span>
+                                      <span className={cn(
+                                        'text-[10px] font-mono flex-shrink-0 tabular-nums',
+                                        isActiveFlow ? 'text-brand-blue/60' : 'text-text-3',
+                                      )}>
+                                        {flow.screens.length}
+                                      </span>
+                                    </button>
+                                  )
+                                })
                               )}
                             </div>
                           )}
@@ -210,6 +263,70 @@ export function Ebar() {
             )}
           </>
         )}
+
+        {/* ── Styles & DS section ── */}
+        {ebarSection === 'comp' && (
+          <div className="py-[8px]">
+            {dsNodes.length === 0 ? (
+              <div className="flex flex-col items-center gap-[10px] px-[24px] py-[36px] text-center">
+                <div className="w-[38px] h-[38px] rounded-[10px] bg-bg border border-border flex items-center justify-center">
+                  <Layers size={16} className="text-text-3" />
+                </div>
+                <p className="text-[11.5px] text-text-2 leading-[1.55]">
+                  No design systems yet.<br />
+                  Add a DS node to start.
+                </p>
+              </div>
+            ) : (
+              <div className="px-[6px] flex flex-col gap-[4px]">
+                {dsNodes.map(node => {
+                  const isExp = dsExpanded.has(node.id)
+                  return (
+                    <div key={node.id} className="rounded-[8px] border border-border overflow-hidden">
+                      <button
+                        onClick={() => toggleDsExpand(node.id)}
+                        className="w-full flex items-center gap-[8px] px-[10px] py-[7px] hover:bg-bg transition-colors text-left"
+                      >
+                        <span className="w-[16px] h-[16px] rounded-[4px] bg-[#F5F3FF] border border-[#DDD6FE] flex items-center justify-center flex-shrink-0">
+                          <Database size={8} className="text-brand-purple" />
+                        </span>
+                        <span className="text-[12px] font-semibold text-text-1 flex-1 truncate">{node.name}</span>
+                        <span className="text-[10px] font-mono text-text-3 tabular-nums">{node.tags.length}</span>
+                        <ChevronRight
+                          size={10} strokeWidth={2.5}
+                          className={cn('text-text-3 transition-transform duration-150 flex-shrink-0', isExp && 'rotate-90')}
+                        />
+                      </button>
+
+                      {isExp && node.tags.length > 0 && (
+                        <div className="border-t border-border bg-bg py-[4px]">
+                          {node.tags.map(tag => (
+                            <button
+                              key={tag}
+                              className="w-full flex items-center gap-[8px] px-[12px] py-[4px] pl-[28px] text-left hover:bg-surface rounded-[5px] transition-colors"
+                            >
+                              <span className="w-[6px] h-[6px] rounded-[2px] bg-brand-purple/40 flex-shrink-0" />
+                              <span className="text-[11.5px] text-text-2">{tag}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+
+                {/* Placeholder for tokens/colors */}
+                <div className="mt-[8px] flex flex-col items-center gap-[8px] px-[16px] py-[24px] text-center rounded-[8px] border border-dashed border-border">
+                  <span className="text-[18px]">🎨</span>
+                  <p className="text-[11px] text-text-3 leading-[1.55]">
+                    Tokens, cores e tipografia<br />chegam na Phase 3
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
     </aside>
   )
