@@ -77,3 +77,19 @@
 .card-block:hover .add-flow-hint {
   opacity: 1;
 }
+
+/* ── Ebar hover-reveal ────────────────────────────────────────────────────────
+   Adicione ao FINAL de styles/globals.css.
+   Tailwind JIT não consegue expressar "hover no pai → mostra filho"
+   com opacity. Solução: CSS global com seletores explícitos.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Journey e DS cards: mostra botão delete no hover do card */
+.ebar-jcard:hover .ebar-del {
+  opacity: 1;
+}
+
+/* Flow cards: mostra botões de ação (+screen e delete flow) no hover da row */
+.ebar-fcard:hover .ebar-fcard-act {
+  opacity: 1;
+}
