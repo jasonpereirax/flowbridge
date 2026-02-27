@@ -28,7 +28,7 @@ export function Ebar() {
   const toggleExpand = useCallback((id: string) => {
     setExpanded(prev => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
       return next
     })
   }, [])
@@ -36,7 +36,7 @@ export function Ebar() {
   const toggleDsExpand = useCallback((id: string) => {
     setDsExpanded(prev => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
       return next
     })
   }, [])
