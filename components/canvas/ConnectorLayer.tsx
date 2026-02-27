@@ -1,205 +1,165 @@
 'use client'
 
 import { useMemo } from 'react'
-import { cn } from '@/utils'
 import type { MacroNode, Connection } from '@/types'
 
+// Must match the MacroNode card dimensions (w-[220px])
+const NODE_W  = 220
+const NODE_H  = 116  // header ~68 + body ~48 — connector exits from right-center of header
+
 interface ConnectorLayerProps {
-  nodes: MacroNode[]
-  conns: Connection[]
+  nodes:          MacroNode[]
+  conns:          Connection[]
+  pendingConn?:   { x1: number; y1: number; x2: number; y2: number } | null
   selectedConnId: string | null
-  transform: { x: number; y: number; scale: number }
-  onConnSelect?: (connId: string) => void
+  onConnSelect?:  (connId: string) => void
+  onConnDelete?:  (connId: string) => void
 }
 
-interface PathData {
-  id: string
-  path: string
-  x1: number
-  y1: number
-  x2: number
-  y2: number
+/** Build a cubic bezier path between two points with horizontal handles.
+ *  Exit right, enter left — standard flow-graph convention. */
+function cubicPath(x1: number, y1: number, x2: number, y2: number): string {
+  const dx = Math.abs(x2 - x1)
+  // Handle strength: grow with distance, capped so it looks clean
+  const h  = Math.max(60, Math.min(dx * 0.55, 220))
+  return `M ${x1} ${y1} C ${x1 + h} ${y1}, ${x2 - h} ${y2}, ${x2} ${y2}`
 }
 
-/**
- * ConnectorLayer
- * 
- * SVG layer rendering bezier curves between macro nodes.
- * 
- * Features:
- * - Smooth quadratic bezier curves
- * - Arrowhead endpoints
- * - Selection highlighting
- * - Hover effects
- * - Click to select
- * - Canvas transform-aware
- */
 export function ConnectorLayer({
   nodes,
   conns,
+  pendingConn,
   selectedConnId,
-  transform,
   onConnSelect,
+  onConnDelete,
 }: ConnectorLayerProps) {
-  // Memoize path calculations
-  const paths = useMemo<PathData[]>(() => {
-    return conns
-      .map((conn) => {
-        const fromNode = nodes.find(n => n.id === conn.fromId)
-        const toNode = nodes.find(n => n.id === conn.toId)
 
-        if (!fromNode || !toNode) return null
+  const paths = useMemo(() => {
+    return conns.flatMap(conn => {
+      const from = nodes.find(n => n.id === conn.fromId)
+      const to   = nodes.find(n => n.id === conn.toId)
+      // Skip conns where either endpoint doesn't exist in the current view's node list
+      if (!from || !to) return []
 
-        // Calculate positions (center of nodes)
-        // MacroNode width = 224px (w-56), approximate height = 100px
-        const nodeWidth = 224
-        const nodeHeight = 100
+      // DS node: connector exits from right-center of the header area
+      const x1 = from.position.x + NODE_W
+      const y1 = from.position.y + 44   // vertical center of DS header
 
-        const x1 = fromNode.position.x + nodeWidth / 2
-        const y1 = fromNode.position.y + nodeHeight
+      // Journey node: connector enters from left-center
+      const x2 = to.position.x
+      const y2 = to.position.y + NODE_H / 2
 
-        const x2 = toNode.position.x + nodeWidth / 2
-        const y2 = toNode.position.y
-
-        // Quadratic bezier control point
-        // Place it midway horizontally, below the curve to create arc
-        const cpX = (x1 + x2) / 2
-        const cpY = (y1 + y2) / 2 - 80
-
-        // Generate SVG path data
-        const pathData = `M ${x1} ${y1} Q ${cpX} ${cpY} ${x2} ${y2}`
-
-        return {
-          id: conn.id,
-          path: pathData,
-          x1,
-          y1,
-          x2,
-          y2,
-        }
-      })
-      .filter((p) => p !== null) as PathData[]
+      return [{ id: conn.id, d: cubicPath(x1, y1, x2, y2), x1, y1, x2, y2 }]
+    })
   }, [nodes, conns])
 
-  const isSelected = (connId: string) => selectedConnId === connId
-
-  const handlePathClick = (connId: string) => {
-    onConnSelect?.(connId)
-  }
-
   return (
+    // NOTE: this SVG sits *inside* the already-transformed canvas div.
+    // Do NOT add another transform — it would double-apply.
+    // IMPORTANT: no pointer-events-none on root — individual decorative paths
+    // get pointer-events:none. Hit areas need to receive click events.
     <svg
-      className={cn(
-        'absolute inset-0 w-full h-full',
-        'pointer-events-none' // Will enable pointerEvents on individual elements
-      )}
-      style={{
-        transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-        transformOrigin: '0 0',
-      }}
+      className="absolute inset-0 overflow-visible"
+      style={{ width: 8000, height: 8000 }}
     >
-      {/* Define arrowhead marker */}
       <defs>
-        <marker
-          id="arrowhead-default"
-          markerWidth="10"
-          markerHeight="10"
-          refX="8"
-          refY="3"
-          orient="auto"
-          markerUnits="strokeWidth"
-        >
-          <polygon
-            points="0 0, 10 3, 0 6"
-            fill="currentColor"
-            className="text-gray-400"
-          />
+        {/* Default arrowhead */}
+        <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+          <path d="M0,0.5 L7,3.5 L0,6.5" fill="none" stroke="#C9C9C3" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
         </marker>
-
-        <marker
-          id="arrowhead-selected"
-          markerWidth="10"
-          markerHeight="10"
-          refX="8"
-          refY="3"
-          orient="auto"
-          markerUnits="strokeWidth"
-        >
-          <polygon
-            points="0 0, 10 3, 0 6"
-            fill="currentColor"
-            className="text-blue-500"
-          />
+        {/* Selected arrowhead */}
+        <marker id="arr-sel" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+          <path d="M0,0.5 L7,3.5 L0,6.5" fill="none" stroke="#2563EB" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
         </marker>
-
-        {/* Shadow filter for better visibility */}
-        <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-          <feDropShadow
-            dx="0"
-            dy="0"
-            stdDeviation="2"
-            floodOpacity="0.1"
-          />
-        </filter>
+        {/* Hover arrowhead */}
+        <marker id="arr-hov" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+          <path d="M0,0.5 L7,3.5 L0,6.5" fill="none" stroke="#18181A" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+        </marker>
       </defs>
 
-      {/* Render connector paths */}
-      {paths.map((p) => {
-        const selected = isSelected(p.id)
-
+      {/* Real connections */}
+      {paths.map(p => {
+        const isSel = selectedConnId === p.id
         return (
-          <g
-            key={p.id}
-            className="connector-group"
-            style={{ pointerEvents: 'auto' }}
-          >
-            {/* Invisible thick hitbox for easier clicking */}
+          <g key={p.id} className="group" style={{ pointerEvents: 'auto' }}>
+            {/* Wide invisible hit area */}
             <path
-              d={p.path}
-              stroke="transparent"
-              strokeWidth="24"
+              d={p.d}
               fill="none"
-              className="cursor-pointer"
-              style={{ pointerEvents: 'stroke' }}
-              onClick={() => handlePathClick(p.id)}
-              role="button"
-              tabIndex={0}
-            >
-              <title>{`Connection ${p.id.slice(0, 8)}`}</title>
-            </path>
+              stroke="transparent"
+              strokeWidth={20}
+              style={{ cursor: 'pointer' }}
+              data-conn-hit
+              onClick={e => { e.stopPropagation(); onConnSelect?.(p.id) }}
+            />
 
-            {/* Visible path with shadow */}
-            <g filter="url(#shadow)">
+            {/* Glow behind when selected */}
+            {isSel && (
               <path
-                d={p.path}
-                stroke={selected ? '#2563EB' : '#D1D5DB'}
-                strokeWidth={selected ? 3 : 2}
+                d={p.d}
                 fill="none"
-                markerEnd={selected ? 'url(#arrowhead-selected)' : 'url(#arrowhead-default)'}
-                className={cn(
-                  'transition-all duration-150 ease-out',
-                  selected && 'opacity-100',
-                  !selected && 'opacity-75 hover:opacity-100'
-                )}
-                pointerEvents="none"
-              />
-            </g>
-
-            {/* Optional: selection glow on top */}
-            {selected && (
-              <path
-                d={p.path}
                 stroke="#2563EB"
-                strokeWidth="6"
-                fill="none"
-                opacity="0.2"
-                pointerEvents="none"
-                className="transition-opacity duration-150"
+                strokeWidth={6}
+                strokeOpacity={0.18}
+                strokeLinecap="round"
+                style={{ pointerEvents: 'none' }}
               />
+            )}
+
+            {/* Visible stroke */}
+            <path
+              d={p.d}
+              fill="none"
+              stroke={isSel ? '#2563EB' : '#C9C9C3'}
+              strokeWidth={isSel ? 2 : 1.5}
+              strokeLinecap="round"
+              markerEnd={isSel ? 'url(#arr-sel)' : 'url(#arr)'}
+              className="transition-colors duration-100 group-hover:[stroke:#18181A]"
+              style={{ pointerEvents: 'none' }}
+            />
+
+            {/* Delete badge — shown on hover near midpoint */}
+            {!isSel && (
+              <foreignObject
+                x={(p.x1 + p.x2) / 2 - 10}
+                y={(p.y1 + p.y2) / 2 - 10}
+                width={20}
+                height={20}
+                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ pointerEvents: 'auto' }}
+              >
+                <div
+                  className="w-[20px] h-[20px] rounded-full bg-surface border border-border flex items-center justify-center cursor-pointer shadow-sm hover:bg-[#FEF2F2] hover:border-[#FECACA] transition-colors"
+                  onClick={e => { e.stopPropagation(); onConnDelete?.(p.id) }}
+                  title="Delete connection"
+                >
+                  <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
+                    <path d="M2 2l6 6M8 2l-6 6" stroke="#DC2626" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                </div>
+              </foreignObject>
             )}
           </g>
         )
       })}
+
+      {/* Pending (in-progress drag) connector */}
+      {pendingConn && (
+        <g style={{ pointerEvents: 'none' }}>
+          {/* Dashed ghost line */}
+          <path
+            d={cubicPath(pendingConn.x1, pendingConn.y1, pendingConn.x2, pendingConn.y2)}
+            fill="none"
+            stroke="#7C3AED"
+            strokeWidth={1.5}
+            strokeDasharray="5 4"
+            strokeLinecap="round"
+            opacity={0.7}
+          />
+          {/* Dot at cursor end */}
+          <circle cx={pendingConn.x2} cy={pendingConn.y2} r={4} fill="#7C3AED" opacity={0.5} />
+        </g>
+      )}
     </svg>
   )
 }
