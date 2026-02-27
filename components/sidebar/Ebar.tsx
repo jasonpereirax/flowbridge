@@ -47,7 +47,9 @@ export function Ebar() {
   const toggleDs = (id: string) => setDsExp(p => flipSet(p, id))
 
   function flipSet(prev: Set<string>, id: string) {
-    const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n
+    const n = new Set(prev)
+    if (n.has(id)) { n.delete(id) } else { n.add(id) }
+    return n
   }
 
   // ── Auto-expand when canvas node selected ─────────────────────────────────
