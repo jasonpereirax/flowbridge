@@ -56,3 +56,24 @@
     to   { opacity: 1; transform: scale(1); }
   }
 }
+/* ── Ebar hover-reveal delete buttons ───────────────────────────────────────
+   Adicione estas regras ao final do seu globals.css existente.
+   Tailwind JIT não consegue expressar seletores como:
+     .card-block:hover .card-del  (hover no pai revela filho)
+   por isso usamos CSS global aqui.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Journey e DS cards — botão delete */
+.card-block:hover .card-del {
+  opacity: 1;
+}
+
+/* Flow cards — botão delete */
+.flow-card:hover .flow-del {
+  opacity: 1;
+}
+
+/* Add flow hint */
+.card-block:hover .add-flow-hint {
+  opacity: 1;
+}
