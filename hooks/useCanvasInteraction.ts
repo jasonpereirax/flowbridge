@@ -184,7 +184,6 @@ export function useCanvasInteraction(
             } else {
               // DS node double-click → open right panel with properties
               s.selectNode(node.id)
-              s.openRpanel()
             }
           }
         } else {
