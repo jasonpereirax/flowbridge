@@ -315,7 +315,7 @@ export function Ebar() {
                       <div
                         className="flex items-center gap-[7px] px-[10px] py-[7px] cursor-pointer hover:bg-bg transition-colors group/dsrow"
                         onClick={() => toggleDs(node.id)}
-                        onDoubleClick={e => { e.stopPropagation(); store.selectNode(node.id); store.openRpanel() }}
+                        onDoubleClick={e => { e.stopPropagation(); store.selectNode(node.id) }}
                       >
                         <Chevron open={isDsOpen} />
                         <span className="w-[16px] h-[16px] rounded-[4px] bg-[#F5F3FF] border border-[#DDD6FE] flex items-center justify-center flex-shrink-0">
