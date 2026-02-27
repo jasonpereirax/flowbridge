@@ -28,13 +28,17 @@ export const nodeDrag  = { current: null as NodeDragState | null }
 export const connDrag  = { current: null as ConnDragState | null }
 
 export function useCanvasInteraction(
-  canvasRef:       RefObject<HTMLDivElement>,
-  onConnDragMove?: (state: ConnDragState) => void,
-  onConnDragEnd?:  (fromId: string, toId: string | null) => void,
+  canvasRef:          RefObject<HTMLDivElement>,
+  onConnDragMove?:    (state: ConnDragState) => void,
+  onConnDragEnd?:     (fromId: string, toId: string | null) => void,
+  onNodeDoubleClick?: (id: string) => void,
 ) {
   const store     = useStore()
   const isPanning = useRef(false)
   const panOrigin = useRef({ x: 0, y: 0 })
+
+  // Double-click detection: track last pointerdown per node id
+  const lastTap = useRef<{ id: string; time: number } | null>(null)
 
   // Keep store-derived values in refs so listeners never go stale
   const viewRef       = useRef(useStore.getState().view)
@@ -106,6 +110,15 @@ export function useCanvasInteraction(
       const screenEl = (target.closest('[data-screen-id]') as HTMLElement | null)
       const id       = nodeEl?.dataset.macroId ?? screenEl?.dataset.screenId
       if (!id) return
+
+      // Double-click detection — two pointerdowns on same id within 300ms
+      const now = Date.now()
+      if (lastTap.current?.id === id && now - lastTap.current.time < 300) {
+        lastTap.current = null
+        onNodeDoubleClick?.(id)
+        return
+      }
+      lastTap.current = { id, time: now }
 
       // Find starting position from store (not stale closures)
       const state = useStore.getState()
