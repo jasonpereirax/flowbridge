@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useStore, useProject } from '@/lib/store'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/utils'
@@ -24,6 +24,22 @@ export function Ebar() {
   const [dsExp,     setDsExp]     = useState<Set<string>>(new Set())
 
   const canvas = curProjectId ? store.canvasData[curProjectId] : null
+
+  // ── Auto-expand when a node is selected on the canvas ──────────────────────
+  useEffect(() => {
+    if (!selNodeId || !curProjectId) return
+    const nodes = store.canvasData[curProjectId]?.nodes ?? []
+    const node  = nodes.find(n => n.id === selNodeId)
+    if (!node) return
+    if (node.type === 'journey') {
+      setJExp(prev => { const n = new Set(prev); n.add(selNodeId); return n })
+      // scroll the filter to show journeys
+      setFilter(f => f === 'styles' ? 'all' : f)
+    } else {
+      setDsExp(prev => { const n = new Set(prev); n.add(selNodeId); return n })
+      setFilter(f => f === 'journeys' ? 'all' : f)
+    }
+  }, [selNodeId, curProjectId, store.canvasData])
 
   // ── Toggle helpers ──────────────────────────────────────────────────────────
   const toggleJ  = useCallback((id: string) => setJExp(prev  => { const n = new Set(prev); if (n.has(id)) { n.delete(id) } else { n.add(id) }; return n }), [])
