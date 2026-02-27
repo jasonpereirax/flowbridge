@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useCallback } from 'react'
+import { useMemo } from 'react'
 import type { MacroNode, Connection } from '@/types'
 
 const NODE_W  = 220
