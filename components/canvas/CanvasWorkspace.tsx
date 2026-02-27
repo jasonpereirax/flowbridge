@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Maximize2, Zap, ChevronRight } from 'lucide-react'
 import { useStore, useTransform, useView } from '@/lib/store'
-import { useCanvasInteraction, connDrag, ConnDragState } from '@/hooks/useCanvasInteraction'
+import { useCanvasInteraction, ConnDragState } from '@/hooks/useCanvasInteraction'
 import { makeConn } from '@/utils'
 
 import { ConnectorLayer }  from '@/components/canvas/ConnectorLayer'
