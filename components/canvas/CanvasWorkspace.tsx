@@ -1,211 +1,299 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
-import { Maximize2, Zap, ChevronRight } from 'lucide-react'
-import { useStore, useTransform, useView } from '@/lib/store'
-import { useCanvasInteraction, ConnDragState } from '@/hooks/useCanvasInteraction'
-import { makeConn } from '@/utils'
+import { useRef, useEffect, useCallback, RefObject } from 'react'
+import { useStore } from '@/lib/store'
+import { MACRO_NODE_W } from '@/components/nodes/MacroNode'
 
-import { ConnectorLayer }  from '@/components/canvas/ConnectorLayer'
-import { MacroNodeCard }   from '@/components/nodes/MacroNode'
-import { ScreenNodeCard }  from '@/components/nodes/ScreenNode'
-import { Ebar }            from '@/components/sidebar/Ebar'
-import { RightPanel }      from '@/components/panels/RightPanel'
-import { FAB }             from '@/components/ui/FAB'
+// Shared drag state — exported so CanvasWorkspace can register drag starts
+export interface NodeDragState {
+  id:     string
+  kind:   'node' | 'screen'
+  startX: number
+  startY: number
+  origX:  number
+  origY:  number
+}
 
-export function CanvasWorkspace({ projectId }: { projectId: string }) {
-  const router    = useRouter()
-  const canvasRef = useRef<HTMLDivElement>(null)
+export interface ConnDragState {
+  fromId: string
+  x1: number   // canvas coords — fixed anchor at handle
+  y1: number
+  x2: number   // canvas coords — follows cursor
+  y2: number
+}
+
+// Module-level refs — shared between hook instances in the same render tree
+// (safe because there's only ever one CanvasWorkspace mounted at a time)
+export const nodeDrag  = { current: null as NodeDragState | null }
+export const connDrag  = { current: null as ConnDragState | null }
+
+export function useCanvasInteraction(
+  canvasRef:       RefObject<HTMLDivElement>,
+  onConnDragMove?: (state: ConnDragState) => void,
+  onConnDragEnd?:  (fromId: string, toId: string | null) => void,
+) {
   const store     = useStore()
-  const transform = useTransform()
-  const view      = useView()
-  const project   = store.projects.find(p => p.id === projectId)
+  const isPanning = useRef(false)
+  const panOrigin = useRef({ x: 0, y: 0 })
 
-  const canvas      = useStore(s => s.canvas())
-  const journey     = useStore(s => s.journey())
-  const activeFlow  = useStore(s => s.activeFlow())
-  const selConnId   = useStore(s => s.selConnId)
-  const selNodeId   = useStore(s => s.selNodeId)
-  const selScreenId = useStore(s => s.selScreenId)
-
-  const [pendingConn, setPendingConn] = useState<{
-    x1: number; y1: number; x2: number; y2: number
-  } | null>(null)
+  // Keep store-derived values in refs so listeners never go stale
+  const viewRef       = useRef(useStore.getState().view)
+  const journeyRef    = useRef(useStore.getState().journey())
+  const activeFlowRef = useRef(useStore.getState().activeFlow())
 
   useEffect(() => {
-    if (projectId !== store.curProjectId) store.openProject(projectId)
-  }, [projectId, store])
-
-  const macroNodes  = canvas?.nodes      ?? []
-  const screenNodes = activeFlow?.screens ?? []
-
-  const onConnDragMove = useCallback((state: ConnDragState) => {
-    setPendingConn({ x1: state.x1, y1: state.y1, x2: state.x2, y2: state.y2 })
+    return useStore.subscribe(s => {
+      viewRef.current       = s.view
+      journeyRef.current    = s.journey()
+      activeFlowRef.current = s.activeFlow()
+    })
   }, [])
 
-  const onConnDragEnd = useCallback((
-    fromId: string,
-    toId: string | null,
-    reconnectConnId?: string,
-  ) => {
-    setPendingConn(null)
-    if (useStore.getState().view !== 'macro') return
-    if (!toId || fromId === toId || !store.curProjectId) return
-
-    const s     = useStore.getState()
-    const nodes = s.canvas()?.nodes ?? []
-
-    // Delete original conn first if this was a reconnect
-    if (reconnectConnId) s.deleteConn(reconnectConnId)
-
-    // Enforce DS → Journey direction regardless of drag direction
-    const nodeA = nodes.find(n => n.id === fromId)
-    const nodeB = nodes.find(n => n.id === toId)
-    if (!nodeA || !nodeB) return
-
-    const dsId      = nodeA.type === 'ds' ? nodeA.id : nodeB.id
-    const journeyId = nodeA.type === 'ds' ? nodeB.id : nodeA.id
-    const dsNode    = nodes.find(n => n.id === dsId)
-    const jNode     = nodes.find(n => n.id === journeyId)
-    if (!dsNode || dsNode.type !== 'ds')      return
-    if (!jNode  || jNode.type  !== 'journey') return
-
-    if (!s.connExists(dsId, journeyId)) {
-      s.addConn(makeConn(dsId, journeyId, store.curProjectId))
+  // ── Coord helper — always reads fresh transform ───────────────────────────
+  const clientToCanvas = useCallback((clientX: number, clientY: number) => {
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return { x: 0, y: 0 }
+    const { x, y, scale } = useStore.getState().transform
+    return {
+      x: (clientX - rect.left - x) / scale,
+      y: (clientY - rect.top  - y) / scale,
     }
-  }, [store.curProjectId])
+  }, [canvasRef])
 
-  const { startReconnect } = useCanvasInteraction(
-    canvasRef as React.RefObject<HTMLDivElement>,
-    onConnDragMove,
-    onConnDragEnd,
-  )
+  // ── Unified pointer down on canvas element ────────────────────────────────
+  const onPointerDown = useCallback((e: PointerEvent) => {
+    if (e.button !== 0) return
+    const target = e.target as HTMLElement
 
-  // Reconnect handler — called from ConnectorLayer with the real pointerId
-  const handleReconnectStart = useCallback((
-    connId: string,
-    endpoint: 'from' | 'to',
-    x: number,
-    y: number,
-    pointerId: number,
-  ) => {
-    startReconnect(connId, endpoint, x, y, pointerId)
-  }, [startReconnect])
+    // Connector handle — start a conn drag (macro view only)
+    if (target.closest('[data-conn-handle]')) {
+      e.stopPropagation()
+      // Only valid in macro view
+      if (useStore.getState().view !== 'macro') return
+      // The handle's data-macro-id is on the ancestor node
+      const nodeEl = target.closest('[data-macro-id]') as HTMLElement | null
+      const fromId = nodeEl?.dataset.macroId
+      if (!fromId) return
 
-  if (!project) {
-    return (
-      <div className="flex h-screen items-center justify-center text-text-2 text-[13px]">
-        Project not found.
-        <button onClick={() => router.push('/')} className="ml-2 underline hover:text-text-1 transition-colors">
-          Back
-        </button>
-      </div>
-    )
-  }
+      // Anchor = right edge of the node header (canvas coords)
+      // We compute it from the node's position in the store, not from clientX/Y
+      // so the line always starts exactly at the handle regardless of where in
+      // the handle the user clicks.
+      const node = useStore.getState().canvas()?.nodes.find(n => n.id === fromId)
+      if (!node) return
 
-  return (
-    <div className="flex h-screen overflow-hidden bg-bg">
-      <Ebar />
+      const HEADER_H = 44  // matches ConnectorLayer's y1 offset
+      const anchor = {
+        x: node.position.x + MACRO_NODE_W,
+        y: node.position.y + HEADER_H,
+      }
 
-      <div className="flex flex-col flex-1 min-w-0">
-        <header className="h-[46px] bg-surface border-b border-border flex items-center justify-between z-30 flex-shrink-0 px-[16px] gap-[8px]">
-          <nav className="flex items-center gap-[2px] min-w-0">
-            <button
-              onClick={() => store.goMacro()}
-              className="flex items-center gap-[5px] px-[7px] py-[4px] rounded-[6px] hover:bg-bg transition-colors group flex-shrink-0"
-            >
-              <div className="w-[8px] h-[8px] rounded-full flex-shrink-0" style={{ background: project.color ?? '#18181A' }} />
-              <span className="text-[12px] font-medium text-text-2 group-hover:text-text-1 transition-colors">
-                {project.name}
-              </span>
-            </button>
+      // cursor start = actual cursor position in canvas coords
+      const cursor = clientToCanvas(e.clientX, e.clientY)
 
-            {view === 'micro' && journey && (
-              <>
-                <ChevronRight size={12} className="text-text-3 flex-shrink-0" />
-                <div className="flex items-center gap-[5px] px-[7px] py-[4px] rounded-[6px] bg-bg border border-border min-w-0">
-                  <div className="w-[6px] h-[6px] rounded-full bg-brand-blue flex-shrink-0" />
-                  <span className="text-[12px] font-medium text-text-1 truncate">{journey.name}</span>
-                </div>
-                {activeFlow && (
-                  <>
-                    <ChevronRight size={12} className="text-text-3 flex-shrink-0" />
-                    <span className="text-[11.5px] text-text-2 truncate font-mono">{activeFlow.name}</span>
-                  </>
-                )}
-              </>
-            )}
-          </nav>
+      connDrag.current = { fromId, x1: anchor.x, y1: anchor.y, x2: cursor.x, y2: cursor.y }
+      // Capture on the canvas so we keep receiving events even if cursor leaves nodes
+      canvasRef.current?.setPointerCapture(e.pointerId)
+      return
+    }
 
-          <button className="flex items-center gap-[5px] px-[12px] h-[30px] bg-text-1 text-white text-[12px] font-medium rounded-[7px] hover:bg-neutral-800 active:scale-[.97] transition-all shadow-sm flex-shrink-0 group">
-            <Zap size={11} className="group-hover:text-yellow-300 transition-colors" />
-            Generate
-          </button>
-        </header>
+    // Node body — start a node drag (with threshold handled in pointermove)
+    if (target.closest('[data-node],[data-screen]')) {
+      e.stopPropagation()
+      // Don't start drag yet — wait for threshold in onPointerMove.
+      // Record the pointerdown position so we can compute delta later.
+      const nodeEl   = (target.closest('[data-macro-id]') as HTMLElement | null)
+      const screenEl = (target.closest('[data-screen-id]') as HTMLElement | null)
+      const id       = nodeEl?.dataset.macroId ?? screenEl?.dataset.screenId
+      if (!id) return
 
-        <div className="flex-1 relative">
-          <div
-            ref={canvasRef}
-            data-canvas
-            className="canvas-root canvas-dots absolute inset-0 overflow-hidden cursor-grab active:cursor-grabbing"
-          >
-            <div
-              className="absolute top-0 left-0 origin-top-left"
-              style={{
-                transform: `translate(${transform.x}px,${transform.y}px) scale(${transform.scale})`,
-                width: 8000, height: 8000,
-              }}
-            >
-              <ConnectorLayer
-                nodes={macroNodes}
-                conns={view === 'macro' ? (canvas?.conns ?? []) : []}
-                pendingConn={view === 'macro' ? pendingConn : null}
-                selectedConnId={selConnId}
-                onConnSelect={id => store.selectConn(id)}
-                onConnDelete={id => store.deleteConn(id)}
-                onReconnectStart={handleReconnectStart}
-              />
+      // Find starting position from store (not stale closures)
+      const state = useStore.getState()
+      const macroNode = state.canvas()?.nodes.find(n => n.id === id)
+      const flow      = state.activeFlow()
+      const screen    = flow?.screens.find(s => s.id === id)
 
-              {view === 'macro' && macroNodes.map(node => (
-                <MacroNodeCard key={node.id} node={node} isSelected={selNodeId === node.id} />
-              ))}
+      const orig = macroNode
+        ? { x: macroNode.position.x, y: macroNode.position.y }
+        : screen
+          ? { x: screen.position.x, y: screen.position.y }
+          : null
 
-              {view === 'micro' && screenNodes.map(screen => (
-                <ScreenNodeCard key={screen.id} screen={screen} isSelected={selScreenId === screen.id} />
-              ))}
+      if (!orig) return
 
-              {view === 'macro' && macroNodes.length === 0 && (
-                <div className="absolute flex flex-col items-center gap-[8px] text-center select-none" style={{ left: '50%', top: '42%', transform: 'translate(-50%,-50%)' }}>
-                  <div className="text-[13px] text-text-3">Add a DS and a Journey to start</div>
-                  <div className="text-[11px] font-mono text-text-3 bg-surface border border-border px-[10px] py-[4px] rounded-[6px]">use the + button</div>
-                </div>
-              )}
+      nodeDrag.current = {
+        id,
+        kind:   macroNode ? 'node' : 'screen',
+        startX: e.clientX,
+        startY: e.clientY,
+        origX:  orig.x,
+        origY:  orig.y,
+      }
 
-              {view === 'micro' && activeFlow && screenNodes.length === 0 && (
-                <div className="absolute flex flex-col items-center gap-[8px] text-center select-none" style={{ left: '50%', top: '42%', transform: 'translate(-50%,-50%)' }}>
-                  <div className="text-[13px] text-text-3">No screens in this flow</div>
-                  <div className="text-[11px] font-mono text-text-3 bg-surface border border-border px-[10px] py-[4px] rounded-[6px]">use the + button</div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      // Capture on canvas so events keep coming even as pointer leaves the node
+      canvasRef.current?.setPointerCapture(e.pointerId)
+      return
+    }
 
-      <RightPanel />
+    // Canvas background — start pan
+    // If clicking on a connector hit area, don't pan and don't clear selection.
+    // The SVG path's onClick will fire after and call selectConn.
+    if ((e.target as Element).closest('[data-conn-hit]')) return
 
-      <div className="fixed bottom-4 right-4 bg-surface border border-border rounded-[9px] shadow-md flex items-center overflow-hidden z-40">
-        <button onClick={() => store.setTransform({ scale: Math.max(0.15, transform.scale - 0.15) })} className="w-8 h-8 flex items-center justify-center text-text-2 hover:bg-bg hover:text-text-1 transition-colors text-[16px] leading-none select-none">−</button>
-        <button onClick={() => store.setTransform({ scale: 1 })} className="text-[11px] font-mono text-text-2 hover:text-text-1 px-2 hover:bg-bg transition-colors h-8 min-w-[44px] text-center tabular-nums">{Math.round(transform.scale * 100)}%</button>
-        <button onClick={() => store.setTransform({ scale: Math.min(2.5, transform.scale + 0.15) })} className="w-8 h-8 flex items-center justify-center text-text-2 hover:bg-bg hover:text-text-1 transition-colors text-[16px] leading-none select-none">+</button>
-        <div className="w-px h-4 bg-border mx-[1px]" />
-        <button onClick={() => store.fitView()} title="Fit (F)" className="w-8 h-8 flex items-center justify-center text-text-2 hover:bg-bg hover:text-text-1 transition-colors">
-          <Maximize2 size={12} />
-        </button>
-      </div>
+    isPanning.current = true
+    canvasRef.current?.setPointerCapture(e.pointerId)
+    const t = useStore.getState().transform
+    panOrigin.current = { x: e.clientX - t.x, y: e.clientY - t.y }
 
-      <FAB />
-    </div>
-  )
+    if (!(e.target as HTMLElement).closest('[data-selectable]')) {
+      store.clearSel()
+    }
+  }, [store, canvasRef, clientToCanvas])
+
+  const DRAG_THRESHOLD = 4
+
+  const onPointerMove = useCallback((e: PointerEvent) => {
+    // ── Connector drag ──────────────────────────────────────────────────────
+    if (connDrag.current) {
+      const cp = clientToCanvas(e.clientX, e.clientY)
+      connDrag.current = { ...connDrag.current, x2: cp.x, y2: cp.y }
+      onConnDragMove?.({ ...connDrag.current })
+      return
+    }
+
+    // ── Node/screen drag ────────────────────────────────────────────────────
+    if (nodeDrag.current) {
+      const dx = e.clientX - nodeDrag.current.startX
+      const dy = e.clientY - nodeDrag.current.startY
+
+      // Enforce threshold before committing to drag
+      if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return
+
+      const { scale } = useStore.getState().transform
+      const pos = {
+        x: nodeDrag.current.origX + dx / scale,
+        y: nodeDrag.current.origY + dy / scale,
+      }
+
+      if (nodeDrag.current.kind === 'node') {
+        store.moveNode(nodeDrag.current.id, pos)
+      } else {
+        const j  = journeyRef.current
+        const af = activeFlowRef.current
+        if (j && af) store.moveScreen(j.id, af.id, nodeDrag.current.id, pos)
+      }
+      return
+    }
+
+    // ── Pan ─────────────────────────────────────────────────────────────────
+    if (isPanning.current) {
+      store.setTransform({
+        x: e.clientX - panOrigin.current.x,
+        y: e.clientY - panOrigin.current.y,
+      })
+    }
+  }, [store, clientToCanvas, onConnDragMove])
+
+  const onPointerUp = useCallback((e: PointerEvent) => {
+    if (connDrag.current) {
+      const el    = document.elementFromPoint(e.clientX, e.clientY)
+      const toId  = (el?.closest('[data-macro-id]') as HTMLElement | null)?.dataset.macroId
+      const fromId = connDrag.current.fromId
+      connDrag.current = null
+      onConnDragEnd?.(fromId, toId ?? null)
+      canvasRef.current?.releasePointerCapture(e.pointerId)
+      return
+    }
+
+    if (nodeDrag.current) {
+      // If pointer barely moved — treat as a click → select
+      const dx = Math.abs(e.clientX - nodeDrag.current.startX)
+      const dy = Math.abs(e.clientY - nodeDrag.current.startY)
+      if (dx < DRAG_THRESHOLD && dy < DRAG_THRESHOLD) {
+        if (nodeDrag.current.kind === 'screen') {
+          store.selectScreen(nodeDrag.current.id)
+          store.openRpanel()
+          store.setRpTab('context')
+        } else {
+          store.selectNode(nodeDrag.current.id)
+          store.openRpanel()
+        }
+      }
+      nodeDrag.current = null
+      canvasRef.current?.releasePointerCapture(e.pointerId)
+      return
+    }
+
+    isPanning.current = false
+  }, [store, canvasRef, onConnDragEnd])
+
+  // ── Wheel zoom ────────────────────────────────────────────────────────────
+  const onWheel = useCallback((e: WheelEvent) => {
+    e.preventDefault()
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    const { x, y, scale } = useStore.getState().transform
+    const delta = -e.deltaY * 0.0008 * scale
+    const ns    = Math.min(2.5, Math.max(0.15, scale + delta))
+
+    const mx = e.clientX - rect.left
+    const my = e.clientY - rect.top
+
+    store.setTransform({
+      scale: ns,
+      x: mx - (mx - x) * (ns / scale),
+      y: my - (my - y) * (ns / scale),
+    })
+  }, [store, canvasRef])
+
+  // ── Keyboard ──────────────────────────────────────────────────────────────
+  const onKeyDown = useCallback((e: KeyboardEvent) => {
+    const tag = (e.target as HTMLElement).tagName
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return
+
+    const s = useStore.getState()
+
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if      (s.selConnId)   s.deleteConn(s.selConnId)
+      else if (s.selNodeId)   s.deleteNode(s.selNodeId)
+      else if (s.selScreenId && s.curJourneyId) {
+        const flow = s.activeFlow()
+        if (flow) s.deleteScreen(s.curJourneyId, flow.id, s.selScreenId)
+      }
+    }
+
+    if (e.key === 'Escape') {
+      s.clearSel()
+      s.closeRpanel()
+      s.closeFab()
+    }
+
+    if (e.key.toLowerCase() === 'f' && !e.metaKey && !e.ctrlKey) s.fitView()
+    if (e.key === '0' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); s.fitView() }
+  }, [])
+
+  // ── Register on canvas element (not window) ────────────────────────────────
+  // All pointer events are captured on the canvas element via setPointerCapture,
+  // so we never need window listeners. This avoids conflicts with other handlers.
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el) return
+
+    el.addEventListener('pointerdown', onPointerDown)
+    el.addEventListener('pointermove', onPointerMove)
+    el.addEventListener('pointerup',   onPointerUp)
+    el.addEventListener('wheel',       onWheel, { passive: false })
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      el.removeEventListener('pointerdown', onPointerDown)
+      el.removeEventListener('pointermove', onPointerMove)
+      el.removeEventListener('pointerup',   onPointerUp)
+      el.removeEventListener('wheel',       onWheel)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [onPointerDown, onPointerMove, onPointerUp, onWheel, onKeyDown, canvasRef])
+
+  return { startReconnect: useCallback(() => {}, []) }
 }
