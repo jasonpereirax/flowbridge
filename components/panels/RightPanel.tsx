@@ -3,7 +3,6 @@
 import { useCallback, useState } from 'react'
 import { X, Plus, Trash2, Link, Loader2, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react'
 import { useStore } from '@/lib/store'
-import { useFigmaBinding } from '@/hooks/useFigmaBinding'
 import { useFigmaMCPBinding, type MCPBindResult } from '@/hooks/useFigmaMCPBinding'
 import { cn, screenCompleteness } from '@/utils'
 import type { RpanelTab, MacroNode, Screen, ApiEndpoint, ScreenFigma } from '@/types'
@@ -364,6 +363,122 @@ function ContextTab({ screen, store, curJourneyId, activeFlow, connectedDsTags }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// useFigmaRESTBinding — inline (evita dependência externa)
+// Usa /api/figma Route Handler existente (REST API do Figma)
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface UseRESTBindingResult {
+  loading: boolean
+  error:   string | null
+  bind:    (url: string, journeyId: string, flowId: string, screenId: string) => void
+  clear:   () => void
+}
+
+function useFigmaRESTBinding(
+  onResolved: (journeyId: string, flowId: string, screenId: string, figma: ScreenFigma) => void
+): UseRESTBindingResult {
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState<string | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+
+  const clear = useCallback(() => {
+    abortRef.current?.abort()
+    setLoading(false)
+    setError(null)
+  }, [])
+
+  const bind = useCallback(async (
+    url: string, journeyId: string, flowId: string, screenId: string
+  ) => {
+    abortRef.current?.abort()
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    setError(null)
+    if (!url.trim()) return
+
+    // Parse fileKey + nodeId da URL
+    let fileKey = '', nodeId = ''
+    try {
+      const u = new URL(url)
+      const parts = u.pathname.split('/')
+      const ki = parts.indexOf('design') + 1
+      if (ki < 1) { setError('URL inválida'); return }
+      fileKey = parts[ki]
+      nodeId  = u.searchParams.get('node-id')?.replace('-', ':') ?? ''
+    } catch { setError('URL inválida'); return }
+
+    if (!nodeId) { setError('Selecione um frame no Figma e copie o link com node-id'); return }
+
+    setLoading(true)
+    try {
+      const res = await fetch(
+        `/api/figma?fileKey=${encodeURIComponent(fileKey)}&nodeIds=${encodeURIComponent(nodeId)}`,
+        { signal: ctrl.signal }
+      )
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        if (res.status === 500 && String((body as Record<string,unknown>)?.error).includes('FIGMA_ACCESS_TOKEN')) {
+          setError('FIGMA_ACCESS_TOKEN não configurado no .env')
+        } else if (res.status === 403) {
+          setError('Sem acesso a este arquivo Figma — verifique o token')
+        } else {
+          setError(`Erro Figma REST (${res.status})`)
+        }
+        return
+      }
+      const nodesData = await res.json()
+      const nodeEntry = (nodesData?.nodes as Record<string, unknown>)?.[nodeId.replace(':', '-')]
+        ?? (nodesData?.nodes as Record<string, unknown>)?.[nodeId]
+        ?? Object.values((nodesData?.nodes as Record<string, unknown>) ?? {})[0]
+
+      // Extrai nomes de componentes da árvore
+      const names = new Set<string>()
+      function walk(node: unknown) {
+        if (!node || typeof node !== 'object') return
+        const n = node as Record<string, unknown>
+        if ((n.type === 'INSTANCE' || n.type === 'COMPONENT') && typeof n.name === 'string') names.add(n.name)
+        const doc = n.document ?? n
+        const children = (doc as Record<string, unknown>).children
+        if (Array.isArray(children)) children.forEach(walk)
+      }
+      walk(nodeEntry)
+
+      // Thumbnail (opcional)
+      let thumbnailUrl: string | undefined
+      try {
+        const imgRes = await fetch(
+          `/api/figma?fileKey=${encodeURIComponent(fileKey)}&nodeIds=${encodeURIComponent(nodeId)}&type=images`,
+          { signal: ctrl.signal }
+        )
+        if (imgRes.ok) {
+          const imgData = await imgRes.json()
+          thumbnailUrl = (imgData?.images as Record<string,string>)?.[nodeId]
+            ?? (imgData?.images as Record<string,string>)?.[nodeId.replace(':', '-')]
+            ?? Object.values((imgData?.images as Record<string,string>) ?? {})[0]
+        }
+      } catch { /* thumbnail é opcional */ }
+
+      onResolved(journeyId, flowId, screenId, {
+        url, nodeId, fileKey, thumbnailUrl,
+        componentMap: Array.from(names).map(name => ({
+          figmaName: name,
+          codeComponent: name.split('/')[0].trim(),
+        })),
+        fetchedAt: new Date().toISOString(),
+      })
+      setError(null)
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return
+      setError('Falha na conexão com o Figma — tente novamente')
+    } finally {
+      setLoading(false)
+    }
+  }, [onResolved])
+
+  return { loading, error, bind, clear }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Figma Section — suporta dois modos: REST API (rápido) e MCP (rico)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -407,7 +522,7 @@ function FigmaSection({ screen, store, curJourneyId, activeFlow }: {
   }, [store, screen.context])
 
   // ── REST binding ──────────────────────────────────────────────────────────
-  const rest = useFigmaBinding(handleRestResolved)
+  const rest = useFigmaRESTBinding(handleRestResolved)
 
   // ── MCP binding ───────────────────────────────────────────────────────────
   const mcp  = useFigmaMCPBinding(handleMCPResolved)
