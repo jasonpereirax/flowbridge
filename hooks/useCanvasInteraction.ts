@@ -294,4 +294,6 @@ export function useCanvasInteraction(
       window.removeEventListener('keydown', onKeyDown)
     }
   }, [onPointerDown, onPointerMove, onPointerUp, onWheel, onKeyDown, canvasRef])
+
+  return { startReconnect: useCallback(() => {}, []) }
 }
