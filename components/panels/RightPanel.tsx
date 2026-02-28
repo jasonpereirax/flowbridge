@@ -93,11 +93,10 @@ export function RightPanel() {
             </p>
           </div>
         ) : rpanelTab === 'properties' ? (
-          <PropertiesTab node={node} screen={screen} store={store} curJourneyId={curJourneyId} activeFlow={activeFlow} />
+          <PropertiesTab node={node} screen={screen} curJourneyId={curJourneyId} activeFlow={activeFlow} />
         ) : rpanelTab === 'context' ? (
           <ContextTab
             screen={screen}
-            store={store}
             curJourneyId={curJourneyId}
             activeFlow={activeFlow}
             connectedDsTags={connectedDsTags}
@@ -114,13 +113,13 @@ export function RightPanel() {
 // Properties Tab
 // ─────────────────────────────────────────────────────────────────────────────
 
-function PropertiesTab({ node, screen, store, curJourneyId, activeFlow }: {
+function PropertiesTab({ node, screen, curJourneyId, activeFlow }: {
   node:          MacroNode | undefined
   screen:        Screen | undefined
-  store:         ReturnType<typeof useStore>
   curJourneyId:  string | null
   activeFlow:    string | null
 }) {
+  const store = useStore()
   return (
     <div className="p-5 space-y-4">
       {screen ? (
@@ -232,13 +231,13 @@ function PropertiesTab({ node, screen, store, curJourneyId, activeFlow }: {
 // Context Tab — coração da Phase 3
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ContextTab({ screen, store, curJourneyId, activeFlow, connectedDsTags }: {
+function ContextTab({ screen, curJourneyId, activeFlow, connectedDsTags }: {
   screen:           Screen | undefined
-  store:            ReturnType<typeof useStore>
   curJourneyId:     string | null
   activeFlow:       string | null
   connectedDsTags:  string[]
 }) {
+  const store = useStore()
   if (!screen || !curJourneyId || !activeFlow) {
     return (
       <div className="p-5">
@@ -258,7 +257,7 @@ function ContextTab({ screen, store, curJourneyId, activeFlow, connectedDsTags }
     <div className="divide-y divide-gray-100">
 
       {/* ── Figma URL binding ── */}
-      <FigmaSection screen={screen} store={store} curJourneyId={curJourneyId} activeFlow={activeFlow} />
+      <FigmaSection screen={screen} curJourneyId={curJourneyId} activeFlow={activeFlow} />
 
       {/* ── Core fields ── */}
       <div className="p-5 space-y-4">
@@ -609,12 +608,12 @@ Return ONLY valid JSON (no markdown, no backticks):
 
 type BindMode = 'rest' | 'mcp'
 
-function FigmaSection({ screen, store, curJourneyId, activeFlow }: {
+function FigmaSection({ screen, curJourneyId, activeFlow }: {
   screen:        Screen
-  store:         ReturnType<typeof useStore>
   curJourneyId:  string
   activeFlow:    string
 }) {
+  const store = useStore()
   const [url,      setUrl]      = useState(screen.figma?.url ?? '')
   const [bindMode, setBindMode] = useState<BindMode>('mcp')
 
