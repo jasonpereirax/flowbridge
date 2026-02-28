@@ -25,6 +25,14 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const figmaToken = process.env.FIGMA_ACCESS_TOKEN
+    if (!figmaToken) {
+      return NextResponse.json(
+        { error: 'FIGMA_ACCESS_TOKEN não configurada nas variáveis de ambiente' },
+        { status: 500 }
+      )
+    }
+
     // ── Chamar Anthropic API com Figma MCP ────────────────────────────────
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -42,6 +50,7 @@ export async function POST(req: NextRequest) {
             type: 'url',
             url:  'https://mcp.figma.com/mcp',
             name: 'figma',
+            authorization_token: figmaToken,
           },
         ],
         messages: [
