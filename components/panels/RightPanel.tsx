@@ -558,10 +558,9 @@ function useFigmaMCPBinding(
       setPhase('parsing')
       const data = await res.json() as Record<string, unknown>
 
-      // Extrai componentes — o MCP pode retornar em vários formatos
+      // ── Extrair componentes da resposta combinada MCP+REST ────────────────
       const rawComponents: MCPComponent[] = []
 
-      // Formato 1: array direto em data.components
       if (Array.isArray(data.components)) {
         for (const c of data.components as unknown[]) {
           if (typeof c === 'string') {
@@ -570,35 +569,23 @@ function useFigmaMCPBinding(
             const co = c as Record<string, unknown>
             rawComponents.push({
               figmaName:     String(co.figmaName ?? co.name ?? ''),
-              codeComponent: String(co.codeComponent ?? co.name ?? '').split('/')[0].trim(),
+              codeComponent: String(co.codeComponent ?? co.figmaName ?? co.name ?? '').split('/')[0].trim(),
               props:         co.props as Record<string, string[]> | undefined,
             })
           }
         }
       }
 
-      // Formato 2: texto raw com nomes de componentes
-      if (rawComponents.length === 0 && typeof data.raw === 'string') {
-        const matches = data.raw.match(/[A-Z][a-zA-Z]+(?:\/[A-Z][a-zA-Z]+)*/g) ?? []
-        for (const m of [...new Set(matches)]) {
+      // Fallback: extrair do texto raw do MCP
+      if (rawComponents.length === 0 && typeof data.mcpRaw === 'string') {
+        const matches = data.mcpRaw.match(/[A-Z][a-zA-Z]+(?:\/[A-Z][a-zA-Z]+)*/g) ?? []
+        for (const m of [...new Set(matches)] as string[]) {
           rawComponents.push({ figmaName: m, codeComponent: m.split('/')[0].trim() })
         }
       }
 
-      // Thumbnail via REST (o MCP não retorna imagem)
-      let thumbnailUrl: string | undefined
-      try {
-        const imgRes = await fetch(
-          `/api/figma?fileKey=${encodeURIComponent(fileKey)}&nodeIds=${encodeURIComponent(nodeId)}&type=images`,
-          { signal: ctrl.signal }
-        )
-        if (imgRes.ok) {
-          const imgData = await imgRes.json() as Record<string, unknown>
-          thumbnailUrl = (imgData?.images as Record<string, string>)?.[nodeId]
-            ?? (imgData?.images as Record<string, string>)?.[nodeId.replace(':', '-')]
-            ?? Object.values((imgData?.images as Record<string, string>) ?? {})[0]
-        }
-      } catch { /* thumbnail é opcional */ }
+      // ── Thumbnail já vem na resposta ──────────────────────────────────────
+      const thumbnailUrl = typeof data.thumbnailUrl === 'string' ? data.thumbnailUrl : undefined
 
       const figma: ScreenFigma = {
         url, nodeId, fileKey, thumbnailUrl,
@@ -606,7 +593,7 @@ function useFigmaMCPBinding(
         fetchedAt: new Date().toISOString(),
       }
 
-      // Sugestões de contexto extraídas pelo MCP
+      // ── Sugestões de contexto ─────────────────────────────────────────────
       const contextPatches: MCPBindResult['contextPatches'] = {}
       if (typeof data.inferredPurpose === 'string' && data.inferredPurpose) {
         contextPatches.purpose = data.inferredPurpose
