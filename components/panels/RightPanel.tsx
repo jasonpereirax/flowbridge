@@ -1144,7 +1144,7 @@ function ComponentsTab({ screen, curJourneyId, activeFlow, connectedDsTags }: {
   function toggleGroup(g: string) {
     setExpandedGroups(prev => {
       const n = new Set(prev)
-      n.has(g) ? n.delete(g) : n.add(g)
+      if (n.has(g)) { n.delete(g) } else { n.add(g) }
       return n
     })
   }
@@ -1343,7 +1343,7 @@ function ComponentsTab({ screen, curJourneyId, activeFlow, connectedDsTags }: {
 // Gera código apenas desta screen e exibe em modal inline
 // ─────────────────────────────────────────────────────────────────────────────
 
-function GenerationPreview({ screen, curJourneyId, activeFlow }: {
+function GenerationPreview({ screen, curJourneyId, activeFlow: _activeFlow }: {
   screen:        Screen
   curJourneyId:  string
   activeFlow:    string
