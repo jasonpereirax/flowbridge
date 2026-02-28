@@ -295,5 +295,10 @@ export function useCanvasInteraction(
     }
   }, [onPointerDown, onPointerMove, onPointerUp, onWheel, onKeyDown, canvasRef])
 
-  return { startReconnect: useCallback(() => {}, []) }
+  return {
+    startReconnect: useCallback(
+      (_connId: string, _endpoint: string, _x: number, _y: number, _pointerId: number) => {},
+      []
+    ),
+  }
 }
