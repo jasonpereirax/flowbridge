@@ -3,7 +3,7 @@
 import { useCallback, useState, useRef } from 'react'
 import {
   X, Plus, Trash2, Link, Loader2, AlertCircle, CheckCircle2, Sparkles,
-  ChevronDown, ChevronRight, Eye, Zap, GitBranch, Copy, Check,
+  ChevronDown, Eye, Zap, GitBranch, Copy, Check,
   ArrowRight, LayoutGrid, Wand2,
 } from 'lucide-react'
 import { useStore } from '@/lib/store'
@@ -398,7 +398,7 @@ interface AIAnalysis {
   endpoints:    Array<{ method: string; path: string; description: string }>
 }
 
-function AIContextAnalyzer({ screen, curJourneyId, activeFlow, onApply }: {
+function AIContextAnalyzer({ screen, curJourneyId: _curJourneyId, activeFlow: _activeFlow, onApply }: {
   screen:        Screen
   curJourneyId:  string
   activeFlow:    string
@@ -1858,10 +1858,4 @@ const methodColors: Record<string, string> = {
   PUT:    'text-amber-700 bg-amber-50',
   PATCH:  'text-amber-700 bg-amber-50',
   DELETE: 'text-red-700 bg-red-50',
-}
-
-function scoreColor(score: number) {
-  if (score >= 80) return 'text-green-700'
-  if (score >= 50) return 'text-amber-600'
-  return 'text-red-600'
 }
