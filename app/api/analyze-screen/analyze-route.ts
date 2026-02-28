@@ -34,21 +34,24 @@ export async function POST(req: NextRequest) {
     const { screenName, nodeId, thumbnailUrl, components, existingRoute } = body
 
     // ── Monta o conteúdo da mensagem ──────────────────────────────────────────
-    type ContentBlock =
-      | { type: 'text'; text: string }
-      | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
+    type AllowedMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
 
-    const content: ContentBlock[] = []
+    const content: Anthropic.MessageParam['content'] = []
 
     // Fetch e converte thumbnail para base64 (se disponível)
     if (thumbnailUrl) {
       try {
         const imgRes = await fetch(thumbnailUrl)
         if (imgRes.ok) {
-          const contentType = imgRes.headers.get('content-type') ?? 'image/png'
-          const mediaType   = contentType.split(';')[0].trim()
-          const buffer      = await imgRes.arrayBuffer()
-          const base64      = Buffer.from(buffer).toString('base64')
+          const ct        = imgRes.headers.get('content-type') ?? 'image/png'
+          const rawType   = ct.split(';')[0].trim()
+          const allowed: AllowedMediaType[] = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+          const mediaType = (allowed.includes(rawType as AllowedMediaType)
+            ? rawType
+            : 'image/png') as AllowedMediaType
+
+          const buffer = await imgRes.arrayBuffer()
+          const base64 = Buffer.from(buffer).toString('base64')
 
           content.push({
             type: 'image',
