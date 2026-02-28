@@ -1,11 +1,10 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useRef } from 'react'
 import { X, Plus, Trash2, Link, Loader2, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react'
 import { useStore } from '@/lib/store'
-import { useFigmaMCPBinding, type MCPBindResult } from '@/hooks/useFigmaMCPBinding'
 import { cn, screenCompleteness } from '@/utils'
-import type { RpanelTab, MacroNode, Screen, ApiEndpoint, ScreenFigma } from '@/types'
+import type { RpanelTab, MacroNode, Screen, ApiEndpoint, ScreenFigma, ScreenContext } from '@/types'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RightPanel (root)
@@ -476,6 +475,132 @@ function useFigmaRESTBinding(
   }, [onResolved])
 
   return { loading, error, bind, clear }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MCPBindResult — inline type (sem dependência externa)
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface MCPBindResult {
+  figma:          ScreenFigma
+  contextPatches: Partial<ScreenContext>
+  rawTokens:      { colors: Record<string,string>; typography: Record<string,string>; spacing: Record<string,string> }
+  interfaces:     Array<{ name: string; props: Record<string,string> }>
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// useFigmaMCPBinding — inline hook (sem dependência externa)
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface UseMCPResult {
+  loading: boolean
+  error:   string | null
+  phase:   'idle' | 'calling-mcp' | 'parsing' | 'done' | 'error'
+  bind:    (url: string, journeyId: string, flowId: string, screenId: string) => Promise<void>
+  clear:   () => void
+}
+
+function useFigmaMCPBinding(
+  onResolved: (journeyId: string, flowId: string, screenId: string, result: MCPBindResult) => void
+): UseMCPResult {
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState<string | null>(null)
+  const [phase,   setPhase]   = useState<UseMCPResult['phase']>('idle')
+  const abortRef = useRef<AbortController | null>(null)
+
+  const clear = useCallback(() => {
+    abortRef.current?.abort()
+    setLoading(false); setError(null); setPhase('idle')
+  }, [])
+
+  const bind = useCallback(async (
+    url: string, journeyId: string, flowId: string, screenId: string
+  ) => {
+    abortRef.current?.abort()
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    setError(null); setPhase('idle')
+    if (!url.trim()) return
+
+    // Parse URL
+    let fileKey = '', nodeId = ''
+    try {
+      const u = new URL(url)
+      const parts = u.pathname.split('/')
+      const ki = parts.indexOf('design') + 1
+      if (ki < 1) { setError('URL inválida'); setPhase('error'); return }
+      fileKey = parts[ki]
+      nodeId  = u.searchParams.get('node-id')?.replace('-', ':') ?? ''
+    } catch { setError('URL inválida'); setPhase('error'); return }
+
+    if (!nodeId) { setError('Selecione um frame no Figma e copie o link com node-id'); setPhase('error'); return }
+
+    setLoading(true); setPhase('calling-mcp')
+
+    try {
+      const prompt = `You have access to the Figma MCP server.
+Call get_design_context for fileKey=${fileKey} nodeId=${nodeId} url=${url}
+Return ONLY valid JSON (no markdown, no backticks):
+{
+  "pageName": "string",
+  "inferredPurpose": "1 sentence what this screen does",
+  "components": ["ComponentName"],
+  "componentInterfaces": [{"name":"Comp","props":{"prop":"type"}}],
+  "tokens": {"colors":{"Name":"#hex"},"typography":{"Style":"desc"},"spacing":{"token":"value"}}
+}`
+
+      const res = await fetch('/api/figma-mcp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+        signal: ctrl.signal,
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error((body as Record<string,string>)?.error ?? `HTTP ${res.status}`)
+      }
+
+      const data = await res.json() as {
+        pageName?: string; inferredPurpose?: string
+        components?: string[]; componentInterfaces?: Array<{name:string;props:Record<string,string>}>
+        tokens?: { colors?: Record<string,string>; typography?: Record<string,string>; spacing?: Record<string,string> }
+      }
+
+      setPhase('parsing')
+
+      const figma: ScreenFigma = {
+        url, nodeId, fileKey,
+        thumbnailUrl: undefined,
+        componentMap: (data.components ?? []).map(name => ({
+          figmaName: name,
+          codeComponent: name.split('/')[0].trim(),
+        })),
+        fetchedAt: new Date().toISOString(),
+      }
+
+      const contextPatches: Partial<ScreenContext> = {
+        ...(data.inferredPurpose ? { purpose: data.inferredPurpose } : {}),
+        ...(data.components?.length ? { components: data.components.map(n => n.split('/')[0].trim()) } : {}),
+      }
+
+      onResolved(journeyId, flowId, screenId, {
+        figma, contextPatches,
+        rawTokens:  { colors: data.tokens?.colors ?? {}, typography: data.tokens?.typography ?? {}, spacing: data.tokens?.spacing ?? {} },
+        interfaces: data.componentInterfaces ?? [],
+      })
+
+      setPhase('done'); setError(null)
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return
+      setError((err as Error).message ?? 'Falha ao chamar Figma MCP')
+      setPhase('error')
+    } finally {
+      setLoading(false)
+    }
+  }, [onResolved])
+
+  return { loading, error, phase, bind, clear }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
