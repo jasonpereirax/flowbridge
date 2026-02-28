@@ -3,97 +3,95 @@ import { NextRequest, NextResponse } from 'next/server'
 /**
  * POST /api/figma-mcp
  *
- * Proxy seguro para Anthropic API com Figma MCP server.
- * Mantém a ANTHROPIC_API_KEY no servidor — nunca exposta ao client.
+ * Proxy para o figma-developer-mcp rodando no VPS (Hostinger).
+ * Chama get_design_context via JSON-RPC e retorna resultado estruturado.
  *
- * Body: { prompt: string, fileKey: string, nodeId: string }
- * Response: MCPDesignContext JSON
+ * Env vars necessárias:
+ *   FIGMA_MCP_URL = https://mcp.seudominio.com
  */
 export async function POST(req: NextRequest) {
   try {
-    const { prompt } = await req.json()
+    const body = await req.json() as { fileKey?: string; nodeId?: string }
 
-    if (!prompt) {
-      return NextResponse.json({ error: 'prompt is required' }, { status: 400 })
+    const fileKey = body.fileKey
+    const nodeId  = body.nodeId
+
+    if (!fileKey || !nodeId) {
+      return NextResponse.json(
+        { error: 'fileKey e nodeId são obrigatórios' },
+        { status: 400 }
+      )
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY
-    if (!apiKey) {
+    const mcpUrl = process.env.FIGMA_MCP_URL
+    if (!mcpUrl) {
       return NextResponse.json(
-        { error: 'ANTHROPIC_API_KEY não configurada nas variáveis de ambiente' },
+        { error: 'FIGMA_MCP_URL não configurada nas variáveis de ambiente' },
         { status: 500 }
       )
     }
 
-    const figmaToken = process.env.FIGMA_ACCESS_TOKEN
-    if (!figmaToken) {
-      return NextResponse.json(
-        { error: 'FIGMA_ACCESS_TOKEN não configurada nas variáveis de ambiente' },
-        { status: 500 }
-      )
-    }
-
-    // ── Chamar Anthropic API com Figma MCP ────────────────────────────────
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type':      'application/json',
-        'x-api-key':         apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-beta':    'mcp-client-2025-04-04',
-      },
+    // ── Chamar get_design_context no MCP server do VPS ────────────────────
+    const mcpRes = await fetch(`${mcpUrl}/mcp`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model:      process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-20250514',
-        max_tokens: 4000,
-        mcp_servers: [
-          {
-            type: 'url',
-            url:  'https://mcp.figma.com/mcp',
-            name: 'figma',
-            authorization_token: figmaToken,
-          },
-        ],
-        messages: [
-          { role: 'user', content: prompt },
-        ],
+        jsonrpc: '2.0',
+        id:      1,
+        method:  'tools/call',
+        params:  {
+          name:      'get_design_context',
+          arguments: { fileKey, nodeId, depth: 3 },
+        },
       }),
     })
 
-    if (!anthropicRes.ok) {
-      const err = await anthropicRes.json().catch(() => ({}))
-      const msg = (err as Record<string, unknown>)?.error
-      if (typeof msg === 'object' && msg !== null && 'message' in msg) {
-        return NextResponse.json({ error: (msg as { message: string }).message }, { status: anthropicRes.status })
-      }
-      return NextResponse.json({ error: `Anthropic API error ${anthropicRes.status}` }, { status: anthropicRes.status })
-    }
-
-    const anthropicData = await anthropicRes.json()
-
-    // ── Extrair texto da resposta ─────────────────────────────────────────
-    const textContent = (anthropicData.content as Array<{ type: string; text?: string }>)
-      ?.filter(b => b.type === 'text')
-      ?.map(b => b.text ?? '')
-      ?.join('\n')
-      ?? ''
-
-    // ── Extrair JSON da resposta ──────────────────────────────────────────
-    const jsonMatch = textContent.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) {
+    if (!mcpRes.ok) {
+      const errText = await mcpRes.text().catch(() => '')
       return NextResponse.json(
-        { error: 'MCP não retornou JSON válido — tente novamente' },
+        { error: `MCP server retornou ${mcpRes.status}${errText ? ': ' + errText : ''}` },
         { status: 502 }
       )
     }
 
+    const mcpData = await mcpRes.json() as {
+      result?: { content?: Array<{ type: string; text?: string }> | unknown }
+      error?:  { message?: string }
+    }
+
+    if (mcpData.error) {
+      return NextResponse.json(
+        { error: mcpData.error.message ?? 'Erro JSON-RPC do MCP server' },
+        { status: 502 }
+      )
+    }
+
+    // ── Extrair texto do resultado ─────────────────────────────────────────
+    const resultContent = mcpData?.result?.content
+    if (!resultContent) {
+      return NextResponse.json(
+        { error: 'MCP não retornou conteúdo no campo result.content' },
+        { status: 502 }
+      )
+    }
+
+    const textBlock = Array.isArray(resultContent)
+      ? resultContent.find((b: { type: string }) => b.type === 'text')
+      : null
+
+    const rawText: string = (textBlock as { text?: string } | null)?.text ?? JSON.stringify(resultContent)
+
+    // ── Tentar extrair JSON estruturado ────────────────────────────────────
     let parsed: unknown
     try {
-      parsed = JSON.parse(jsonMatch[0])
+      parsed = JSON.parse(rawText)
     } catch {
-      return NextResponse.json(
-        { error: 'Falha ao parsear resposta do MCP' },
-        { status: 502 }
-      )
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/)
+      try {
+        parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { raw: rawText, components: [], tokens: {} }
+      } catch {
+        parsed = { raw: rawText, components: [], tokens: {} }
+      }
     }
 
     return NextResponse.json(parsed)
@@ -101,7 +99,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error('[figma-mcp]', err)
     return NextResponse.json(
-      { error: 'Erro interno ao chamar Figma MCP' },
+      { error: 'Erro interno ao chamar Figma MCP no VPS' },
       { status: 500 }
     )
   }
