@@ -3,7 +3,7 @@
 import { useCallback, useState, useRef } from 'react'
 import {
   X, Plus, Trash2, Link, Loader2, AlertCircle, CheckCircle2, Sparkles,
-  ChevronDown, Eye, Zap, GitBranch, Copy, Check,
+  ChevronDown, ChevronRight, Eye, Zap, GitBranch, Copy, Check,
   ArrowRight, LayoutGrid, Wand2,
 } from 'lucide-react'
 import { useStore } from '@/lib/store'
@@ -70,7 +70,7 @@ export function RightPanel() {
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200 flex-shrink-0 bg-white">
-        {(['properties', 'context', 'info'] as const).map(tab => (
+        {(['context', 'properties', 'components', 'info'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => store.setRpTab(tab)}
@@ -96,8 +96,6 @@ export function RightPanel() {
               Select a node or screen to edit
             </p>
           </div>
-        ) : rpanelTab === 'properties' ? (
-          <PropertiesTab node={node} screen={screen} curJourneyId={curJourneyId} activeFlow={activeFlow} />
         ) : rpanelTab === 'context' ? (
           <ContextTab
             screen={screen}
@@ -105,6 +103,15 @@ export function RightPanel() {
             activeFlow={activeFlow}
             connectedDsTags={connectedDsTags}
           />
+        ) : rpanelTab === 'components' ? (
+          <ComponentsTab
+            screen={screen}
+            curJourneyId={curJourneyId}
+            activeFlow={activeFlow}
+            connectedDsTags={connectedDsTags}
+          />
+        ) : rpanelTab === 'properties' ? (
+          <PropertiesTab node={node} screen={screen} curJourneyId={curJourneyId} activeFlow={activeFlow} />
         ) : (
           <InfoTab item={selectedItem} />
         )}
@@ -592,51 +599,42 @@ function CompletenessRing({ screen, score }: { screen: Screen; score: number }) 
   const ctx = screen.context
 
   const items = [
-    { label: 'Figma vinculado',  pts: 30, done: !!screen.figma?.nodeId,           impact: 'Thumbnail e componentes para o Claude' },
-    { label: 'Purpose',          pts: 20, done: ctx.purpose.length > 10,           impact: 'Define o objetivo da tela no prompt' },
-    { label: 'Route',            pts: 15, done: ctx.route.length > 1,              impact: 'Define o path do arquivo gerado' },
-    { label: 'Components',       pts: 15, done: ctx.components.length > 0,         impact: 'Lista de imports do código gerado' },
-    { label: 'API Endpoints',    pts: 10, done: ctx.apiEndpoints.length > 0,       impact: 'Gera chamadas de dados corretas' },
-    { label: 'Architecture Notes', pts: 10, done: ctx.notes.length > 10,           impact: 'Padrões e decisões arquiteturais' },
+    { label: 'Figma vinculado',    pts: 30, done: !!screen.figma?.nodeId,     impact: 'Thumbnail e componentes para o Claude' },
+    { label: 'Purpose',            pts: 20, done: ctx.purpose.length > 10,    impact: 'Define o objetivo da tela no prompt' },
+    { label: 'Route',              pts: 15, done: ctx.route.length > 1,       impact: 'Define o path do arquivo gerado' },
+    { label: 'Components',         pts: 15, done: ctx.components.length > 0,  impact: 'Lista de imports do código gerado' },
+    { label: 'API Endpoints',      pts: 10, done: ctx.apiEndpoints.length > 0, impact: 'Gera chamadas de dados corretas' },
+    { label: 'Architecture Notes', pts: 10, done: ctx.notes.length > 10,      impact: 'Padrões e decisões arquiteturais' },
   ]
 
   const missing = items.filter(i => !i.done)
   const done    = items.filter(i =>  i.done)
 
-  const ringColor = score >= 80 ? '#16a34a' : score >= 50 ? '#d97706' : '#dc2626'
-  const r = 18, circ = 2 * Math.PI * r
+  const barColor = score >= 80 ? 'bg-green-500' : score >= 50 ? 'bg-amber-500' : 'bg-red-500'
+  const textColor = score >= 80 ? 'text-green-700' : score >= 50 ? 'text-amber-600' : 'text-red-600'
 
   return (
-    <div className="p-4">
+    <div className="px-4 pt-4 pb-3">
       <div
-        className="flex items-center gap-3 cursor-pointer"
+        className="cursor-pointer"
         onClick={() => setExpanded(e => !e)}
       >
-        {/* Ring SVG */}
-        <svg width={44} height={44} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
-          <circle cx={22} cy={22} r={r} fill="none" stroke="#e5e7eb" strokeWidth={4} />
-          <circle
-            cx={22} cy={22} r={r}
-            fill="none" stroke={ringColor} strokeWidth={4}
-            strokeDasharray={`${circ * score / 100} ${circ}`}
-            strokeLinecap="round"
-            style={{ transition: 'stroke-dasharray .4s ease' }}
-          />
-        </svg>
-
-        <div className="flex-1">
-          <div className={cn('text-sm font-bold', score >= 80 ? 'text-green-700' : score >= 50 ? 'text-amber-600' : 'text-red-600')}>
-            {score}% completo
-          </div>
-          <div className="text-xs text-gray-400">
-            {score >= 80 ? '✓ Pronto para geração' : score >= 50 ? `${100 - score}pts para melhorar` : `${missing.length} campos críticos faltando`}
+        {/* Bar + score */}
+        <div className="flex items-center justify-between mb-1.5">
+          <span className={cn('text-xs font-bold', textColor)}>{score}% completo</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-gray-400">
+              {score >= 80 ? '✓ Pronto para geração' : score >= 50 ? `${100 - score}pts restantes` : `${missing.length} campos faltando`}
+            </span>
+            <ChevronDown size={12} className={cn('text-gray-400 transition-transform', expanded && 'rotate-180')} />
           </div>
         </div>
-
-        <ChevronDown
-          size={14}
-          className={cn('text-gray-400 transition-transform flex-shrink-0', expanded && 'rotate-180')}
-        />
+        <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className={cn('h-full rounded-full transition-all duration-500', barColor)}
+            style={{ width: `${score}%` }}
+          />
+        </div>
       </div>
 
       {expanded && (
@@ -1101,6 +1099,246 @@ function ContextInheritancePanel({ screen, connectedDsTags }: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Components Tab — Figma Assets/Library style view
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ComponentsTab({ screen, curJourneyId, activeFlow, connectedDsTags }: {
+  screen:           Screen | undefined
+  curJourneyId:     string | null
+  activeFlow:       string | null
+  connectedDsTags:  string[]
+}) {
+  const store = useStore()
+  const [search, setSearch] = useState('')
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+
+  if (!screen || !curJourneyId || !activeFlow) {
+    return (
+      <div className="p-5">
+        <p className="text-sm text-gray-400">Components are available for screens only.</p>
+      </div>
+    )
+  }
+
+  const figmaMap   = screen.figma?.componentMap ?? []
+  const selected   = screen.context.components
+
+  // Group figma components by prefix (e.g. "Button/Primary" → group "Button")
+  const grouped = figmaMap.reduce<Record<string, typeof figmaMap>>((acc, c) => {
+    const group = c.figmaName.includes('/') ? c.figmaName.split('/')[0] : '—'
+    if (!acc[group]) acc[group] = []
+    acc[group].push(c)
+    return acc
+  }, {})
+
+  // DS tags not in figmaMap (available but not extracted)
+  const dsOnly = connectedDsTags.filter(t => !figmaMap.some(c => c.codeComponent === t || c.figmaName === t))
+
+  // Search filter
+  const q = search.toLowerCase().trim()
+  const filterMap = (items: typeof figmaMap) =>
+    q ? items.filter(c => c.figmaName.toLowerCase().includes(q) || c.codeComponent.toLowerCase().includes(q)) : items
+  const filterStr = (items: string[]) =>
+    q ? items.filter(s => s.toLowerCase().includes(q)) : items
+
+  function toggleGroup(g: string) {
+    setExpandedGroups(prev => {
+      const n = new Set(prev)
+      n.has(g) ? n.delete(g) : n.add(g)
+      return n
+    })
+  }
+
+  function toggleComponent(name: string) {
+    const next = selected.includes(name)
+      ? selected.filter(s => s !== name)
+      : [...selected, name]
+    store.updateScreenContext(curJourneyId!, activeFlow!, screen!.id, { components: next })
+  }
+
+  const totalComponents = figmaMap.length
+  const activeCount     = selected.length
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header stats */}
+      <div className="px-4 pt-4 pb-3 border-b border-gray-100">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">
+            {totalComponents > 0 ? `${totalComponents} componentes extraídos` : 'Nenhum componente'}
+          </span>
+          {activeCount > 0 && (
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+              {activeCount} ativos
+            </span>
+          )}
+        </div>
+        {/* Context bar */}
+        {totalComponents > 0 && (
+          <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-blue-500 rounded-full transition-all"
+              style={{ width: `${Math.min(100, (activeCount / Math.max(1, totalComponents)) * 100)}%` }}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Search */}
+      <div className="px-3 py-2 border-b border-gray-100">
+        <div className="relative">
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar componente…"
+            className="w-full pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-400 focus:bg-white"
+          />
+          <svg className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" width={12} height={12} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <circle cx={11} cy={11} r={8}/><path d="m21 21-4.35-4.35"/>
+          </svg>
+        </div>
+      </div>
+
+      {/* Component list */}
+      <div className="flex-1 overflow-y-auto">
+        {totalComponents === 0 && dsOnly.length === 0 ? (
+          <div className="p-5 text-center">
+            <div className="text-2xl mb-2 opacity-30">◈</div>
+            <p className="text-xs text-gray-400">Vincule um design do Figma para ver os componentes extraídos</p>
+          </div>
+        ) : (
+          <>
+            {/* Figma extracted — grouped */}
+            {Object.entries(grouped).map(([group, items]) => {
+              const filtered = filterMap(items)
+              if (filtered.length === 0) return null
+              const isOpen   = expandedGroups.has(group) || !!q
+              const allActive = filtered.every(c => selected.includes(c.codeComponent))
+
+              return (
+                <div key={group} className="border-b border-gray-50">
+                  {/* Group header */}
+                  <button
+                    onClick={() => toggleGroup(group)}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-gray-50 transition-colors"
+                  >
+                    <ChevronRight size={11} className={cn('text-gray-400 transition-transform flex-shrink-0', isOpen && 'rotate-90')} />
+                    <span className="text-[11px] font-semibold text-gray-700 flex-1 text-left">{group}</span>
+                    <span className="text-[10px] text-gray-400">{filtered.length}</span>
+                    {allActive && (
+                      <span className="text-[9px] font-bold text-blue-600 uppercase tracking-wide">all active</span>
+                    )}
+                  </button>
+
+                  {/* Items */}
+                  {isOpen && (
+                    <div className="pb-1">
+                      {filtered.map(c => {
+                        const isActive = selected.includes(c.codeComponent)
+                        return (
+                          <button
+                            key={c.figmaName}
+                            onClick={() => toggleComponent(c.codeComponent)}
+                            className={cn(
+                              'w-full flex items-center gap-3 px-4 py-2 text-left transition-colors',
+                              isActive ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'
+                            )}
+                          >
+                            {/* Active indicator */}
+                            <div className={cn(
+                              'w-2 h-2 rounded-full flex-shrink-0 transition-colors',
+                              isActive ? 'bg-blue-500' : 'bg-gray-200'
+                            )} />
+
+                            <div className="flex-1 min-w-0">
+                              {/* Figma name */}
+                              <div className="text-[11px] font-medium text-gray-700 truncate">
+                                {c.figmaName.includes('/')
+                                  ? c.figmaName.split('/').slice(1).join('/')
+                                  : c.figmaName
+                                }
+                              </div>
+                              {/* Code import */}
+                              <div className="text-[10px] font-mono text-gray-400 truncate">
+                                {c.codeComponent}
+                              </div>
+                            </div>
+
+                            {/* Props count if available */}
+                            {c.props && Object.keys(c.props).length > 0 && (
+                              <span className="text-[9px] text-gray-400 flex-shrink-0">
+                                {Object.keys(c.props).length}p
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+
+            {/* DS-only components (available from DS node, not in Figma extraction) */}
+            {filterStr(dsOnly).length > 0 && (
+              <div className="border-b border-gray-50">
+                <button
+                  onClick={() => toggleGroup('__ds')}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-gray-50 transition-colors"
+                >
+                  <ChevronRight size={11} className={cn('text-gray-400 transition-transform flex-shrink-0', (expandedGroups.has('__ds') || !!q) && 'rotate-90')} />
+                  <span className="text-[11px] font-semibold text-gray-500 flex-1 text-left">Design System</span>
+                  <span className="text-[10px] text-gray-400">{filterStr(dsOnly).length}</span>
+                </button>
+                {(expandedGroups.has('__ds') || !!q) && (
+                  <div className="pb-1">
+                    {filterStr(dsOnly).map(tag => {
+                      const isActive = selected.includes(tag)
+                      return (
+                        <button
+                          key={tag}
+                          onClick={() => toggleComponent(tag)}
+                          className={cn(
+                            'w-full flex items-center gap-3 px-4 py-2 text-left transition-colors',
+                            isActive ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'
+                          )}
+                        >
+                          <div className={cn('w-2 h-2 rounded-full flex-shrink-0', isActive ? 'bg-blue-500' : 'bg-gray-200')} />
+                          <span className="text-[11px] font-medium text-gray-600 flex-1">{tag}</span>
+                          <span className="text-[9px] text-gray-400">DS</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Footer action */}
+      {selected.length > 0 && (
+        <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-gray-500">
+              <span className="font-semibold text-gray-700">{selected.length}</span> componentes no contexto
+            </span>
+            <button
+              onClick={() => store.updateScreenContext(curJourneyId!, activeFlow!, screen!.id, { components: [] })}
+              className="text-[10px] text-gray-400 hover:text-red-500 transition-colors"
+            >
+              Limpar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // FEATURE 7 — Generation Preview por Screen
 // Gera código apenas desta screen e exibe em modal inline
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1292,7 +1530,7 @@ interface UseRESTBindingResult {
 }
 
 function useFigmaRESTBinding(
-  onResolved: (journeyId: string, flowId: string, screenId: string, figma: ScreenFigma) => void
+  onResolved: (journeyId: string, flowId: string, screenId: string, figma: ScreenFigma, frameName?: string) => void
 ): UseRESTBindingResult {
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
@@ -1348,6 +1586,12 @@ function useFigmaRESTBinding(
         ?? (nodesData?.nodes as Record<string, unknown>)?.[nodeId]
         ?? Object.values((nodesData?.nodes as Record<string, unknown>) ?? {})[0]
 
+      // Extrai nome do frame do Figma
+      const frameDoc  = (nodeEntry as Record<string, unknown>)?.document ?? nodeEntry
+      const frameName = typeof (frameDoc as Record<string, unknown>)?.name === 'string'
+        ? (frameDoc as Record<string, unknown>).name as string
+        : null
+
       // Extrai nomes de componentes da árvore
       const names = new Set<string>()
       function walk(node: unknown) {
@@ -1382,7 +1626,7 @@ function useFigmaRESTBinding(
           codeComponent: name.split('/')[0].trim(),
         })),
         fetchedAt: new Date().toISOString(),
-      })
+      }, frameName ?? undefined)
       setError(null)
     } catch (err) {
       if ((err as Error).name === 'AbortError') return
@@ -1409,6 +1653,7 @@ interface MCPComponent {
 interface MCPBindResult {
   figma:          ScreenFigma
   contextPatches: { purpose?: string; components?: string[] }
+  frameName?:     string
 }
 
 interface UseMCPBindingResult {
@@ -1475,7 +1720,7 @@ function useFigmaMCPBinding(
       }
 
       setPhase('parsing')
-      const data = await res.json() as Record<string, unknown>
+      const data = await res.json() as Record<string, unknown> & { frameName?: string; meta?: { frameName?: string } }
 
       // ── Extrair componentes da resposta combinada MCP+REST ────────────────
       const rawComponents: MCPComponent[] = []
@@ -1522,7 +1767,12 @@ function useFigmaMCPBinding(
       }
 
       setPhase('done')
-      onResolved(journeyId, flowId, screenId, { figma, contextPatches })
+      const frameName = typeof data.frameName === 'string' && data.frameName
+        ? data.frameName
+        : typeof data.meta?.frameName === 'string' && data.meta.frameName
+          ? data.meta.frameName
+          : undefined
+      onResolved(journeyId, flowId, screenId, { figma, contextPatches, frameName })
       setError(null)
     } catch (err) {
       if ((err as Error).name === 'AbortError') return
@@ -1551,8 +1801,11 @@ function FigmaSection({ screen, curJourneyId, activeFlow }: {
   const [url,      setUrl]      = useState(screen.figma?.url ?? '')
   const [bindMode, setBindMode] = useState<BindMode>('mcp')
 
-  const handleRESTResolved = useCallback((jId: string, fId: string, sId: string, figma: ScreenFigma) => {
-    store.updateScreen(jId, fId, sId, { figma })
+  const handleRESTResolved = useCallback((jId: string, fId: string, sId: string, figma: ScreenFigma, frameName?: string) => {
+    store.updateScreen(jId, fId, sId, {
+      figma,
+      ...(frameName ? { name: frameName } : {}),
+    })
     if (screen.context.components.length === 0 && figma.componentMap.length > 0) {
       store.updateScreenContext(jId, fId, sId, {
         components: figma.componentMap.map(m => m.codeComponent).filter(Boolean),
@@ -1561,7 +1814,10 @@ function FigmaSection({ screen, curJourneyId, activeFlow }: {
   }, [store, screen.context.components])
 
   const handleMCPResolved = useCallback((jId: string, fId: string, sId: string, result: MCPBindResult) => {
-    store.updateScreen(jId, fId, sId, { figma: result.figma })
+    store.updateScreen(jId, fId, sId, {
+      figma: result.figma,
+      ...(result.frameName ? { name: result.frameName } : {}),
+    })
     const patches = result.contextPatches
     const safePatch: typeof patches = {}
     if (patches.purpose   && !screen.context.purpose)              safePatch.purpose    = patches.purpose
