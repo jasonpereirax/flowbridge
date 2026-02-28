@@ -141,7 +141,7 @@ export const useStore = create<Store>()(
         ebarOpen:     true,
         ebarSection:  'macro',
         rpanelOpen:   false,
-        rpanelTab:    'properties',
+        rpanelTab:    'context',
         fabOpen:      false,
 
         setUserId: (id) => set(s => { s.userId = id }),
@@ -326,7 +326,7 @@ export const useStore = create<Store>()(
           s.selConnId   = null
           s.selScreenId = null
           s.rpanelOpen  = id !== null
-          if (id) s.rpanelTab = 'properties'
+          if (id) s.rpanelTab = 'context'
         }),
 
         selectConn: (id) => set(s => {
@@ -341,7 +341,7 @@ export const useStore = create<Store>()(
           s.selNodeId   = null
           s.selConnId   = null
           s.rpanelOpen  = id !== null
-          if (id) s.rpanelTab = 'properties'
+          if (id) s.rpanelTab = 'context'
         }),
 
         clearSel: () => set(s => {
