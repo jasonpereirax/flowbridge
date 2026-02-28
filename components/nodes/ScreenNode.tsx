@@ -20,7 +20,6 @@ export function ScreenNodeCard({ screen, isSelected }: ScreenNodeCardProps) {
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     store.selectScreen(screen.id)
-    store.openRpanel()
   }, [screen.id, store])
 
   return (
