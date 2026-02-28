@@ -408,6 +408,7 @@ function AIContextAnalyzer({ screen, curJourneyId, activeFlow, onApply }: {
   const [analysis,   setAnalysis]   = useState<AIAnalysis | null>(null)
   const [error,      setError]      = useState<string | null>(null)
   const [applied,    setApplied]    = useState(false)
+  const [usedVision, setUsedVision] = useState(false)
 
   async function analyze() {
     setLoading(true)
@@ -416,94 +417,53 @@ function AIContextAnalyzer({ screen, curJourneyId, activeFlow, onApply }: {
     setApplied(false)
 
     try {
-      const components = screen.figma?.componentMap.map(c => c.figmaName) ?? []
-      const thumbnail  = screen.figma?.thumbnailUrl ?? ''
+      const components   = screen.figma?.componentMap.map(c => c.figmaName) ?? []
+      const thumbnailUrl = screen.figma?.thumbnailUrl
 
-      const prompt = `You are a senior frontend architect analyzing a Figma screen to generate structured context for code generation.
-
-Screen name: "${screen.name}"
-Figma node: ${screen.figma?.nodeId}
-Components detected (${components.length}): ${components.slice(0, 20).join(', ')}${components.length > 20 ? ` and ${components.length - 20} more` : ''}
-${thumbnail ? `Thumbnail available: yes` : ''}
-
-Based on the components and screen name, analyze and return ONLY a valid JSON object with these fields:
-{
-  "purpose": "one sentence describing what this screen allows the user to do",
-  "userIntent": "one sentence describing why the user comes to this screen",
-  "notes": "brief architectural notes about state management, data flow, or layout patterns visible in the components",
-  "genRules": "specific code generation rules inferred from the component types (e.g. use Server Action for forms, use suspense for data fetching)",
-  "endpoints": [{"method": "POST|GET|PUT|DELETE", "path": "/api/...", "description": "what this endpoint does"}]
-}
-
-Respond ONLY with the JSON. No explanation, no markdown.`
-
-      const res = await fetch('/api/generate', {
-        method: 'POST',
+      // ── Chama /api/analyze-screen com visão ────────────────────────────────
+      const res = await fetch('/api/analyze-screen', {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          _aiAnalyzer: true,
-          prompt,
-          maxTokens: 600,
+          screenName:    screen.name,
+          nodeId:        screen.figma?.nodeId ?? '',
+          thumbnailUrl,
+          components,
+          existingRoute: screen.context.route,
         }),
       })
 
-      // Fallback: se /api/generate não aceita _aiAnalyzer, usa prompt direto via SSE
-      // e lê o streaming acumulando texto
-      let fullText = ''
-      if (res.ok && res.body) {
-        const reader  = res.body.getReader()
-        const decoder = new TextDecoder()
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          const chunk = decoder.decode(value, { stream: true })
-          // formato SSE: "data: {...}\n\n" ou texto direto
-          for (const line of chunk.split('\n')) {
-            if (line.startsWith('data: ')) {
-              try {
-                const d = JSON.parse(line.slice(6)) as Record<string, unknown>
-                if (typeof d.text === 'string') fullText += d.text
-                else if (typeof d.delta === 'string') fullText += d.delta
-              } catch {
-                fullText += line.slice(6)
-              }
-            } else if (!line.startsWith('event:') && !line.startsWith(':')) {
-              fullText += line
-            }
-          }
-        }
+      let parsed: AIAnalysis | null = null
+
+      if (res.ok) {
+        const data = await res.json() as { analysis: AIAnalysis; usedVision?: boolean }
+        parsed = data.analysis
+        setUsedVision(data.usedVision ?? false)
       }
 
-      // Tenta extrair JSON do texto
-      let parsed: AIAnalysis | null = null
-      try {
-        const match = fullText.match(/\{[\s\S]*\}/)
-        if (match) parsed = JSON.parse(match[0]) as AIAnalysis
-      } catch { /* ok */ }
-
+      // ── Fallback local se a API falhar ─────────────────────────────────────
       if (!parsed) {
-        // Fallback inteligente baseado nos componentes sem chamar API
         const hasForm    = components.some(c => /input|form|field|login|register|search/i.test(c))
         const hasList    = components.some(c => /list|table|grid|card|item/i.test(c))
         const hasAuth    = components.some(c => /auth|login|signup|password/i.test(c))
         const hasPayment = components.some(c => /payment|checkout|cart|billing/i.test(c))
-
         parsed = {
-          purpose:    hasAuth    ? `Allow user to authenticate and access their account`
-                    : hasForm    ? `Allow user to submit information via form`
-                    : hasList    ? `Display and manage a list of items`
-                    : hasPayment ? `Complete the payment process`
+          purpose:    hasAuth    ? 'Allow user to authenticate and access their account'
+                    : hasForm    ? 'Allow user to submit information via form'
+                    : hasList    ? 'Display and manage a list of items'
+                    : hasPayment ? 'Complete the payment process'
                     : `${screen.name} — inferred from ${components.length} components`,
-          userIntent: hasAuth    ? `User wants to sign in or create an account`
-                    : hasForm    ? `User wants to complete and submit a form`
-                    : hasList    ? `User wants to view, filter or manage items`
+          userIntent: hasAuth    ? 'User wants to sign in or create an account'
+                    : hasForm    ? 'User wants to complete and submit a form'
+                    : hasList    ? 'User wants to view, filter or manage items'
                     : `User wants to interact with ${screen.name}`,
           notes:      components.length > 0
-                    ? `Detected components: ${[...new Set(components.slice(0,5).map(c => c.split('/')[0]))].join(', ')}`
+                    ? `Detected: ${[...new Set(components.slice(0,5).map(c => c.split('/')[0]))].join(', ')}`
                     : 'No component data available',
           genRules:   hasForm ? 'Use Server Action for form submission. Validate on server.' : '',
           endpoints:  hasForm && hasAuth ? [{ method: 'POST', path: '/api/auth/login', description: 'Authenticate user' }] : [],
         }
+        setUsedVision(false)
       }
 
       setAnalysis(parsed)
@@ -553,7 +513,11 @@ Respond ONLY with the JSON. No explanation, no markdown.`
       {loading && (
         <div className="flex items-center gap-2 text-xs text-purple-600 bg-purple-50 rounded p-3 border border-purple-100">
           <Loader2 size={13} className="animate-spin flex-shrink-0" />
-          <span>Analisando componentes e inferindo contexto…</span>
+          <span>
+            {screen.figma?.thumbnailUrl
+              ? 'Analisando screenshot com visão + componentes…'
+              : 'Analisando componentes e inferindo contexto…'}
+          </span>
         </div>
       )}
 
@@ -567,7 +531,14 @@ Respond ONLY with the JSON. No explanation, no markdown.`
       {analysis && !applied && (
         <div className="space-y-2">
           <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 space-y-1.5">
-            <p className="text-[11px] font-semibold text-purple-700 uppercase tracking-wide mb-2">Sugestões do AI</p>
+            <p className="text-[11px] font-semibold text-purple-700 uppercase tracking-wide mb-2 flex items-center gap-2">
+              Sugestões do AI
+              {usedVision && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-200 text-purple-800 font-bold tracking-wide">
+                  📷 VISÃO
+                </span>
+              )}
+            </p>
             {analysis.purpose    && <p className="text-xs text-gray-700"><span className="font-semibold text-gray-500">Purpose:</span> {analysis.purpose}</p>}
             {analysis.userIntent && <p className="text-xs text-gray-700"><span className="font-semibold text-gray-500">Intent:</span> {analysis.userIntent}</p>}
             {analysis.notes      && <p className="text-xs text-gray-700"><span className="font-semibold text-gray-500">Notes:</span> {analysis.notes}</p>}
