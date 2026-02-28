@@ -1,177 +1,97 @@
 'use client'
 
-import { useRef, useCallback } from 'react'
-import Image from 'next/image'
-import { cn } from '@/utils'
-import { screenCompleteness } from '@/utils'
+import { useCallback } from 'react'
+import { useStore } from '@/lib/store'
+import { cn, screenCompleteness } from '@/utils'
 import type { Screen } from '@/types'
 
 interface ScreenNodeCardProps {
-  screen: Screen
+  screen:      Screen
   isSelected?: boolean
-  onSelect?: (id: string) => void
-  onDragStart?: (id: string, x: number, y: number) => void
-  onDoubleClick?: (id: string) => void
 }
 
-/**
- * ScreenNodeCard
- * 
- * Visual representation of a screen in micro view.
- * 
- * Features:
- * - Figma thumbnail display
- * - Entry/Error state badges
- * - Completeness scoring ring (0-100%)
- * - Route and status display
- * - Drag to reposition
- * - Selection highlight
- */
-export function ScreenNodeCard({
-  screen,
-  isSelected,
-  onSelect,
-  onDragStart,
-  onDoubleClick,
-}: ScreenNodeCardProps) {
+// Pure display component — interaction handled by useCanvasInteraction
+export function ScreenNodeCard({ screen, isSelected }: ScreenNodeCardProps) {
+  const store        = useStore()
   const completeness = screenCompleteness(screen)
 
-  // Completeness color coding
-  const completenessColor =
-    completeness >= 80
-      ? 'text-green-600 border-green-200'
-      : completeness >= 50
-        ? 'text-yellow-600 border-yellow-200'
-        : 'text-red-600 border-red-200'
+  const barColor = completeness >= 80 ? '#16A34A' : completeness >= 50 ? '#D97706' : '#DC2626'
 
-  const pointerDownPos = useRef({ x: 0, y: 0 })
-
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (e.button !== 0) return
-      e.stopPropagation()
-      e.currentTarget.setPointerCapture(e.pointerId)
-      pointerDownPos.current = { x: e.clientX, y: e.clientY }
-      onDragStart?.(screen.id, e.clientX, e.clientY)
-    },
-    [screen.id, onDragStart]
-  )
-
-  const handlePointerUp = useCallback(
-    (e: React.PointerEvent) => {
-      const dx = Math.abs(e.clientX - pointerDownPos.current.x)
-      const dy = Math.abs(e.clientY - pointerDownPos.current.y)
-      if (dx < 4 && dy < 4) onSelect?.(screen.id)
-    },
-    [screen.id, onSelect]
-  )
-
-  const handleDoubleClickLocal = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation()
-      onDoubleClick?.(screen.id)
-    },
-    [screen.id, onDoubleClick]
-  )
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    store.selectScreen(screen.id)
+    store.openRpanel()
+  }, [screen.id, store])
 
   return (
     <div
       className={cn(
-        'absolute rounded-[10px] border bg-surface cursor-grab active:cursor-grabbing',
-        'w-[180px] overflow-hidden select-none',
+        'absolute bg-surface rounded-[10px] border select-none cursor-grab active:cursor-grabbing',
+        'w-[180px] overflow-hidden',
         'shadow-[0_2px_8px_rgba(0,0,0,.08)]',
         isSelected
           ? 'border-brand-blue ring-2 ring-brand-blue/20 shadow-[0_4px_16px_rgba(0,0,0,.12)]'
-          : 'border-border hover:border-border-strong hover:shadow-[0_4px_12px_rgba(0,0,0,.1)]'
+          : 'border-border hover:border-border-strong hover:shadow-[0_4px_12px_rgba(0,0,0,.1)]',
       )}
       style={{ left: screen.position.x, top: screen.position.y }}
-      onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerUp}
-      onDoubleClick={handleDoubleClickLocal}
       data-screen
       data-screen-id={screen.id}
+      onDoubleClick={handleDoubleClick}
       tabIndex={0}
-      title={`Screen: ${screen.name}`}
     >
-      {/* Thumbnail area */}
-      <div className="relative w-full h-32 bg-gradient-to-br from-gray-50 to-gray-100 
-                      border-b border-gray-200 flex items-center justify-center 
-                      overflow-hidden">
+      {/* Thumbnail / placeholder */}
+      <div className="relative w-full h-[120px] bg-bg border-b border-border flex items-center justify-center overflow-hidden">
         {screen.figma?.thumbnailUrl ? (
-          <>
-            <Image
-              src={screen.figma.thumbnailUrl}
-              alt={`Screenshot of ${screen.name}`}
-              fill
-              className="object-cover"
-              sizes="(max-width: 192px) 100vw, 192px"
-            />
-            {/* Overlay to improve readability of badges */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-          </>
+          <img
+            src={screen.figma.thumbnailUrl}
+            alt={screen.name}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
         ) : (
           <div className="text-center">
-            <div className="text-3xl mb-1 opacity-50">🎨</div>
-            <div className="text-xs text-gray-400 font-medium">
-              No design linked
-            </div>
+            <div className="text-[28px] mb-[4px] opacity-30">⬜</div>
+            <div className="text-[10px] text-text-3">No design linked</div>
           </div>
         )}
 
-        {/* State badges (top-right) */}
-        <div className="absolute top-2 right-2 flex gap-1 flex-shrink-0">
+        {/* State badges */}
+        <div className="absolute top-[6px] right-[6px] flex gap-[4px]">
           {screen.isEntry && (
-            <span className={cn(
-              'px-2 py-1 bg-green-500 text-white text-xs font-semibold',
-              'rounded shadow-sm'
-            )}>
+            <span className="px-[6px] py-[2px] bg-[#16A34A] text-white text-[9px] font-semibold rounded-[4px]">
               Entry
             </span>
           )}
           {screen.isError && (
-            <span className={cn(
-              'px-2 py-1 bg-red-500 text-white text-xs font-semibold',
-              'rounded shadow-sm'
-            )}>
+            <span className="px-[6px] py-[2px] bg-[#DC2626] text-white text-[9px] font-semibold rounded-[4px]">
               Error
             </span>
           )}
         </div>
 
-        {/* Completeness ring (bottom-left) */}
-        <div className={cn(
-          'absolute bottom-2 left-2',
-          'w-12 h-12 rounded-full bg-white border-2 shadow-md',
-          'flex flex-col items-center justify-center',
-          completenessColor
-        )}>
-          <div className="text-sm font-bold">
-            {completeness}%
-          </div>
-          <div className="text-xs text-gray-500">
-            done
-          </div>
+        {/* Completeness bar */}
+        <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-black/10">
+          <div
+            className="h-full transition-all duration-500"
+            style={{ width: `${completeness}%`, backgroundColor: barColor }}
+          />
         </div>
       </div>
 
       {/* Body */}
-      <div className="px-3 py-2">
-        {/* Screen name */}
-        <h4 className="text-xs font-bold text-gray-900 truncate mb-1">
+      <div className="px-[10px] py-[8px]">
+        <div className="text-[11.5px] font-semibold text-text-1 truncate mb-[4px]">
           {screen.name}
-        </h4>
-
-        {/* Footer metadata */}
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-gray-600 font-mono text-xs truncate">
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-mono text-text-3 truncate">
             {screen.context.route || '(no route)'}
           </span>
           <span className={cn(
-            'px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0',
-            screen.status === 'empty' && 'bg-gray-100 text-gray-600',
-            screen.status === 'partial' && 'bg-yellow-100 text-yellow-700',
-            screen.status === 'ready' && 'bg-green-100 text-green-700',
-            screen.status === 'generated' && 'bg-blue-100 text-blue-700'
+            'text-[9.5px] font-medium px-[5px] py-[1px] rounded-[4px] flex-shrink-0',
+            screen.status === 'empty'     && 'bg-bg text-text-3 border border-border',
+            screen.status === 'partial'   && 'bg-[#FFFBEB] text-[#D97706]',
+            screen.status === 'ready'     && 'bg-[#F0FDF4] text-[#16A34A]',
+            screen.status === 'generated' && 'bg-[#EFF6FF] text-[#2563EB]',
           )}>
             {screen.status}
           </span>
