@@ -1099,8 +1099,94 @@ function ContextInheritancePanel({ screen, connectedDsTags }: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Components Tab — Figma Assets/Library style view
+// Components Tab — smart grouping, variant collapsing, DS preview
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Smart grouping: collapses variants into one base component
+// "Button/Primary", "Button/Ghost", "Button/Disabled" → group "Button" with 3 variants
+// Components without "/" go into group by their full name
+function smartGroup(figmaMap: Array<{ figmaName: string; codeComponent: string; props?: Record<string, unknown> }>) {
+  const groups: Record<string, {
+    base:     string   // e.g. "Button"
+    variants: typeof figmaMap
+  }> = {}
+
+  for (const c of figmaMap) {
+    const parts = c.figmaName.split('/')
+    const base  = parts[0].trim()
+    if (!groups[base]) groups[base] = { base, variants: [] }
+    groups[base].variants.push(c)
+  }
+  return groups
+}
+
+// Color preview for a component based on its name
+function componentColor(name: string): string {
+  const n = name.toLowerCase()
+  if (/button|btn|cta/i.test(n))    return '#3B82F6'
+  if (/input|field|form|text/i.test(n)) return '#8B5CF6'
+  if (/card|tile|panel/i.test(n))   return '#10B981'
+  if (/nav|header|footer|menu/i.test(n)) return '#F59E0B'
+  if (/icon|avatar|badge/i.test(n)) return '#EC4899'
+  if (/modal|dialog|drawer/i.test(n)) return '#EF4444'
+  if (/tab|step|progress/i.test(n)) return '#6366F1'
+  if (/table|list|grid/i.test(n))   return '#14B8A6'
+  // deterministic color from string hash
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  const colors = ['#3B82F6','#8B5CF6','#10B981','#F59E0B','#EC4899','#EF4444','#6366F1','#14B8A6','#F97316','#06B6D4']
+  return colors[Math.abs(hash) % colors.length]
+}
+
+// Tiny component preview — icon + name + variant count
+function ComponentPreview({ base, variants, isActive, onToggleAll }: {
+  base:        string
+  variants:    Array<{ figmaName: string; codeComponent: string }>
+  isActive:    boolean
+  onToggleAll: () => void
+}) {
+  const color      = componentColor(base)
+  const initials   = base.split(/(?=[A-Z])|[-_ ]/).map(w => w[0]?.toUpperCase() ?? '').join('').slice(0, 2)
+  const variantCount = variants.length
+
+  return (
+    <button
+      onClick={onToggleAll}
+      className={cn(
+        'flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-all text-left w-full',
+        isActive
+          ? 'border-blue-200 bg-blue-50'
+          : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50'
+      )}
+    >
+      {/* Color preview tile */}
+      <div
+        className="w-8 h-8 rounded-md flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
+        style={{ backgroundColor: color }}
+      >
+        {initials || base[0]?.toUpperCase()}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className={cn('text-[12px] font-semibold truncate', isActive ? 'text-blue-800' : 'text-gray-800')}>
+          {base}
+        </div>
+        <div className="text-[10px] text-gray-400 truncate">
+          {variantCount === 1
+            ? variants[0].codeComponent
+            : `${variantCount} variantes`
+          }
+        </div>
+      </div>
+
+      {/* Active dot */}
+      <div className={cn(
+        'w-2 h-2 rounded-full flex-shrink-0 transition-colors',
+        isActive ? 'bg-blue-500' : 'bg-gray-200'
+      )} />
+    </button>
+  )
+}
 
 function ComponentsTab({ screen, curJourneyId, activeFlow, connectedDsTags }: {
   screen:           Screen | undefined
@@ -1109,7 +1195,7 @@ function ComponentsTab({ screen, curJourneyId, activeFlow, connectedDsTags }: {
   connectedDsTags:  string[]
 }) {
   const store = useStore()
-  const [search, setSearch] = useState('')
+  const [search,         setSearch]         = useState('')
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
 
   if (!screen || !curJourneyId || !activeFlow) {
@@ -1120,26 +1206,22 @@ function ComponentsTab({ screen, curJourneyId, activeFlow, connectedDsTags }: {
     )
   }
 
-  const figmaMap   = screen.figma?.componentMap ?? []
-  const selected   = screen.context.components
+  const figmaMap = screen.figma?.componentMap ?? []
+  const selected = screen.context.components
+  const groups   = smartGroup(figmaMap)
 
-  // Group figma components by prefix (e.g. "Button/Primary" → group "Button")
-  const grouped = figmaMap.reduce<Record<string, typeof figmaMap>>((acc, c) => {
-    const group = c.figmaName.includes('/') ? c.figmaName.split('/')[0] : '—'
-    if (!acc[group]) acc[group] = []
-    acc[group].push(c)
-    return acc
-  }, {})
+  // DS tags not already in figma groups
+  const dsOnly = connectedDsTags.filter(t =>
+    !Object.keys(groups).some(base => base === t || t.startsWith(base + '/'))
+  )
 
-  // DS tags not in figmaMap (available but not extracted)
-  const dsOnly = connectedDsTags.filter(t => !figmaMap.some(c => c.codeComponent === t || c.figmaName === t))
-
-  // Search filter
   const q = search.toLowerCase().trim()
-  const filterMap = (items: typeof figmaMap) =>
-    q ? items.filter(c => c.figmaName.toLowerCase().includes(q) || c.codeComponent.toLowerCase().includes(q)) : items
-  const filterStr = (items: string[]) =>
-    q ? items.filter(s => s.toLowerCase().includes(q)) : items
+
+  function matchesSearch(base: string, variants: Array<{ figmaName: string; codeComponent: string }>) {
+    if (!q) return true
+    return base.toLowerCase().includes(q) ||
+      variants.some(v => v.figmaName.toLowerCase().includes(q) || v.codeComponent.toLowerCase().includes(q))
+  }
 
   function toggleGroup(g: string) {
     setExpandedGroups(prev => {
@@ -1149,36 +1231,59 @@ function ComponentsTab({ screen, curJourneyId, activeFlow, connectedDsTags }: {
     })
   }
 
-  function toggleComponent(name: string) {
-    const next = selected.includes(name)
-      ? selected.filter(s => s !== name)
-      : [...selected, name]
+  function isGroupActive(variants: Array<{ codeComponent: string }>) {
+    return variants.some(v => selected.includes(v.codeComponent))
+  }
+
+  function toggleGroupActive(base: string, variants: Array<{ codeComponent: string }>) {
+    const anyActive = variants.some(v => selected.includes(v.codeComponent))
+    let next = [...selected]
+    if (anyActive) {
+      // deactivate all
+      next = next.filter(s => !variants.some(v => v.codeComponent === s))
+    } else {
+      // activate base component (first variant or the one matching the base name)
+      const mainVariant = variants.find(v => v.codeComponent === base) ?? variants[0]
+      if (mainVariant && !next.includes(mainVariant.codeComponent)) {
+        next.push(mainVariant.codeComponent)
+      }
+    }
     store.updateScreenContext(curJourneyId!, activeFlow!, screen!.id, { components: next })
   }
 
-  const totalComponents = figmaMap.length
-  const activeCount     = selected.length
+  function toggleVariant(codeComponent: string) {
+    const next = selected.includes(codeComponent)
+      ? selected.filter(s => s !== codeComponent)
+      : [...selected, codeComponent]
+    store.updateScreenContext(curJourneyId!, activeFlow!, screen!.id, { components: next })
+  }
+
+  const totalGroups     = Object.keys(groups).length
+  const activeGroupCount = Object.values(groups).filter(g => isGroupActive(g.variants)).length
+
+  const filteredGroupEntries = Object.entries(groups).filter(([base, { variants }]) =>
+    matchesSearch(base, variants)
+  )
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header stats */}
+      {/* Header */}
       <div className="px-4 pt-4 pb-3 border-b border-gray-100">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">
-            {totalComponents > 0 ? `${totalComponents} componentes extraídos` : 'Nenhum componente'}
+            {totalGroups > 0 ? `${totalGroups} componentes` : 'Nenhum componente'}
           </span>
-          {activeCount > 0 && (
+          {activeGroupCount > 0 && (
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
-              {activeCount} ativos
+              {activeGroupCount} ativos
             </span>
           )}
         </div>
-        {/* Context bar */}
-        {totalComponents > 0 && (
+        {totalGroups > 0 && (
           <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
             <div
               className="h-full bg-blue-500 rounded-full transition-all"
-              style={{ width: `${Math.min(100, (activeCount / Math.max(1, totalComponents)) * 100)}%` }}
+              style={{ width: `${Math.min(100, (activeGroupCount / Math.max(1, totalGroups)) * 100)}%` }}
             />
           </div>
         )}
@@ -1200,77 +1305,65 @@ function ComponentsTab({ screen, curJourneyId, activeFlow, connectedDsTags }: {
         </div>
       </div>
 
-      {/* Component list */}
-      <div className="flex-1 overflow-y-auto">
-        {totalComponents === 0 && dsOnly.length === 0 ? (
-          <div className="p-5 text-center">
+      {/* Component grid */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+        {totalGroups === 0 && dsOnly.length === 0 ? (
+          <div className="text-center py-8">
             <div className="text-2xl mb-2 opacity-30">◈</div>
-            <p className="text-xs text-gray-400">Vincule um design do Figma para ver os componentes extraídos</p>
+            <p className="text-xs text-gray-400">Vincule um design do Figma para ver os componentes</p>
           </div>
         ) : (
           <>
-            {/* Figma extracted — grouped */}
-            {Object.entries(grouped).map(([group, items]) => {
-              const filtered = filterMap(items)
-              if (filtered.length === 0) return null
-              const isOpen   = expandedGroups.has(group) || !!q
-              const allActive = filtered.every(c => selected.includes(c.codeComponent))
+            {filteredGroupEntries.map(([base, { variants }]) => {
+              const active   = isGroupActive(variants)
+              const isOpen   = expandedGroups.has(base) || !!q
+              const hasMulti = variants.length > 1
 
               return (
-                <div key={group} className="border-b border-gray-50">
-                  {/* Group header */}
-                  <button
-                    onClick={() => toggleGroup(group)}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-gray-50 transition-colors"
-                  >
-                    <ChevronRight size={11} className={cn('text-gray-400 transition-transform flex-shrink-0', isOpen && 'rotate-90')} />
-                    <span className="text-[11px] font-semibold text-gray-700 flex-1 text-left">{group}</span>
-                    <span className="text-[10px] text-gray-400">{filtered.length}</span>
-                    {allActive && (
-                      <span className="text-[9px] font-bold text-blue-600 uppercase tracking-wide">all active</span>
-                    )}
-                  </button>
+                <div key={base}>
+                  {/* Component card preview */}
+                  <div className={cn(hasMulti ? 'mb-0' : '')}>
+                    <div className="flex items-center gap-1">
+                      <div className="flex-1">
+                        <ComponentPreview
+                          base={base}
+                          variants={variants}
+                          isActive={active}
+                          onToggleAll={() => toggleGroupActive(base, variants)}
+                        />
+                      </div>
+                      {hasMulti && (
+                        <button
+                          onClick={() => toggleGroup(base)}
+                          className="flex-shrink-0 p-2 text-gray-400 hover:text-gray-600"
+                          title="Ver variantes"
+                        >
+                          <ChevronDown size={12} className={cn('transition-transform', isOpen && 'rotate-180')} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
-                  {/* Items */}
-                  {isOpen && (
-                    <div className="pb-1">
-                      {filtered.map(c => {
-                        const isActive = selected.includes(c.codeComponent)
+                  {/* Variants list (collapsed by default) */}
+                  {hasMulti && isOpen && (
+                    <div className="ml-2 mt-1 mb-1 border-l-2 border-gray-100 pl-3 space-y-1">
+                      {variants.map(v => {
+                        const variantName = v.figmaName.includes('/')
+                          ? v.figmaName.split('/').slice(1).join('/')
+                          : v.figmaName
+                        const isVarActive = selected.includes(v.codeComponent)
                         return (
                           <button
-                            key={c.figmaName}
-                            onClick={() => toggleComponent(c.codeComponent)}
+                            key={v.figmaName}
+                            onClick={() => toggleVariant(v.codeComponent)}
                             className={cn(
-                              'w-full flex items-center gap-3 px-4 py-2 text-left transition-colors',
-                              isActive ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'
+                              'w-full flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors',
+                              isVarActive ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-600'
                             )}
                           >
-                            {/* Active indicator */}
-                            <div className={cn(
-                              'w-2 h-2 rounded-full flex-shrink-0 transition-colors',
-                              isActive ? 'bg-blue-500' : 'bg-gray-200'
-                            )} />
-
-                            <div className="flex-1 min-w-0">
-                              {/* Figma name */}
-                              <div className="text-[11px] font-medium text-gray-700 truncate">
-                                {c.figmaName.includes('/')
-                                  ? c.figmaName.split('/').slice(1).join('/')
-                                  : c.figmaName
-                                }
-                              </div>
-                              {/* Code import */}
-                              <div className="text-[10px] font-mono text-gray-400 truncate">
-                                {c.codeComponent}
-                              </div>
-                            </div>
-
-                            {/* Props count if available */}
-                            {c.props && Object.keys(c.props).length > 0 && (
-                              <span className="text-[9px] text-gray-400 flex-shrink-0">
-                                {Object.keys(c.props).length}p
-                              </span>
-                            )}
+                            <div className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', isVarActive ? 'bg-blue-500' : 'bg-gray-300')} />
+                            <span className="text-[11px] flex-1 truncate">{variantName}</span>
+                            {isVarActive && <span className="text-[9px] text-blue-500 font-semibold">ativo</span>}
                           </button>
                         )
                       })}
@@ -1280,64 +1373,62 @@ function ComponentsTab({ screen, curJourneyId, activeFlow, connectedDsTags }: {
               )
             })}
 
-            {/* DS-only components (available from DS node, not in Figma extraction) */}
-            {filterStr(dsOnly).length > 0 && (
-              <div className="border-b border-gray-50">
-                <button
-                  onClick={() => toggleGroup('__ds')}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 hover:bg-gray-50 transition-colors"
-                >
-                  <ChevronRight size={11} className={cn('text-gray-400 transition-transform flex-shrink-0', (expandedGroups.has('__ds') || !!q) && 'rotate-90')} />
-                  <span className="text-[11px] font-semibold text-gray-500 flex-1 text-left">Design System</span>
-                  <span className="text-[10px] text-gray-400">{filterStr(dsOnly).length}</span>
-                </button>
-                {(expandedGroups.has('__ds') || !!q) && (
-                  <div className="pb-1">
-                    {filterStr(dsOnly).map(tag => {
-                      const isActive = selected.includes(tag)
-                      return (
-                        <button
-                          key={tag}
-                          onClick={() => toggleComponent(tag)}
-                          className={cn(
-                            'w-full flex items-center gap-3 px-4 py-2 text-left transition-colors',
-                            isActive ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'
-                          )}
+            {/* DS-only group */}
+            {(!q || dsOnly.some(t => t.toLowerCase().includes(q))) && dsOnly.length > 0 && (
+              <div>
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wide px-1 pt-3 pb-1.5">
+                  Design System
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {dsOnly.filter(t => !q || t.toLowerCase().includes(q)).map(tag => {
+                    const isActive = selected.includes(tag)
+                    const color    = componentColor(tag)
+                    const initials = tag.split(/(?=[A-Z])|[-_ ]/).map(w => w[0]?.toUpperCase() ?? '').join('').slice(0, 2)
+                    return (
+                      <button
+                        key={tag}
+                        onClick={() => toggleVariant(tag)}
+                        className={cn(
+                          'flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left transition-all',
+                          isActive ? 'border-blue-200 bg-blue-50' : 'border-gray-100 bg-white hover:border-gray-200'
+                        )}
+                      >
+                        <div
+                          className="w-6 h-6 rounded flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0"
+                          style={{ backgroundColor: color }}
                         >
-                          <div className={cn('w-2 h-2 rounded-full flex-shrink-0', isActive ? 'bg-blue-500' : 'bg-gray-200')} />
-                          <span className="text-[11px] font-medium text-gray-600 flex-1">{tag}</span>
-                          <span className="text-[9px] text-gray-400">DS</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
+                          {initials || tag[0]?.toUpperCase()}
+                        </div>
+                        <span className={cn('text-[11px] font-medium truncate', isActive ? 'text-blue-700' : 'text-gray-600')}>
+                          {tag}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             )}
           </>
         )}
       </div>
 
-      {/* Footer action */}
+      {/* Footer */}
       {selected.length > 0 && (
-        <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] text-gray-500">
-              <span className="font-semibold text-gray-700">{selected.length}</span> componentes no contexto
-            </span>
-            <button
-              onClick={() => store.updateScreenContext(curJourneyId!, activeFlow!, screen!.id, { components: [] })}
-              className="text-[10px] text-gray-400 hover:text-red-500 transition-colors"
-            >
-              Limpar
-            </button>
-          </div>
+        <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+          <span className="text-[11px] text-gray-500">
+            <span className="font-semibold text-gray-700">{selected.length}</span> no contexto
+          </span>
+          <button
+            onClick={() => store.updateScreenContext(curJourneyId!, activeFlow!, screen!.id, { components: [] })}
+            className="text-[10px] text-gray-400 hover:text-red-500 transition-colors"
+          >
+            Limpar
+          </button>
         </div>
       )}
     </div>
   )
 }
-
 // ─────────────────────────────────────────────────────────────────────────────
 // FEATURE 7 — Generation Preview por Screen
 // Gera código apenas desta screen e exibe em modal inline
@@ -1581,15 +1672,19 @@ function useFigmaRESTBinding(
         }
         return
       }
-      const nodesData = await res.json()
-      const nodeEntry = (nodesData?.nodes as Record<string, unknown>)?.[nodeId.replace(':', '-')]
-        ?? (nodesData?.nodes as Record<string, unknown>)?.[nodeId]
-        ?? Object.values((nodesData?.nodes as Record<string, unknown>) ?? {})[0]
+      const nodesData = await res.json() as { nodes?: Record<string, unknown> }
+      // Figma retorna chaves com ':' ou '-' dependendo da versão — tenta todas
+      const nodeKey = nodeId  // ex: "1:999"
+      const nodeDash = nodeId.replace(/:/g, '-')  // ex: "1-999"
+      const nodeEntry =
+        (nodesData?.nodes)?.[nodeKey] ??
+        (nodesData?.nodes)?.[nodeDash] ??
+        Object.values(nodesData?.nodes ?? {})[0]
 
-      // Extrai nome do frame do Figma
-      const frameDoc  = (nodeEntry as Record<string, unknown>)?.document ?? nodeEntry
-      const frameName = typeof (frameDoc as Record<string, unknown>)?.name === 'string'
-        ? (frameDoc as Record<string, unknown>).name as string
+      // Extrai nome do frame — a estrutura é { document: { name: "...", type: "FRAME" } }
+      const frameDoc  = (nodeEntry as Record<string, unknown>)?.document as Record<string, unknown> | undefined
+      const frameName = typeof frameDoc?.name === 'string' && frameDoc.name
+        ? frameDoc.name
         : null
 
       // Extrai nomes de componentes da árvore
@@ -1598,11 +1693,10 @@ function useFigmaRESTBinding(
         if (!node || typeof node !== 'object') return
         const n = node as Record<string, unknown>
         if ((n.type === 'INSTANCE' || n.type === 'COMPONENT') && typeof n.name === 'string') names.add(n.name)
-        const doc = n.document ?? n
-        const children = (doc as Record<string, unknown>).children
+        const children = n.children
         if (Array.isArray(children)) children.forEach(walk)
       }
-      walk(nodeEntry)
+      walk(frameDoc ?? nodeEntry)
 
       // Thumbnail (opcional)
       let thumbnailUrl: string | undefined
