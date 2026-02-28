@@ -205,4 +205,4 @@ export interface UserProfile {
 // ── UI STATE (Zustand only — never persisted) ─────────────────────────────────
 
 export type EbarSection = 'macro' | 'comp'
-export type RpanelTab   = 'properties' | 'context' | 'info'
+export type RpanelTab   = 'properties' | 'context' | 'components' | 'info'
