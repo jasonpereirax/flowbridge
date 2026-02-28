@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useState, useRef } from 'react'
-import { X, Plus, Trash2, Link, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { X, Plus, Trash2, Link, Loader2, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { cn, screenCompleteness } from '@/utils'
 import type { MacroNode, Screen, ApiEndpoint, ScreenFigma, ScreenContext } from '@/types'
@@ -478,8 +478,163 @@ function useFigmaRESTBinding(
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Figma Section — REST API via /api/figma (PAT-based)
+// useFigmaMCPBinding — chama /api/figma-mcp → VPS → figma-developer-mcp
 // ─────────────────────────────────────────────────────────────────────────────
+
+interface MCPComponent {
+  figmaName:     string
+  codeComponent: string
+  props?:        Record<string, string[]>
+}
+
+interface MCPBindResult {
+  figma:          ScreenFigma
+  contextPatches: { purpose?: string; components?: string[] }
+}
+
+interface UseMCPBindingResult {
+  loading: boolean
+  error:   string | null
+  phase:   'idle' | 'calling-mcp' | 'parsing' | 'done' | 'error'
+  bind:    (url: string, journeyId: string, flowId: string, screenId: string) => void
+  clear:   () => void
+}
+
+function useFigmaMCPBinding(
+  onResolved: (journeyId: string, flowId: string, screenId: string, result: MCPBindResult) => void
+): UseMCPBindingResult {
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState<string | null>(null)
+  const [phase,   setPhase]   = useState<UseMCPBindingResult['phase']>('idle')
+  const abortRef = useRef<AbortController | null>(null)
+
+  const clear = useCallback(() => {
+    abortRef.current?.abort()
+    setLoading(false)
+    setError(null)
+    setPhase('idle')
+  }, [])
+
+  const bind = useCallback(async (
+    url: string, journeyId: string, flowId: string, screenId: string
+  ) => {
+    abortRef.current?.abort()
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    setError(null)
+    if (!url.trim()) return
+
+    // Parse fileKey + nodeId
+    let fileKey = '', nodeId = ''
+    try {
+      const u = new URL(url)
+      const parts = u.pathname.split('/')
+      const ki = parts.indexOf('design') + 1
+      if (ki < 1) { setError('URL inválida'); return }
+      fileKey = parts[ki]
+      nodeId  = u.searchParams.get('node-id')?.replace('-', ':') ?? ''
+    } catch { setError('URL inválida'); return }
+
+    if (!nodeId) { setError('Selecione um frame no Figma e copie o link com node-id'); return }
+
+    setLoading(true)
+    setPhase('calling-mcp')
+
+    try {
+      const res = await fetch('/api/figma-mcp', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ fileKey, nodeId }),
+        signal:  ctrl.signal,
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as Record<string, unknown>
+        setError(String(body?.error ?? `Erro MCP (${res.status})`))
+        setPhase('error')
+        return
+      }
+
+      setPhase('parsing')
+      const data = await res.json() as Record<string, unknown>
+
+      // Extrai componentes — o MCP pode retornar em vários formatos
+      const rawComponents: MCPComponent[] = []
+
+      // Formato 1: array direto em data.components
+      if (Array.isArray(data.components)) {
+        for (const c of data.components as unknown[]) {
+          if (typeof c === 'string') {
+            rawComponents.push({ figmaName: c, codeComponent: c.split('/')[0].trim() })
+          } else if (c && typeof c === 'object') {
+            const co = c as Record<string, unknown>
+            rawComponents.push({
+              figmaName:     String(co.figmaName ?? co.name ?? ''),
+              codeComponent: String(co.codeComponent ?? co.name ?? '').split('/')[0].trim(),
+              props:         co.props as Record<string, string[]> | undefined,
+            })
+          }
+        }
+      }
+
+      // Formato 2: texto raw com nomes de componentes
+      if (rawComponents.length === 0 && typeof data.raw === 'string') {
+        const matches = data.raw.match(/[A-Z][a-zA-Z]+(?:\/[A-Z][a-zA-Z]+)*/g) ?? []
+        for (const m of [...new Set(matches)]) {
+          rawComponents.push({ figmaName: m, codeComponent: m.split('/')[0].trim() })
+        }
+      }
+
+      // Thumbnail via REST (o MCP não retorna imagem)
+      let thumbnailUrl: string | undefined
+      try {
+        const imgRes = await fetch(
+          `/api/figma?fileKey=${encodeURIComponent(fileKey)}&nodeIds=${encodeURIComponent(nodeId)}&type=images`,
+          { signal: ctrl.signal }
+        )
+        if (imgRes.ok) {
+          const imgData = await imgRes.json() as Record<string, unknown>
+          thumbnailUrl = (imgData?.images as Record<string, string>)?.[nodeId]
+            ?? (imgData?.images as Record<string, string>)?.[nodeId.replace(':', '-')]
+            ?? Object.values((imgData?.images as Record<string, string>) ?? {})[0]
+        }
+      } catch { /* thumbnail é opcional */ }
+
+      const figma: ScreenFigma = {
+        url, nodeId, fileKey, thumbnailUrl,
+        componentMap: rawComponents,
+        fetchedAt: new Date().toISOString(),
+      }
+
+      // Sugestões de contexto extraídas pelo MCP
+      const contextPatches: MCPBindResult['contextPatches'] = {}
+      if (typeof data.inferredPurpose === 'string' && data.inferredPurpose) {
+        contextPatches.purpose = data.inferredPurpose
+      }
+      if (rawComponents.length > 0) {
+        contextPatches.components = [...new Set(rawComponents.map(c => c.codeComponent).filter(Boolean))]
+      }
+
+      setPhase('done')
+      onResolved(journeyId, flowId, screenId, { figma, contextPatches })
+      setError(null)
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return
+      setError('Falha ao conectar com o MCP server — tente novamente')
+      setPhase('error')
+    } finally {
+      setLoading(false)
+    }
+  }, [onResolved])
+
+  return { loading, error, phase, bind, clear }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Figma Section — suporta MCP (rico, via VPS) e REST (rápido, fallback)
+// ─────────────────────────────────────────────────────────────────────────────
+
+type BindMode = 'mcp' | 'rest'
 
 function FigmaSection({ screen, curJourneyId, activeFlow }: {
   screen:        Screen
@@ -487,27 +642,49 @@ function FigmaSection({ screen, curJourneyId, activeFlow }: {
   activeFlow:    string
 }) {
   const store = useStore()
-  const [url,     setUrl]     = useState(screen.figma?.url ?? '')
-  const { loading, error, bind, clear } = useFigmaRESTBinding(
-    useCallback((jId: string, fId: string, sId: string, figma: ScreenFigma) => {
-      store.updateScreen(jId, fId, sId, { figma })
-      if (screen.context.components.length === 0 && figma.componentMap.length > 0) {
-        store.updateScreenContext(jId, fId, sId, {
-          components: figma.componentMap.map(m => m.codeComponent).filter(Boolean),
-        })
-      }
-    }, [store, screen.context.components])
-  )
+  const [url,      setUrl]      = useState(screen.figma?.url ?? '')
+  const [bindMode, setBindMode] = useState<BindMode>('mcp')
 
+  const handleRESTResolved = useCallback((jId: string, fId: string, sId: string, figma: ScreenFigma) => {
+    store.updateScreen(jId, fId, sId, { figma })
+    if (screen.context.components.length === 0 && figma.componentMap.length > 0) {
+      store.updateScreenContext(jId, fId, sId, {
+        components: figma.componentMap.map(m => m.codeComponent).filter(Boolean),
+      })
+    }
+  }, [store, screen.context.components])
+
+  const handleMCPResolved = useCallback((jId: string, fId: string, sId: string, result: MCPBindResult) => {
+    store.updateScreen(jId, fId, sId, { figma: result.figma })
+    const patches = result.contextPatches
+    const safePatch: typeof patches = {}
+    if (patches.purpose   && !screen.context.purpose)              safePatch.purpose    = patches.purpose
+    if (patches.components && screen.context.components.length === 0) safePatch.components = patches.components
+    if (Object.keys(safePatch).length > 0) {
+      store.updateScreenContext(jId, fId, sId, safePatch)
+    }
+  }, [store, screen.context])
+
+  const rest = useFigmaRESTBinding(handleRESTResolved)
+  const mcp  = useFigmaMCPBinding(handleMCPResolved)
+
+  const active  = bindMode === 'mcp' ? mcp : rest
   const isBound = !!screen.figma?.nodeId
+
+  const mcpPhaseLabel: Record<string, string> = {
+    'calling-mcp': 'Chamando MCP server…',
+    'parsing':     'Extraindo componentes e tokens…',
+    'done':        'Concluído',
+  }
 
   function handleBind() {
     if (!url.trim()) return
-    bind(url, curJourneyId, activeFlow, screen.id)
+    if (bindMode === 'mcp') mcp.bind(url, curJourneyId, activeFlow, screen.id)
+    else                    rest.bind(url, curJourneyId, activeFlow, screen.id)
   }
 
   function handleClear() {
-    clear()
+    rest.clear(); mcp.clear()
     setUrl('')
     store.updateScreen(curJourneyId, activeFlow, screen.id, { figma: undefined })
     store.updateScreenContext(curJourneyId, activeFlow, screen.id, { components: [] })
@@ -526,7 +703,40 @@ function FigmaSection({ screen, curJourneyId, activeFlow }: {
         </span>
       </div>
 
-      {/* URL input */}
+      {/* Toggle MCP / REST */}
+      {!isBound && (
+        <div className="flex rounded-md border border-gray-200 overflow-hidden text-[11px] font-semibold">
+          <button
+            onClick={() => setBindMode('mcp')}
+            className={cn(
+              'flex-1 py-1.5 flex items-center justify-center gap-1.5 transition-colors',
+              bindMode === 'mcp' ? 'bg-purple-600 text-white' : 'bg-white text-gray-400 hover:text-gray-600'
+            )}
+          >
+            <Sparkles size={11} /> MCP — Rico
+          </button>
+          <button
+            onClick={() => setBindMode('rest')}
+            className={cn(
+              'flex-1 py-1.5 flex items-center justify-center gap-1.5 transition-colors border-l border-gray-200',
+              bindMode === 'rest' ? 'bg-gray-100 text-gray-700' : 'bg-white text-gray-400 hover:text-gray-600'
+            )}
+          >
+            <Link size={11} /> REST — Rápido
+          </button>
+        </div>
+      )}
+
+      {/* Descrição do modo */}
+      {!isBound && (
+        <p className="text-[11px] text-gray-400 leading-relaxed">
+          {bindMode === 'mcp'
+            ? '✦ Extrai componentes, props, tokens e Code Connect via MCP server.'
+            : '✦ Extrai nomes de componentes e thumbnail via REST API do Figma.'}
+        </p>
+      )}
+
+      {/* URL + botão Bind */}
       {!isBound && (
         <div className="flex gap-2">
           <input
@@ -536,29 +746,44 @@ function FigmaSection({ screen, curJourneyId, activeFlow }: {
             onKeyDown={e => e.key === 'Enter' && handleBind()}
             className={cn(inputCls, 'flex-1 text-xs')}
             placeholder="figma.com/design/…?node-id=…"
-            disabled={loading}
+            disabled={active.loading}
           />
           <button
             onClick={handleBind}
-            disabled={loading || !url.trim()}
-            className="px-3 py-1.5 rounded text-xs font-semibold transition-colors flex-shrink-0 bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-40 flex items-center gap-1"
+            disabled={active.loading || !url.trim()}
+            className={cn(
+              'px-3 py-1.5 rounded text-xs font-semibold transition-colors flex-shrink-0 flex items-center gap-1 disabled:opacity-40',
+              bindMode === 'mcp'
+                ? 'bg-purple-600 text-white hover:bg-purple-700'
+                : 'bg-gray-700 text-white hover:bg-gray-800'
+            )}
           >
-            {loading ? <Loader2 size={13} className="animate-spin" /> : <Link size={12} />}
-            {!loading && 'Bind'}
+            {active.loading
+              ? <Loader2 size={13} className="animate-spin" />
+              : bindMode === 'mcp' ? <Sparkles size={12} /> : <Link size={12} />}
+            {!active.loading && 'Bind'}
           </button>
         </div>
       )}
 
-      {/* Error */}
-      {error && (
-        <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 rounded p-2 border border-red-100">
-          <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
-          <span>{error}</span>
+      {/* Fase MCP em progresso */}
+      {bindMode === 'mcp' && mcp.loading && (mcp as UseMCPBindingResult).phase !== 'idle' && (
+        <div className="flex items-center gap-2 text-[11px] text-purple-600">
+          <Loader2 size={11} className="animate-spin flex-shrink-0" />
+          <span>{mcpPhaseLabel[(mcp as UseMCPBindingResult).phase] ?? 'Processando…'}</span>
         </div>
       )}
 
-      {/* Bound state */}
-      {isBound && !error && (
+      {/* Erro */}
+      {active.error && (
+        <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 rounded p-2 border border-red-100">
+          <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
+          <span>{active.error}</span>
+        </div>
+      )}
+
+      {/* Estado vinculado */}
+      {isBound && !active.error && (
         <div className="space-y-2">
           <div className="flex items-start gap-2 bg-green-50 rounded p-2.5 border border-green-100">
             <CheckCircle2 size={13} className="text-green-600 flex-shrink-0 mt-0.5" />
@@ -571,10 +796,7 @@ function FigmaSection({ screen, curJourneyId, activeFlow }: {
                 {screen.figma!.componentMap.length} componente{screen.figma!.componentMap.length !== 1 ? 's' : ''} extraído{screen.figma!.componentMap.length !== 1 ? 's' : ''}
               </p>
             </div>
-            <button
-              onClick={handleClear}
-              className="text-gray-400 hover:text-red-500 transition-colors text-xs flex-shrink-0"
-            >
+            <button onClick={handleClear} className="text-gray-400 hover:text-red-500 transition-colors text-xs flex-shrink-0">
               ×
             </button>
           </div>
