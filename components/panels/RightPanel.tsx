@@ -4,7 +4,7 @@ import { useCallback, useState, useRef } from 'react'
 import { X, Plus, Trash2, Link, Loader2, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { cn, screenCompleteness } from '@/utils'
-import type { RpanelTab, MacroNode, Screen, ApiEndpoint, ScreenFigma, ScreenContext } from '@/types'
+import type { MacroNode, Screen, ApiEndpoint, ScreenFigma, ScreenContext } from '@/types'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RightPanel (root)
@@ -21,7 +21,7 @@ export function RightPanel() {
 
   const canvas     = curProjectId ? store.canvasData[curProjectId] : null
   const node       = canvas?.nodes.find(n => n.id === selNodeId)
-  const activeFlow = curJourneyId ? canvas?.curFlow[curJourneyId] : null
+  const activeFlow = (curJourneyId ? canvas?.curFlow[curJourneyId] : null) ?? null
 
   const screen = (activeFlow && curJourneyId)
     ? (canvas?.flows[curJourneyId] ?? [])
