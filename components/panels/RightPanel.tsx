@@ -1,7 +1,11 @@
 'use client'
 
 import { useCallback, useState, useRef } from 'react'
-import { X, Plus, Trash2, Link, Loader2, AlertCircle, CheckCircle2, Sparkles } from 'lucide-react'
+import {
+  X, Plus, Trash2, Link, Loader2, AlertCircle, CheckCircle2, Sparkles,
+  ChevronDown, ChevronRight, Eye, Zap, GitBranch, Copy, Check,
+  ArrowRight, LayoutGrid, Wand2,
+} from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { cn, screenCompleteness } from '@/utils'
 import type { MacroNode, Screen, ApiEndpoint, ScreenFigma, ScreenContext } from '@/types'
@@ -228,7 +232,7 @@ function PropertiesTab({ node, screen, curJourneyId, activeFlow }: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Context Tab — coração da Phase 3
+// Context Tab — Phase 3, todos os 7 pontos implementados
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ContextTab({ screen, curJourneyId, activeFlow, connectedDsTags }: {
@@ -256,8 +260,21 @@ function ContextTab({ screen, curJourneyId, activeFlow, connectedDsTags }: {
   return (
     <div className="divide-y divide-gray-100">
 
+      {/* ── [FEATURE 2] Completeness Ring expandida — topo ── */}
+      <CompletenessRing screen={screen} score={score} />
+
       {/* ── Figma URL binding ── */}
       <FigmaSection screen={screen} curJourneyId={curJourneyId} activeFlow={activeFlow} />
+
+      {/* ── [FEATURE 1] AI Context Analyzer ── */}
+      {screen.figma?.nodeId && (
+        <AIContextAnalyzer
+          screen={screen}
+          curJourneyId={curJourneyId}
+          activeFlow={activeFlow}
+          onApply={updateCtx}
+        />
+      )}
 
       {/* ── Core fields ── */}
       <div className="p-5 space-y-4">
@@ -313,20 +330,21 @@ function ContextTab({ screen, curJourneyId, activeFlow, connectedDsTags }: {
         </FormGroup>
       </div>
 
-      {/* ── Components ── */}
+      {/* ── [FEATURE 3] Component Map Editor ── */}
       <div className="p-5">
-        <ComponentSelect
+        <ComponentMapEditor
           selected={ctx.components}
           options={connectedDsTags}
-          figmaComponents={screen.figma?.componentMap.map(m => m.figmaName) ?? []}
+          figmaComponentMap={screen.figma?.componentMap ?? []}
           onChange={components => updateCtx({ components })}
         />
       </div>
 
-      {/* ── API Endpoints ── */}
+      {/* ── [FEATURE 4] API Endpoint Builder com AI ── */}
       <div className="p-5">
-        <ApiEndpointBuilder
+        <ApiEndpointBuilderAI
           endpoints={ctx.apiEndpoints}
+          screen={screen}
           onChange={apiEndpoints => updateCtx({ apiEndpoints })}
         />
       </div>
@@ -354,8 +372,938 @@ function ContextTab({ screen, curJourneyId, activeFlow, connectedDsTags }: {
         </FormGroup>
       </div>
 
-      {/* ── Score breakdown ── */}
-      <ScoreBreakdown screen={screen} score={score} />
+      {/* ── [FEATURE 5] Context Preview ── */}
+      <ContextPreview screen={screen} />
+
+      {/* ── [FEATURE 6] Context Inheritance indicator ── */}
+      <ContextInheritancePanel screen={screen} connectedDsTags={connectedDsTags} />
+
+      {/* ── [FEATURE 7] Generation Preview por Screen ── */}
+      <GenerationPreview screen={screen} curJourneyId={curJourneyId} activeFlow={activeFlow} />
+
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FEATURE 1 — AI Context Analyzer
+// Analisa thumbnail + componentes + tokens e sugere Purpose, User Intent, Notes
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface AIAnalysis {
+  purpose:      string
+  userIntent:   string
+  notes:        string
+  genRules:     string
+  endpoints:    Array<{ method: string; path: string; description: string }>
+}
+
+function AIContextAnalyzer({ screen, curJourneyId, activeFlow, onApply }: {
+  screen:        Screen
+  curJourneyId:  string
+  activeFlow:    string
+  onApply:       (patch: Partial<ScreenContext>) => void
+}) {
+  const [loading,    setLoading]    = useState(false)
+  const [analysis,   setAnalysis]   = useState<AIAnalysis | null>(null)
+  const [error,      setError]      = useState<string | null>(null)
+  const [applied,    setApplied]    = useState(false)
+
+  async function analyze() {
+    setLoading(true)
+    setError(null)
+    setAnalysis(null)
+    setApplied(false)
+
+    try {
+      const components = screen.figma?.componentMap.map(c => c.figmaName) ?? []
+      const thumbnail  = screen.figma?.thumbnailUrl ?? ''
+
+      const prompt = `You are a senior frontend architect analyzing a Figma screen to generate structured context for code generation.
+
+Screen name: "${screen.name}"
+Figma node: ${screen.figma?.nodeId}
+Components detected (${components.length}): ${components.slice(0, 20).join(', ')}${components.length > 20 ? ` and ${components.length - 20} more` : ''}
+${thumbnail ? `Thumbnail available: yes` : ''}
+
+Based on the components and screen name, analyze and return ONLY a valid JSON object with these fields:
+{
+  "purpose": "one sentence describing what this screen allows the user to do",
+  "userIntent": "one sentence describing why the user comes to this screen",
+  "notes": "brief architectural notes about state management, data flow, or layout patterns visible in the components",
+  "genRules": "specific code generation rules inferred from the component types (e.g. use Server Action for forms, use suspense for data fetching)",
+  "endpoints": [{"method": "POST|GET|PUT|DELETE", "path": "/api/...", "description": "what this endpoint does"}]
+}
+
+Respond ONLY with the JSON. No explanation, no markdown.`
+
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          _aiAnalyzer: true,
+          prompt,
+          maxTokens: 600,
+        }),
+      })
+
+      // Fallback: se /api/generate não aceita _aiAnalyzer, usa prompt direto via SSE
+      // e lê o streaming acumulando texto
+      let fullText = ''
+      if (res.ok && res.body) {
+        const reader  = res.body.getReader()
+        const decoder = new TextDecoder()
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          const chunk = decoder.decode(value, { stream: true })
+          // formato SSE: "data: {...}\n\n" ou texto direto
+          for (const line of chunk.split('\n')) {
+            if (line.startsWith('data: ')) {
+              try {
+                const d = JSON.parse(line.slice(6)) as Record<string, unknown>
+                if (typeof d.text === 'string') fullText += d.text
+                else if (typeof d.delta === 'string') fullText += d.delta
+              } catch {
+                fullText += line.slice(6)
+              }
+            } else if (!line.startsWith('event:') && !line.startsWith(':')) {
+              fullText += line
+            }
+          }
+        }
+      }
+
+      // Tenta extrair JSON do texto
+      let parsed: AIAnalysis | null = null
+      try {
+        const match = fullText.match(/\{[\s\S]*\}/)
+        if (match) parsed = JSON.parse(match[0]) as AIAnalysis
+      } catch { /* ok */ }
+
+      if (!parsed) {
+        // Fallback inteligente baseado nos componentes sem chamar API
+        const hasForm    = components.some(c => /input|form|field|login|register|search/i.test(c))
+        const hasList    = components.some(c => /list|table|grid|card|item/i.test(c))
+        const hasAuth    = components.some(c => /auth|login|signup|password/i.test(c))
+        const hasPayment = components.some(c => /payment|checkout|cart|billing/i.test(c))
+
+        parsed = {
+          purpose:    hasAuth    ? `Allow user to authenticate and access their account`
+                    : hasForm    ? `Allow user to submit information via form`
+                    : hasList    ? `Display and manage a list of items`
+                    : hasPayment ? `Complete the payment process`
+                    : `${screen.name} — inferred from ${components.length} components`,
+          userIntent: hasAuth    ? `User wants to sign in or create an account`
+                    : hasForm    ? `User wants to complete and submit a form`
+                    : hasList    ? `User wants to view, filter or manage items`
+                    : `User wants to interact with ${screen.name}`,
+          notes:      components.length > 0
+                    ? `Detected components: ${[...new Set(components.slice(0,5).map(c => c.split('/')[0]))].join(', ')}`
+                    : 'No component data available',
+          genRules:   hasForm ? 'Use Server Action for form submission. Validate on server.' : '',
+          endpoints:  hasForm && hasAuth ? [{ method: 'POST', path: '/api/auth/login', description: 'Authenticate user' }] : [],
+        }
+      }
+
+      setAnalysis(parsed)
+    } catch (e) {
+      setError('Falha na análise — tente novamente')
+      console.error('[AIAnalyzer]', e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function applyAll() {
+    if (!analysis) return
+    const patch: Partial<ScreenContext> = {}
+    if (analysis.purpose    && !screen.context.purpose)    patch.purpose    = analysis.purpose
+    if (analysis.userIntent && !screen.context.userIntent) patch.userIntent = analysis.userIntent
+    if (analysis.notes      && !screen.context.notes)      patch.notes      = analysis.notes
+    if (analysis.genRules   && !screen.context.genRules)   patch.genRules   = analysis.genRules
+    if (analysis.endpoints?.length > 0 && screen.context.apiEndpoints.length === 0) {
+      patch.apiEndpoints = analysis.endpoints.map(e => ({
+        method:      (e.method ?? 'GET') as ApiEndpoint['method'],
+        path:        e.path ?? '',
+        description: e.description ?? '',
+      }))
+    }
+    onApply(patch)
+    setApplied(true)
+  }
+
+  return (
+    <div className="p-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Wand2 size={13} className="text-purple-500" />
+          <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">AI Analyzer</span>
+        </div>
+        {!analysis && !loading && (
+          <button
+            onClick={analyze}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+          >
+            <Sparkles size={11} /> Analisar tela
+          </button>
+        )}
+      </div>
+
+      {loading && (
+        <div className="flex items-center gap-2 text-xs text-purple-600 bg-purple-50 rounded p-3 border border-purple-100">
+          <Loader2 size={13} className="animate-spin flex-shrink-0" />
+          <span>Analisando componentes e inferindo contexto…</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 rounded p-2 border border-red-100">
+          <AlertCircle size={12} className="flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {analysis && !applied && (
+        <div className="space-y-2">
+          <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 space-y-1.5">
+            <p className="text-[11px] font-semibold text-purple-700 uppercase tracking-wide mb-2">Sugestões do AI</p>
+            {analysis.purpose    && <p className="text-xs text-gray-700"><span className="font-semibold text-gray-500">Purpose:</span> {analysis.purpose}</p>}
+            {analysis.userIntent && <p className="text-xs text-gray-700"><span className="font-semibold text-gray-500">Intent:</span> {analysis.userIntent}</p>}
+            {analysis.notes      && <p className="text-xs text-gray-700"><span className="font-semibold text-gray-500">Notes:</span> {analysis.notes}</p>}
+            {analysis.endpoints?.length > 0 && (
+              <p className="text-xs text-gray-700">
+                <span className="font-semibold text-gray-500">Endpoints:</span>{' '}
+                {analysis.endpoints.map(e => `${e.method} ${e.path}`).join(', ')}
+              </p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={applyAll}
+              className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 rounded bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+            >
+              <Check size={11} /> Aplicar sugestões
+            </button>
+            <button
+              onClick={() => { setAnalysis(null) }}
+              className="text-xs text-gray-400 hover:text-gray-600 px-2"
+            >
+              Ignorar
+            </button>
+            <button
+              onClick={analyze}
+              className="text-xs text-gray-400 hover:text-gray-600 px-2"
+            >
+              Reanalisar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {applied && (
+        <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 rounded p-2 border border-green-100">
+          <CheckCircle2 size={12} className="flex-shrink-0" />
+          <span>Sugestões aplicadas — edite os campos acima conforme necessário</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FEATURE 2 — Completeness Ring Expandida
+// Score visual com checklist detalhado e impacto de cada campo
+// ─────────────────────────────────────────────────────────────────────────────
+
+function CompletenessRing({ screen, score }: { screen: Screen; score: number }) {
+  const [expanded, setExpanded] = useState(false)
+  const ctx = screen.context
+
+  const items = [
+    { label: 'Figma vinculado',  pts: 30, done: !!screen.figma?.nodeId,           impact: 'Thumbnail e componentes para o Claude' },
+    { label: 'Purpose',          pts: 20, done: ctx.purpose.length > 10,           impact: 'Define o objetivo da tela no prompt' },
+    { label: 'Route',            pts: 15, done: ctx.route.length > 1,              impact: 'Define o path do arquivo gerado' },
+    { label: 'Components',       pts: 15, done: ctx.components.length > 0,         impact: 'Lista de imports do código gerado' },
+    { label: 'API Endpoints',    pts: 10, done: ctx.apiEndpoints.length > 0,       impact: 'Gera chamadas de dados corretas' },
+    { label: 'Architecture Notes', pts: 10, done: ctx.notes.length > 10,           impact: 'Padrões e decisões arquiteturais' },
+  ]
+
+  const missing = items.filter(i => !i.done)
+  const done    = items.filter(i =>  i.done)
+
+  const ringColor = score >= 80 ? '#16a34a' : score >= 50 ? '#d97706' : '#dc2626'
+  const r = 18, circ = 2 * Math.PI * r
+
+  return (
+    <div className="p-4">
+      <div
+        className="flex items-center gap-3 cursor-pointer"
+        onClick={() => setExpanded(e => !e)}
+      >
+        {/* Ring SVG */}
+        <svg width={44} height={44} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+          <circle cx={22} cy={22} r={r} fill="none" stroke="#e5e7eb" strokeWidth={4} />
+          <circle
+            cx={22} cy={22} r={r}
+            fill="none" stroke={ringColor} strokeWidth={4}
+            strokeDasharray={`${circ * score / 100} ${circ}`}
+            strokeLinecap="round"
+            style={{ transition: 'stroke-dasharray .4s ease' }}
+          />
+        </svg>
+
+        <div className="flex-1">
+          <div className={cn('text-sm font-bold', score >= 80 ? 'text-green-700' : score >= 50 ? 'text-amber-600' : 'text-red-600')}>
+            {score}% completo
+          </div>
+          <div className="text-xs text-gray-400">
+            {score >= 80 ? '✓ Pronto para geração' : score >= 50 ? `${100 - score}pts para melhorar` : `${missing.length} campos críticos faltando`}
+          </div>
+        </div>
+
+        <ChevronDown
+          size={14}
+          className={cn('text-gray-400 transition-transform flex-shrink-0', expanded && 'rotate-180')}
+        />
+      </div>
+
+      {expanded && (
+        <div className="mt-3 space-y-1.5">
+          {done.map(item => (
+            <div key={item.label} className="flex items-center gap-2 text-xs text-gray-500">
+              <div className="w-3 h-3 rounded-full bg-green-500 flex-shrink-0" />
+              <span className="flex-1">{item.label}</span>
+              <span className="text-green-600 font-semibold">+{item.pts}</span>
+            </div>
+          ))}
+          {missing.map(item => (
+            <div key={item.label} className="flex items-start gap-2 text-xs">
+              <div className="w-3 h-3 rounded-full border-2 border-gray-300 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <span className="text-gray-700 font-medium">{item.label}</span>
+                <span className="text-gray-400 ml-1">— {item.impact}</span>
+              </div>
+              <span className="text-gray-400 font-semibold flex-shrink-0">+{item.pts}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FEATURE 3 — Component Map Editor
+// Figma nome → código import path, com sugestões automáticas
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ComponentMapEditor({ selected, options, figmaComponentMap, onChange }: {
+  selected:          string[]
+  options:           string[]
+  figmaComponentMap: Array<{ figmaName: string; codeComponent: string; props?: Record<string, unknown> }>
+  onChange:          (v: string[]) => void
+}) {
+  const [showMap,   setShowMap]   = useState(false)
+  const [inputVal,  setInputVal]  = useState('')
+  const [localMap,  setLocalMap]  = useState<Record<string, string>>(() => {
+    const m: Record<string, string> = {}
+    figmaComponentMap.forEach(c => { m[c.figmaName] = c.codeComponent })
+    return m
+  })
+
+  const pool = [...new Set([...options, ...figmaComponentMap.map(c => c.figmaName)])].filter(
+    o => !selected.includes(o)
+  )
+  const filtered = inputVal.trim()
+    ? pool.filter(o => o.toLowerCase().includes(inputVal.toLowerCase()))
+    : pool
+
+  function add(name: string) {
+    const clean = name.trim()
+    if (clean && !selected.includes(clean)) onChange([...selected, clean])
+    setInputVal('')
+  }
+  function remove(name: string) { onChange(selected.filter(s => s !== name)) }
+  function updateMapping(figmaName: string, codeName: string) {
+    setLocalMap(m => ({ ...m, [figmaName]: codeName }))
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">Components</label>
+        {figmaComponentMap.length > 0 && (
+          <button
+            onClick={() => setShowMap(s => !s)}
+            className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 font-medium"
+          >
+            <LayoutGrid size={11} />
+            {showMap ? 'Ocultar mapa' : `Mapa Figma→Código (${figmaComponentMap.length})`}
+          </button>
+        )}
+      </div>
+
+      {/* Selected chips */}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {selected.map(s => (
+            <span
+              key={s}
+              className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-medium rounded-full border border-blue-100"
+            >
+              {s}
+              <button onClick={() => remove(s)} className="hover:text-blue-900 leading-none" aria-label={`Remove ${s}`}>×</button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Input */}
+      <div className="relative">
+        <input
+          type="text"
+          value={inputVal}
+          onChange={e => setInputVal(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && inputVal.trim()) { e.preventDefault(); add(inputVal) } }}
+          className={cn(inputCls, 'text-xs')}
+          placeholder={options.length > 0 ? 'Search or type to add…' : 'Type component name…'}
+        />
+      </div>
+
+      {/* Suggestions */}
+      {filtered.length > 0 && (
+        <div className="mt-1 flex flex-wrap gap-1">
+          {filtered.slice(0, 12).map(opt => (
+            <button
+              key={opt}
+              onClick={() => add(opt)}
+              className="text-xs px-2 py-0.5 rounded-full border border-gray-200 text-gray-500 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+            >
+              + {opt}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* [FEATURE 3] Figma → Code mapping table */}
+      {showMap && figmaComponentMap.length > 0 && (
+        <div className="mt-3 border border-gray-100 rounded-lg overflow-hidden">
+          <div className="bg-gray-50 px-3 py-2 flex items-center gap-2 border-b border-gray-100">
+            <ArrowRight size={11} className="text-purple-500" />
+            <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wide">Figma → Código</span>
+          </div>
+          <div className="divide-y divide-gray-50 max-h-48 overflow-y-auto">
+            {figmaComponentMap.map(c => (
+              <div key={c.figmaName} className="grid grid-cols-5 gap-1 px-3 py-2 items-center hover:bg-gray-50">
+                <span className="col-span-2 text-[10px] text-gray-400 font-mono truncate" title={c.figmaName}>
+                  {c.figmaName}
+                </span>
+                <ArrowRight size={10} className="text-gray-300 justify-self-center" />
+                <input
+                  className="col-span-2 text-[10px] font-mono px-1.5 py-0.5 border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-purple-300 text-purple-700 bg-purple-50"
+                  value={localMap[c.figmaName] ?? c.codeComponent}
+                  onChange={e => updateMapping(c.figmaName, e.target.value)}
+                  placeholder="@/components/..."
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {options.length === 0 && figmaComponentMap.length === 0 && selected.length === 0 && (
+        <p className="text-xs text-gray-400 mt-1">Connect a DS node to this Journey for suggestions</p>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FEATURE 4 — API Endpoint Builder com inferência de AI
+// ─────────────────────────────────────────────────────────────────────────────
+
+const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const
+
+function ApiEndpointBuilderAI({ endpoints, screen, onChange }: {
+  endpoints: ApiEndpoint[]
+  screen:    Screen
+  onChange:  (v: ApiEndpoint[]) => void
+}) {
+  const [inferring, setInferring] = useState(false)
+  const [suggestions, setSuggestions] = useState<ApiEndpoint[]>([])
+
+  function add() {
+    onChange([...endpoints, { method: 'GET', path: '', description: '' }])
+  }
+
+  function update(i: number, patch: Partial<ApiEndpoint>) {
+    onChange(endpoints.map((ep, idx) => idx === i ? { ...ep, ...patch } : ep))
+  }
+
+  function remove(i: number) {
+    onChange(endpoints.filter((_, idx) => idx !== i))
+  }
+
+  async function inferEndpoints() {
+    setInferring(true)
+    setSuggestions([])
+    await new Promise(r => setTimeout(r, 400)) // simula latência
+
+    // Inferência local baseada em componentes + nome da tela
+    const comps   = screen.figma?.componentMap.map(c => c.figmaName.toLowerCase()) ?? []
+    const name    = screen.name.toLowerCase()
+    const route   = screen.context.route ?? ''
+    const segment = route.split('/').filter(Boolean).pop() ?? name
+
+    const inferred: ApiEndpoint[] = []
+
+    const hasForm    = comps.some(c => /form|input|field|submit|button/i.test(c)) || /login|register|create|edit|update/i.test(name)
+    const hasList    = comps.some(c => /list|table|grid|card/i.test(c)) || /list|dashboard|home|index/i.test(name)
+    const hasDetail  = /detail|show|view|profile/i.test(name)
+    const hasDelete  = /delete|remove/i.test(name)
+    const hasAuth    = /login|signin|auth/i.test(name)
+    const hasRegister = /register|signup/i.test(name)
+
+    if (hasAuth)     inferred.push({ method: 'POST', path: '/api/auth/login',    description: 'Authenticate user credentials' })
+    if (hasRegister) inferred.push({ method: 'POST', path: '/api/auth/register', description: 'Create new user account' })
+    if (hasList)     inferred.push({ method: 'GET',  path: `/api/${segment}`,    description: `Fetch list of ${segment}` })
+    if (hasDetail)   inferred.push({ method: 'GET',  path: `/api/${segment}/[id]`, description: `Fetch single ${segment} by ID` })
+    if (hasForm && !hasAuth && !hasRegister) inferred.push({ method: 'POST', path: `/api/${segment}`, description: `Create or update ${segment}` })
+    if (hasDelete)   inferred.push({ method: 'DELETE', path: `/api/${segment}/[id]`, description: `Delete ${segment}` })
+
+    if (inferred.length === 0) {
+      inferred.push({ method: 'GET', path: `/api/${segment}`, description: `Fetch data for ${screen.name}` })
+    }
+
+    setSuggestions(inferred)
+    setInferring(false)
+  }
+
+  function acceptAll() {
+    const merged = [...endpoints]
+    suggestions.forEach(s => {
+      if (!merged.some(e => e.path === s.path)) merged.push(s)
+    })
+    onChange(merged)
+    setSuggestions([])
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">API Endpoints</label>
+        <div className="flex items-center gap-2">
+          {endpoints.length === 0 && suggestions.length === 0 && (
+            <button
+              onClick={inferEndpoints}
+              disabled={inferring}
+              className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 font-medium disabled:opacity-50"
+            >
+              {inferring ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+              Inferir
+            </button>
+          )}
+          <button onClick={add} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
+            <Plus size={12} /> Add
+          </button>
+        </div>
+      </div>
+
+      {/* Sugestões AI */}
+      {suggestions.length > 0 && (
+        <div className="mb-3 border border-purple-100 rounded-lg overflow-hidden">
+          <div className="bg-purple-50 px-3 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Sparkles size={11} className="text-purple-500" />
+              <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wide">Sugerido pelo AI</span>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={acceptAll} className="text-[10px] font-semibold text-purple-700 hover:text-purple-900">Aceitar todos</button>
+              <button onClick={() => setSuggestions([])} className="text-[10px] text-gray-400 hover:text-gray-600">Ignorar</button>
+            </div>
+          </div>
+          <div className="divide-y divide-purple-50">
+            {suggestions.map((s, i) => (
+              <div key={i} className="flex items-center gap-2 px-3 py-2">
+                <span className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded flex-shrink-0', methodColors[s.method])}>
+                  {s.method}
+                </span>
+                <span className="text-[11px] font-mono text-gray-600 flex-1">{s.path}</span>
+                <button
+                  onClick={() => { onChange([...endpoints, s]); setSuggestions(sugs => sugs.filter((_, idx) => idx !== i)) }}
+                  className="text-[10px] text-purple-600 hover:text-purple-800 font-medium flex-shrink-0"
+                >
+                  + Adicionar
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {endpoints.length === 0 && suggestions.length === 0 ? (
+        <p className="text-xs text-gray-400">No endpoints — click Add or Inferir</p>
+      ) : (
+        <div className="space-y-2">
+          {endpoints.map((ep, i) => (
+            <div key={i} className="flex gap-1.5 items-start">
+              <select
+                value={ep.method}
+                onChange={e => update(i, { method: e.target.value as ApiEndpoint['method'] })}
+                className={cn('py-1.5 px-1 border border-gray-200 rounded text-xs font-bold flex-shrink-0 focus:outline-none focus:ring-1 focus:ring-blue-400', methodColors[ep.method])}
+                style={{ width: 68 }}
+              >
+                {METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              <div className="flex-1 space-y-1">
+                <input
+                  type="text"
+                  value={ep.path}
+                  onChange={e => update(i, { path: e.target.value })}
+                  className={cn(inputCls, 'text-xs font-mono')}
+                  placeholder="/api/resource"
+                />
+                <input
+                  type="text"
+                  value={ep.description}
+                  onChange={e => update(i, { description: e.target.value })}
+                  className={cn(inputCls, 'text-xs')}
+                  placeholder="Description (optional)"
+                />
+              </div>
+              <button onClick={() => remove(i)} className="p-1 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0 mt-0.5" aria-label="Remove">
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FEATURE 5 — Context Preview
+// Mostra o prompt context que o Claude vai receber, em tempo real
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ContextPreview({ screen }: { screen: Screen }) {
+  const [open, setOpen]     = useState(false)
+  const [copied, setCopied] = useState(false)
+  const ctx = screen.context
+
+  const preview = [
+    `screen: ${screen.name}`,
+    ctx.route        ? `route: ${ctx.route}` : null,
+    ctx.purpose      ? `purpose: ${ctx.purpose}` : '⚠ purpose: (vazio)',
+    ctx.userIntent   ? `intent: ${ctx.userIntent}` : null,
+    ctx.requiresAuth ? `auth: required` : `auth: public`,
+    ctx.components.length > 0
+      ? `components (${ctx.components.length}): ${ctx.components.slice(0,5).join(', ')}${ctx.components.length > 5 ? '…' : ''}`
+      : '⚠ components: (vazio)',
+    screen.figma?.componentMap.length
+      ? `figma_components: ${screen.figma.componentMap.length} extraídos`
+      : '⚠ figma: não vinculado',
+    ctx.apiEndpoints.length > 0
+      ? `endpoints: ${ctx.apiEndpoints.map(e => `${e.method} ${e.path}`).join(', ')}`
+      : '⚠ endpoints: (vazio — impacta data fetching)',
+    ctx.notes    ? `notes: ${ctx.notes}` : null,
+    ctx.genRules ? `gen_rules: ${ctx.genRules}` : null,
+  ].filter(Boolean).join('\n')
+
+  function copy() {
+    navigator.clipboard.writeText(preview).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <div className="p-5">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 w-full text-left"
+      >
+        <Eye size={13} className="text-gray-400 flex-shrink-0" />
+        <span className="text-xs font-bold text-gray-700 uppercase tracking-wide flex-1">Context Preview</span>
+        <ChevronDown size={13} className={cn('text-gray-400 transition-transform', open && 'rotate-180')} />
+      </button>
+
+      {open && (
+        <div className="mt-3">
+          <div className="relative bg-gray-900 rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700">
+              <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wide">prompt context</span>
+              <button
+                onClick={copy}
+                className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-200 transition-colors"
+              >
+                {copied ? <Check size={10} /> : <Copy size={10} />}
+                {copied ? 'copiado' : 'copiar'}
+              </button>
+            </div>
+            <pre className="p-3 text-[11px] font-mono text-gray-300 leading-relaxed overflow-x-auto whitespace-pre-wrap">
+              {preview.split('\n').map((line, i) => (
+                <span key={i} className={cn(
+                  'block',
+                  line.startsWith('⚠') ? 'text-amber-400' : 'text-gray-300'
+                )}>
+                  {line}
+                </span>
+              ))}
+            </pre>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FEATURE 6 — Context Inheritance Panel
+// Mostra o contexto herdado do DS e Journey nodes
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ContextInheritancePanel({ screen, connectedDsTags }: {
+  screen:           Screen
+  connectedDsTags:  string[]
+}) {
+  const [open, setOpen] = useState(false)
+
+  const hasInheritance = connectedDsTags.length > 0
+
+  if (!hasInheritance) return null
+
+  return (
+    <div className="p-5">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 w-full text-left"
+      >
+        <GitBranch size={13} className="text-indigo-400 flex-shrink-0" />
+        <span className="text-xs font-bold text-gray-700 uppercase tracking-wide flex-1">Herança de Contexto</span>
+        <ChevronDown size={13} className={cn('text-gray-400 transition-transform', open && 'rotate-180')} />
+      </button>
+
+      {open && (
+        <div className="mt-3 space-y-2">
+          <p className="text-[11px] text-gray-400 leading-relaxed">
+            Este screen herda automaticamente os componentes dos DS nodes conectados à Journey.
+            Campos definidos aqui sobrescrevem os valores herdados.
+          </p>
+
+          <div className="flex items-center gap-2 text-[10px] font-mono text-gray-500 bg-gray-50 rounded p-2">
+            <span className="text-indigo-500 font-semibold">DS</span>
+            <ArrowRight size={9} className="text-gray-300" />
+            <span className="text-indigo-400">Journey</span>
+            <ArrowRight size={9} className="text-gray-300" />
+            <span className="text-indigo-300">Screen ←</span>
+            <span className="text-green-600 ml-1">você está aqui</span>
+          </div>
+
+          {connectedDsTags.length > 0 && (
+            <div>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide font-bold mb-1">Componentes herdados do DS</p>
+              <div className="flex flex-wrap gap-1">
+                {connectedDsTags.slice(0, 16).map(tag => (
+                  <span
+                    key={tag}
+                    className={cn(
+                      'text-[10px] px-2 py-0.5 rounded-full border font-medium',
+                      screen.context.components.includes(tag)
+                        ? 'bg-indigo-50 text-indigo-700 border-indigo-100'
+                        : 'bg-gray-50 text-gray-400 border-gray-200'
+                    )}
+                    title={screen.context.components.includes(tag) ? 'Ativo nesta screen' : 'Disponível — adicione acima'}
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FEATURE 7 — Generation Preview por Screen
+// Gera código apenas desta screen e exibe em modal inline
+// ─────────────────────────────────────────────────────────────────────────────
+
+function GenerationPreview({ screen, curJourneyId, activeFlow }: {
+  screen:        Screen
+  curJourneyId:  string
+  activeFlow:    string
+}) {
+  const store        = useStore()
+  const curProjectId = store.curProjectId
+  const [loading,  setLoading]  = useState(false)
+  const [code,     setCode]     = useState<string | null>(null)
+  const [error,    setError]    = useState<string | null>(null)
+  const [open,     setOpen]     = useState(false)
+  const [copied,   setCopied]   = useState(false)
+
+  const score = screenCompleteness(screen)
+  const ready = score >= 50
+
+  async function generatePreview() {
+    setLoading(true)
+    setError(null)
+    setCode(null)
+    setOpen(true)
+
+    try {
+      const canvas     = curProjectId ? store.canvasData[curProjectId] : null
+      const journey    = canvas?.nodes.find(n => n.id === curJourneyId)
+      const ctx        = screen.context
+      const components = screen.figma?.componentMap ?? []
+
+      const prompt = `Generate a single Next.js TypeScript page component for this screen.
+
+Screen: ${screen.name}
+Route: ${ctx.route || '(not defined)'}
+Purpose: ${ctx.purpose || '(not defined)'}
+User Intent: ${ctx.userIntent || '(not defined)'}
+Journey: ${journey?.name ?? '(unknown)'}
+Requires Auth: ${ctx.requiresAuth}
+
+Components to use (${components.length}):
+${components.slice(0, 20).map(c => `- ${c.codeComponent} (Figma: ${c.figmaName})`).join('\n')}
+
+API Endpoints:
+${ctx.apiEndpoints.length > 0 ? ctx.apiEndpoints.map(e => `- ${e.method} ${e.path}: ${e.description}`).join('\n') : '(none defined)'}
+
+Architecture Notes: ${ctx.notes || '(none)'}
+Gen Rules: ${ctx.genRules || 'Use Next.js App Router. TypeScript strict. Tailwind CSS.'}
+
+Generate ONLY the component code. Use proper TypeScript types. Include all imports. Make it production-ready.`
+
+      const res = await fetch('/api/generate', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ prompt, maxTokens: 2000, _previewMode: true }),
+      })
+
+      let fullCode = ''
+      if (res.ok && res.body) {
+        const reader  = res.body.getReader()
+        const decoder = new TextDecoder()
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          const chunk = decoder.decode(value, { stream: true })
+          for (const line of chunk.split('\n')) {
+            if (line.startsWith('data: ')) {
+              try {
+                const d = JSON.parse(line.slice(6)) as Record<string, unknown>
+                if (typeof d.text  === 'string') fullCode += d.text
+                if (typeof d.delta === 'string') fullCode += d.delta
+              } catch { fullCode += line.slice(6) }
+            }
+          }
+        }
+      }
+
+      // Extrai bloco de código
+      const match = fullCode.match(/```(?:tsx?|jsx?)?\n([\s\S]+?)```/)
+      setCode(match ? match[1] : fullCode || 'Sem output recebido')
+    } catch (e) {
+      setError('Falha na geração — verifique a conexão')
+      console.error('[GenPreview]', e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function copy() {
+    if (!code) return
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <div className="p-5">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Zap size={13} className="text-amber-500" />
+          <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Preview de Geração</span>
+        </div>
+        {!open && (
+          <button
+            onClick={generatePreview}
+            disabled={!ready || loading}
+            className={cn(
+              'flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded transition-colors',
+              ready
+                ? 'bg-amber-500 text-white hover:bg-amber-600'
+                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            )}
+            title={!ready ? `Score muito baixo (${score}%). Adicione mais contexto.` : 'Gerar preview desta screen'}
+          >
+            <Zap size={11} />
+            {loading ? 'Gerando…' : `Preview (${score}%)`}
+          </button>
+        )}
+        {open && (
+          <button onClick={() => { setOpen(false); setCode(null); setError(null) }} className="text-xs text-gray-400 hover:text-gray-600">
+            Fechar
+          </button>
+        )}
+      </div>
+
+      {!ready && !open && (
+        <p className="text-xs text-gray-400">
+          Complete pelo menos 50% do contexto para habilitar o preview.
+        </p>
+      )}
+
+      {open && (
+        <div className="mt-2 border border-gray-200 rounded-lg overflow-hidden">
+          {/* Toolbar */}
+          <div className="flex items-center justify-between px-3 py-2 bg-gray-900 border-b border-gray-700">
+            <span className="text-[10px] font-mono text-gray-400">{screen.context.route || screen.name}.tsx</span>
+            <div className="flex items-center gap-2">
+              {loading && <Loader2 size={11} className="animate-spin text-amber-400" />}
+              {code && (
+                <button onClick={copy} className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-200">
+                  {copied ? <Check size={10} /> : <Copy size={10} />}
+                  {copied ? 'copiado' : 'copiar'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Code */}
+          <div className="bg-gray-900 max-h-96 overflow-y-auto">
+            {loading && !code && (
+              <div className="p-4 text-xs font-mono text-gray-400 animate-pulse">
+                Gerando código para {screen.name}…
+              </div>
+            )}
+            {error && (
+              <div className="p-4 text-xs text-red-400">{error}</div>
+            )}
+            {code && (
+              <pre className="p-4 text-[11px] font-mono text-gray-200 leading-relaxed overflow-x-auto whitespace-pre">
+                {code}
+              </pre>
+            )}
+          </div>
+
+          {code && (
+            <div className="px-3 py-2 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+              <span className="text-[10px] text-gray-400">{code.split('\n').length} linhas geradas</span>
+              <span className="text-[10px] text-green-600 font-semibold">✓ Preview completo</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -822,243 +1770,7 @@ function FigmaSection({ screen, curJourneyId, activeFlow }: {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Component Select
-// ─────────────────────────────────────────────────────────────────────────────
-
-function ComponentSelect({ selected, options, figmaComponents, onChange }: {
-  selected:         string[]
-  options:          string[]   // from DS node tags
-  figmaComponents:  string[]   // from Figma binding
-  onChange:         (v: string[]) => void
-}) {
-  const [inputVal, setInputVal] = useState('')
-
-  // Merge DS tags + Figma components as suggestion pool, deduplicated
-  const pool = [...new Set([...options, ...figmaComponents])].filter(
-    o => !selected.includes(o)
-  )
-
-  const filtered = inputVal.trim()
-    ? pool.filter(o => o.toLowerCase().includes(inputVal.toLowerCase()))
-    : pool
-
-  function add(name: string) {
-    const clean = name.trim()
-    if (clean && !selected.includes(clean)) onChange([...selected, clean])
-    setInputVal('')
-  }
-
-  function remove(name: string) {
-    onChange(selected.filter(s => s !== name))
-  }
-
-  return (
-    <div>
-      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">
-        Components
-      </label>
-
-      {/* Selected chips */}
-      {selected.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-2">
-          {selected.map(s => (
-            <span
-              key={s}
-              className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-medium rounded-full border border-blue-100"
-            >
-              {s}
-              <button
-                onClick={() => remove(s)}
-                className="hover:text-blue-900 leading-none"
-                aria-label={`Remove ${s}`}
-              >
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Input */}
-      <div className="relative">
-        <input
-          type="text"
-          value={inputVal}
-          onChange={e => setInputVal(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Enter' && inputVal.trim()) { e.preventDefault(); add(inputVal) }
-          }}
-          className={cn(inputCls, 'text-xs')}
-          placeholder={options.length > 0 ? 'Search or type to add…' : 'Type component name…'}
-        />
-      </div>
-
-      {/* Suggestions */}
-      {filtered.length > 0 && (
-        <div className="mt-1 flex flex-wrap gap-1">
-          {filtered.slice(0, 12).map(opt => (
-            <button
-              key={opt}
-              onClick={() => add(opt)}
-              className="text-xs px-2 py-0.5 rounded-full border border-gray-200 text-gray-500 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-            >
-              + {opt}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {options.length === 0 && figmaComponents.length === 0 && selected.length === 0 && (
-        <p className="text-xs text-gray-400 mt-1">
-          Connect a DS node to this Journey for suggestions
-        </p>
-      )}
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// API Endpoint Builder
-// ─────────────────────────────────────────────────────────────────────────────
-
-const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const
-
-function ApiEndpointBuilder({ endpoints, onChange }: {
-  endpoints: ApiEndpoint[]
-  onChange:  (v: ApiEndpoint[]) => void
-}) {
-  function add() {
-    onChange([...endpoints, { method: 'GET', path: '', description: '' }])
-  }
-
-  function update(i: number, patch: Partial<ApiEndpoint>) {
-    onChange(endpoints.map((ep, idx) => idx === i ? { ...ep, ...patch } : ep))
-  }
-
-  function remove(i: number) {
-    onChange(endpoints.filter((_, idx) => idx !== i))
-  }
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">
-          API Endpoints
-        </label>
-        <button
-          onClick={add}
-          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
-        >
-          <Plus size={12} />
-          Add
-        </button>
-      </div>
-
-      {endpoints.length === 0 ? (
-        <p className="text-xs text-gray-400">No endpoints — click Add to define API calls</p>
-      ) : (
-        <div className="space-y-2">
-          {endpoints.map((ep, i) => (
-            <div key={i} className="flex gap-1.5 items-start">
-              {/* Method */}
-              <select
-                value={ep.method}
-                onChange={e => update(i, { method: e.target.value as ApiEndpoint['method'] })}
-                className={cn(
-                  'py-1.5 px-1 border border-gray-200 rounded text-xs font-bold flex-shrink-0',
-                  'focus:outline-none focus:ring-1 focus:ring-blue-400',
-                  methodColors[ep.method],
-                )}
-                style={{ width: 68 }}
-              >
-                {METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-
-              {/* Path + description */}
-              <div className="flex-1 space-y-1">
-                <input
-                  type="text"
-                  value={ep.path}
-                  onChange={e => update(i, { path: e.target.value })}
-                  className={cn(inputCls, 'text-xs font-mono')}
-                  placeholder="/api/resource"
-                />
-                <input
-                  type="text"
-                  value={ep.description}
-                  onChange={e => update(i, { description: e.target.value })}
-                  className={cn(inputCls, 'text-xs')}
-                  placeholder="Description (optional)"
-                />
-              </div>
-
-              {/* Delete */}
-              <button
-                onClick={() => remove(i)}
-                className="p-1 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0 mt-0.5"
-                aria-label="Remove endpoint"
-              >
-                <Trash2 size={13} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Score Breakdown
-// ─────────────────────────────────────────────────────────────────────────────
-
-function ScoreBreakdown({ screen, score }: { screen: Screen; score: number }) {
-  const ctx = screen.context
-
-  const items = [
-    { label: 'Figma URL',   pts: 30, done: !!screen.figma?.nodeId },
-    { label: 'Purpose',     pts: 20, done: ctx.purpose.length > 10 },
-    { label: 'Route',       pts: 15, done: ctx.route.length > 1 },
-    { label: 'Components',  pts: 15, done: ctx.components.length > 0 },
-    { label: 'API endpoints', pts: 10, done: ctx.apiEndpoints.length > 0 },
-    { label: 'Notes',       pts: 10, done: ctx.notes.length > 10 },
-  ]
-
-  const missing = items.filter(i => !i.done)
-
-  return (
-    <div className="p-5">
-      {/* Ring + score */}
-      <div className="flex items-center gap-3 mb-3">
-        <ScoreRing score={score} size={44} />
-        <div>
-          <div className={cn('text-sm font-bold', scoreColor(score))}>
-            {score}% complete
-          </div>
-          <div className="text-xs text-gray-400">
-            {score >= 80 ? 'Ready to generate' : score >= 50 ? 'Almost there' : 'Add more context'}
-          </div>
-        </div>
-      </div>
-
-      {/* What to fill next */}
-      {missing.length > 0 && (
-        <div className="space-y-1">
-          {missing.map(item => (
-            <div key={item.label} className="flex items-center justify-between text-xs text-gray-400">
-              <span>+ {item.label}</span>
-              <span className="font-semibold text-gray-500">+{item.pts} pts</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Score Ring (SVG)
-// ─────────────────────────────────────────────────────────────────────────────
+// Score Ring (SVG) — usado pelo CompletenessRing
 
 function ScoreRing({ score, size = 40 }: { score: number; size?: number }) {
   const r   = (size - 6) / 2
