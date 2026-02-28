@@ -3,18 +3,16 @@ import { NextRequest, NextResponse } from 'next/server'
 /**
  * POST /api/figma-mcp
  *
- * Proxy para o figma-developer-mcp rodando no VPS (Hostinger).
+ * Proxy para o figma-developer-mcp rodando no VPS (EasyPanel).
  * Chama get_design_context via JSON-RPC e retorna resultado estruturado.
  *
- * Env vars necessárias:
- *   FIGMA_MCP_URL = https://mcp.seudominio.com
+ * Env var necessária no Vercel:
+ *   FIGMA_MCP_URL = https://flowbridge-flowbridgerepo.djihfj.easypanel.host
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json() as { fileKey?: string; nodeId?: string }
-
-    const fileKey = body.fileKey
-    const nodeId  = body.nodeId
+    const { fileKey, nodeId } = body
 
     if (!fileKey || !nodeId) {
       return NextResponse.json(
@@ -55,10 +53,11 @@ export async function POST(req: NextRequest) {
     }
 
     const mcpData = await mcpRes.json() as {
-      result?: { content?: Array<{ type: string; text?: string }> | unknown }
+      result?: { content?: Array<{ type: string; text?: string }> }
       error?:  { message?: string }
     }
 
+    // Erro JSON-RPC explícito
     if (mcpData.error) {
       return NextResponse.json(
         { error: mcpData.error.message ?? 'Erro JSON-RPC do MCP server' },
@@ -66,22 +65,22 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // ── Extrair texto do resultado ─────────────────────────────────────────
-    const resultContent = mcpData?.result?.content
-    if (!resultContent) {
+    // ── Extrair bloco de texto do resultado ───────────────────────────────
+    const content = mcpData?.result?.content
+    if (!content) {
       return NextResponse.json(
-        { error: 'MCP não retornou conteúdo no campo result.content' },
+        { error: 'MCP não retornou conteúdo em result.content' },
         { status: 502 }
       )
     }
 
-    const textBlock = Array.isArray(resultContent)
-      ? resultContent.find((b: { type: string }) => b.type === 'text')
+    const textBlock = Array.isArray(content)
+      ? content.find(b => b.type === 'text')
       : null
 
-    const rawText: string = (textBlock as { text?: string } | null)?.text ?? JSON.stringify(resultContent)
+    const rawText: string = textBlock?.text ?? JSON.stringify(content)
 
-    // ── Tentar extrair JSON estruturado ────────────────────────────────────
+    // ── Parsear JSON estruturado (pode vir embutido em markdown) ──────────
     let parsed: unknown
     try {
       parsed = JSON.parse(rawText)
