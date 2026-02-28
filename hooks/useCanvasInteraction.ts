@@ -212,11 +212,9 @@ export function useCanvasInteraction(
       if (dx < DRAG_THRESHOLD && dy < DRAG_THRESHOLD) {
         if (nodeDrag.current.kind === 'screen') {
           store.selectScreen(nodeDrag.current.id)
-          store.openRpanel()
           store.setRpTab('context')
         } else {
           store.selectNode(nodeDrag.current.id)
-          store.openRpanel()
         }
       }
       nodeDrag.current = null
