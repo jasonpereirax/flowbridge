@@ -100,7 +100,7 @@ export function Ebar() {
 
   // ── Open flow (enter micro view) ───────────────────────────────────────────
   const openFlow = useCallback((journeyId: string, flowId: string) => {
-    store.openJourney(journeyId)
+    // setActiveFlow now handles view='micro', microMode='single', layout — no need for openJourney
     store.setActiveFlow(journeyId, flowId)
     setJExp(p => { const n = new Set(p); n.add(journeyId); return n })
     setFExp(p => { const n = new Set(p); n.add(flowId);    return n })
@@ -192,10 +192,14 @@ export function Ebar() {
                       {/* Journey row */}
                       <div
                         className="flex items-center gap-[7px] px-[10px] py-[7px] cursor-pointer hover:bg-bg transition-colors group/jrow"
-                        onClick={() => toggleJ(node.id)}
-                        onDoubleClick={e => { e.stopPropagation(); store.openJourney(node.id) }}
+                        onClick={() => { store.openJourney(node.id); setJExp(p => { const n = new Set(p); n.add(node.id); return n }) }}
                       >
-                        <Chevron open={isJOpen} />
+                        <div
+                          onClick={e => { e.stopPropagation(); toggleJ(node.id) }}
+                          className="flex-shrink-0 p-[2px] rounded hover:bg-border transition-colors"
+                        >
+                          <Chevron open={isJOpen} />
+                        </div>
                         <span className="w-[16px] h-[16px] rounded-[4px] bg-[#EFF6FF] border border-[#BFDBFE] flex items-center justify-center flex-shrink-0">
                           <GitBranch size={8} className="text-brand-blue" />
                         </span>
