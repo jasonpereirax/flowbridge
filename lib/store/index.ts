@@ -313,12 +313,34 @@ export const useStore = create<Store>()(
           s.selConnId    = null
           s.selScreenId  = null
           s.rpanelOpen   = false
-          // Auto-select first flow if none is active yet
+
           const c = getCanvas(s)
-          if (c && !c.curFlow[id]) {
+          if (!c) return
+
+          // Auto-select first flow
+          if (!c.curFlow[id]) {
             const firstFlow = c.flows[id]?.[0]
             if (firstFlow) c.curFlow[id] = firstFlow.id
           }
+
+          // Auto-layout: place each flow's screens in its own column so
+          // ScreenNodeCard (which reads screen.position.x/y) renders correctly.
+          const SCREEN_W    = 180
+          const SCREEN_H    = 160
+          const SCREEN_VGAP = 28
+          const COL_GAP     = 80
+          const START_X     = 60
+          const START_Y     = 60
+          const flows = c.flows[id] ?? []
+          flows.forEach((flow, fi) => {
+            const colX = START_X + fi * (SCREEN_W + COL_GAP)
+            flow.screens.forEach((screen, si) => {
+              screen.position = {
+                x: colX,
+                y: START_Y + si * (SCREEN_H + SCREEN_VGAP),
+              }
+            })
+          })
         }),
 
         setTransform: (t) => set(s => { Object.assign(s.transform, t) }),
