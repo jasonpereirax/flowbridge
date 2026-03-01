@@ -313,6 +313,12 @@ export const useStore = create<Store>()(
           s.selConnId    = null
           s.selScreenId  = null
           s.rpanelOpen   = false
+          // Auto-select first flow if none is active yet
+          const c = getCanvas(s)
+          if (c && !c.curFlow[id]) {
+            const firstFlow = c.flows[id]?.[0]
+            if (firstFlow) c.curFlow[id] = firstFlow.id
+          }
         }),
 
         setTransform: (t) => set(s => { Object.assign(s.transform, t) }),
