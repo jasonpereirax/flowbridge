@@ -92,7 +92,7 @@ async function fetchFigmaFile(fileKey: string): Promise<{ data: FigmaFileRespons
     let data: FigmaFileResponse
     try {
       data = await res.json()
-    } catch (_e) {
+    } catch {
       console.warn(`[figma-import] depth=${depth} JSON parse failed`)
       continue
     }
