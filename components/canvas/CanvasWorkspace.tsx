@@ -6,6 +6,7 @@ import { Maximize2, Zap, ChevronRight, FolderInput } from 'lucide-react'
 import { useStore, useTransform, useView } from '@/lib/store'
 import { useCanvasInteraction, ConnDragState } from '@/hooks/useCanvasInteraction'
 import { makeConn } from '@/utils'
+import type { MacroNode as MacroNodeType, Screen } from '@/types'
 
 import { ConnectorLayer }  from '@/components/canvas/ConnectorLayer'
 import { MacroNodeCard }   from '@/components/nodes/MacroNode'
@@ -39,8 +40,8 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
     if (projectId !== store.curProjectId) store.openProject(projectId)
   }, [projectId, store])
 
-  const macroNodes  = canvas?.nodes      ?? []
-  const screenNodes = activeFlow?.screens ?? []
+  const macroNodes  = (canvas?.nodes      ?? []) as MacroNodeType[]
+  const screenNodes = (activeFlow?.screens ?? []) as Screen[]
 
   // \u2500\u2500 Connector drag move \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   const onConnDragMove = useCallback((state: ConnDragState) => {
@@ -86,7 +87,7 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
     }
   }, [store.curProjectId])
 
-  const { startReconnect } = useCanvasInteraction(
+  const { startReconnect: _startReconnect } = useCanvasInteraction(
     canvasRef as React.RefObject<HTMLDivElement>,
     onConnDragMove,
     onConnDragEnd,
