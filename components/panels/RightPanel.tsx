@@ -3,7 +3,7 @@
 import { useCallback, useState, useRef } from 'react'
 import {
   X, Plus, Trash2, Link, Loader2, AlertCircle, CheckCircle2, Sparkles,
-  ChevronDown, ChevronRight, Eye, Zap, GitBranch, Copy, Check,
+  ChevronDown, Eye, Zap, GitBranch, Copy, Check,
   ArrowRight, LayoutGrid, Wand2,
 } from 'lucide-react'
 import { useStore } from '@/lib/store'
