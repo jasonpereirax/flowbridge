@@ -27,6 +27,7 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
   const canvas      = useStore(s => s.canvas())
   const journey     = useStore(s => s.journey())
   const activeFlow  = useStore(s => s.activeFlow())
+  const microMode   = useStore(s => s.microMode)
   const selConnId   = useStore(s => s.selConnId)
   const selNodeId   = useStore(s => s.selNodeId)
   const selScreenId = useStore(s => s.selScreenId)
@@ -42,8 +43,11 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
   }, [projectId, store])
 
   const macroNodes    = (canvas?.nodes ?? []) as MacroNodeType[]
-  // All flows of the current journey — used in micro view to show all flows at once
-  const journeyFlows  = (journey && canvas ? (canvas.flows[journey.id] ?? []) : []) as Flow[]
+  // Flows to render in micro view: all flows (mode=all) or just the active flow (mode=single)
+  const allFlows      = (journey && canvas ? (canvas.flows[journey.id] ?? []) : []) as Flow[]
+  const journeyFlows  = microMode === 'single' && activeFlow
+    ? allFlows.filter(f => f.id === activeFlow.id)
+    : allFlows
 
   // \u2500\u2500 Connector drag move \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   const onConnDragMove = useCallback((state: ConnDragState) => {
@@ -132,7 +136,7 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
                   <div className="w-[6px] h-[6px] rounded-full bg-brand-blue flex-shrink-0" />
                   <span className="text-[12px] font-medium text-text-1 truncate">{journey.name}</span>
                 </div>
-                {activeFlow && (
+                {microMode === 'single' && activeFlow && (
                   <>
                     <ChevronRight size={12} className="text-text-3 flex-shrink-0" />
                     <span className="text-[11.5px] text-text-2 truncate font-mono">{activeFlow.name}</span>
