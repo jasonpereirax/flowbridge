@@ -81,7 +81,7 @@ export function Ebar() {
   const toggleDs = (id: string) => setDsExp(p => flipSet(p, id))
 
   function flipSet(prev: Set<string>, id: string) {
-    const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n
+    const n = new Set(prev); if (n.has(id)) { n.delete(id) } else { n.add(id) } return n
   }
 
   // ── Auto-expand when canvas node selected ─────────────────────────────────
@@ -350,7 +350,7 @@ export function Ebar() {
                       <div
                         className="flex items-center gap-[7px] px-[10px] py-[7px] cursor-pointer hover:bg-bg transition-colors group/dsrow"
                         onClick={() => toggleDs(node.id)}
-                        onDoubleClick={e => { e.stopPropagation(); store.selectNode(node.id); store.openRpanel() }}
+                        onDoubleClick={e => { e.stopPropagation(); store.selectNode(node.id) }}
                       >
                         <Chevron open={isDsOpen} />
                         <span className="w-[16px] h-[16px] rounded-[4px] bg-[#F5F3FF] border border-[#DDD6FE] flex items-center justify-center flex-shrink-0">
