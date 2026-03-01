@@ -135,7 +135,7 @@ export function Ebar() {
 
   return (
     <aside
-      className="w-[240px] bg-surface border-r border-border flex flex-col flex-shrink-0 overflow-hidden"
+      className="relative bg-surface border-r border-border flex flex-col flex-shrink-0 overflow-hidden"
       style={{ width: ebarWidth }}>
       <div onMouseDown={onResizeStart} className="absolute right-0 top-0 bottom-0 w-[4px] cursor-col-resize z-10 group hover:bg-brand-blue/20 transition-colors"><div className="absolute right-[1px] top-1/2 -translate-y-1/2 w-[2px] h-8 rounded-full bg-border group-hover:bg-brand-blue/60 transition-colors" /></div>
 
