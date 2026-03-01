@@ -1,5 +1,6 @@
 import { type NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import type { ImportedPage, FrameAIContext, ImportResult } from '@/types/figma-import'
 
 export const runtime     = 'nodejs'
 export const maxDuration = 60
@@ -12,56 +13,30 @@ function figmaHeaders() {
   return { 'X-Figma-Token': token }
 }
 
-import type { ImportedFrame, ImportedPage, FrameAIContext, ImportResult } from '@/types/figma-import'
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface FigmaNode {
+interface FigmaChild {
   id:       string
   name:     string
   type:     string
-  children?: FigmaNode[]
+  children?: FigmaChild[]
 }
 
 interface FigmaPage {
   id:       string
   name:     string
   type:     string
-  children?: FigmaNode[]
+  children?: FigmaChild[]
 }
 
-
-
-
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function isTopLevelFrame(node: FigmaNode): boolean {
+function isTopLevelFrame(node: FigmaChild): boolean {
   return node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'SECTION'
-}
-
-function extractComponents(node: FigmaNode, names: Set<string>) {
-  if ((node.type === 'INSTANCE' || node.type === 'COMPONENT') && node.name) {
-    names.add(node.name)
-  }
-  node.children?.forEach(c => extractComponents(c, names))
 }
 
 function slugRoute(pageName: string, frameName: string): string {
   const slug = (s: string) =>
-    s.toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-
-  const page  = slug(pageName)
-  const frame = slug(frameName)
-
-  // If page looks like "index/home/landing" → root-level
+    s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
   const isRoot = /^(home|index|landing|main|root)$/i.test(pageName)
-  return isRoot ? `/${frame}` : `/${page}/${frame}`
+  return isRoot ? `/${slug(frameName)}` : `/${slug(pageName)}/${slug(frameName)}`
 }
-
-// ── Main handler ──────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   try {
@@ -71,37 +46,54 @@ export async function POST(req: NextRequest) {
     }
 
     if (!fileKey) {
-      return Response.json({ error: 'fileKey is required' }, { status: 400 })
+      return Response.json({ error: 'fileKey é obrigatório' }, { status: 400 })
     }
 
-    // ── 1. Fetch full file structure ────────────────────────────────────────
-    const fileRes = await fetch(`${FIGMA_BASE}/files/${fileKey}?depth=2`, {
-      headers: figmaHeaders(),
-    })
+    if (!process.env.FIGMA_ACCESS_TOKEN) {
+      return Response.json({ error: 'FIGMA_ACCESS_TOKEN não configurado no servidor' }, { status: 500 })
+    }
+
+    // ── 1. Fetch file with depth=1 (pages + top-level frames only) ──────────
+    // depth=1 returns pages with their direct children (frames) but not deeper nodes
+    // This keeps the payload small even for large files
+    const fileUrl = `${FIGMA_BASE}/files/${fileKey}?depth=1&branch_data=false`
+
+    let fileRes: Response
+    try {
+      fileRes = await fetch(fileUrl, {
+        headers: figmaHeaders(),
+        signal: AbortSignal.timeout(25000),
+      })
+    } catch (fetchErr) {
+      const msg = fetchErr instanceof Error ? fetchErr.message : 'timeout'
+      return Response.json({ error: `Não foi possível conectar ao Figma: ${msg}` }, { status: 503 })
+    }
 
     if (!fileRes.ok) {
-      const text = await fileRes.text()
+      const text = await fileRes.text().catch(() => '')
       if (fileRes.status === 403) return Response.json({ error: 'Sem acesso ao arquivo — verifique o FIGMA_ACCESS_TOKEN' }, { status: 403 })
-      if (fileRes.status === 404) return Response.json({ error: 'Arquivo não encontrado — verifique a URL' }, { status: 404 })
-      return Response.json({ error: text }, { status: fileRes.status })
+      if (fileRes.status === 404) return Response.json({ error: 'Arquivo não encontrado — verifique a URL do Figma' }, { status: 404 })
+      return Response.json({ error: `Figma API respondeu ${fileRes.status}: ${text.slice(0, 200)}` }, { status: fileRes.status })
     }
 
-    const fileData = await fileRes.json() as {
-      name: string
-      document: { children: FigmaPage[] }
+    let fileData: { name: string; document: { children: FigmaPage[] } }
+    try {
+      fileData = await fileRes.json()
+    } catch {
+      return Response.json({ error: 'Resposta inválida da API do Figma' }, { status: 502 })
     }
 
-    const fileName = fileData.name ?? 'Figma File'
-    const rawPages = fileData.document?.children ?? []
+    const fileName  = fileData.name ?? 'Figma File'
+    const rawPages  = fileData.document?.children ?? []
 
     // ── 2. Extract pages + top-level frames ────────────────────────────────
     const pages: ImportedPage[] = []
     const allFrameIds: string[] = []
 
-    rawPages.forEach((page, pageIdx) => {
-      if (page.type !== 'CANVAS') return
+    for (const [pageIdx, page] of rawPages.entries()) {
+      if (page.type !== 'CANVAS') continue
 
-      const frames: ImportedFrame[] = (page.children ?? [])
+      const frames = (page.children ?? [])
         .filter(isTopLevelFrame)
         .map((frame, frameIdx) => {
           allFrameIds.push(frame.id)
@@ -117,91 +109,86 @@ export async function POST(req: NextRequest) {
       if (frames.length > 0) {
         pages.push({ pageId: page.id, name: page.name, order: pageIdx, frames })
       }
-    })
+    }
 
     const totalFrames = allFrameIds.length
 
     if (totalFrames === 0) {
-      return Response.json({ error: 'Nenhum frame encontrado no arquivo' }, { status: 422 })
+      return Response.json({ error: 'Nenhum frame encontrado no arquivo. Certifique-se de que o arquivo tem frames top-level nas páginas.' }, { status: 422 })
     }
 
-    // ── 3. Batch thumbnails (max 50 IDs per request) ───────────────────────
+    // ── 3. Batch thumbnails (max 50 IDs per call) ──────────────────────────
     const thumbnails: Record<string, string> = {}
 
-    const BATCH = 50
-    for (let i = 0; i < allFrameIds.length; i += BATCH) {
-      const batch = allFrameIds.slice(i, i + BATCH)
+    for (let i = 0; i < allFrameIds.length; i += 50) {
+      const batch = allFrameIds.slice(i, i + 50)
       try {
         const imgRes = await fetch(
           `${FIGMA_BASE}/images/${fileKey}?ids=${batch.join(',')}&format=png&scale=1`,
-          { headers: figmaHeaders() }
+          { headers: figmaHeaders(), signal: AbortSignal.timeout(15000) }
         )
         if (imgRes.ok) {
           const imgData = await imgRes.json() as { images?: Record<string, string> }
-          Object.assign(thumbnails, imgData.images ?? {})
+          // Normalize: store with both : and - so lookup always works
+          for (const [k, v] of Object.entries(imgData.images ?? {})) {
+            thumbnails[k] = v
+            thumbnails[k.replace(/-/g, ':')] = v
+            thumbnails[k.replace(/:/g, '-')] = v
+          }
         }
-      } catch { /* thumbnails optional */ }
+      } catch { /* thumbnails optional — don't fail import */ }
     }
 
-    // Normalize thumbnail keys (Figma may return with : or -)
-    const normalizedThumbnails: Record<string, string> = {}
-    for (const [k, v] of Object.entries(thumbnails)) {
-      normalizedThumbnails[k.replace(/-/g, ':')] = v
-      normalizedThumbnails[k.replace(/:/g, '-')] = v
-      normalizedThumbnails[k] = v
-    }
-
-    // ── 4. AI batch analysis (optional) ───────────────────────────────────
+    // ── 4. AI batch analysis ───────────────────────────────────────────────
     const aiContext: Record<string, FrameAIContext> = {}
 
-    if (analyzeWithAI && allFrameIds.length <= 80) {
+    if (analyzeWithAI && allFrameIds.length <= 100) {
       try {
-        const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+        const apiKey = process.env.ANTHROPIC_API_KEY
+        if (apiKey) {
+          const client = new Anthropic({ apiKey })
 
-        // Build a summary of all frames for the AI to analyze in one shot
-        const frameList = pages.flatMap(p =>
-          p.frames.map(f => `- Page "${p.name}" > Frame "${f.name}" (id: ${f.nodeId})`)
-        ).join('\n')
+          const frameList = pages.flatMap(p =>
+            p.frames.map(f => `Page "${p.name}" > Frame "${f.name}" [${f.nodeId}]`)
+          ).join('\n')
 
-        const prompt = `You are analyzing a Figma design file to understand its structure and generate semantic context for each screen.
+          const msg = await client.messages.create({
+            model:      process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
+            max_tokens: 4000,
+            messages: [{
+              role: 'user',
+              content: `Analyze this Figma file structure and return semantic context for each frame.
 
 File: "${fileName}"
-Pages and frames:
+Frames (Page > Frame [nodeId]):
 ${frameList}
 
-For EACH frame listed, return a JSON object where keys are the frame IDs and values have this shape:
+Return ONLY a JSON object. Keys are the nodeIds in brackets above. Values:
 {
-  "purpose": "one sentence describing what this screen does",
-  "userIntent": "one sentence describing why a user navigates here",
-  "route": "suggested Next.js route like /dashboard or /auth/login",
-  "layoutPattern": "one of: hero, form, list, dashboard, detail, landing, auth, settings, checkout, empty-state, onboarding",
-  "notes": "brief architecture notes (1-2 sentences max)"
+  "purpose": "one sentence: what this screen does",
+  "userIntent": "one sentence: why user comes here",
+  "route": "Next.js route suggestion like /dashboard or /auth/login",
+  "layoutPattern": "hero|form|list|dashboard|detail|landing|auth|settings|checkout|empty-state|onboarding",
+  "notes": "1 sentence architecture note or empty string"
 }
 
-Infer from page names and frame names. Be concise. Return ONLY the JSON object, no fences.`
+Infer from page and frame names. Return ONLY the JSON, no fences.`,
+            }],
+          })
 
-        const message = await client.messages.create({
-          model: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
-          max_tokens: 4000,
-          messages: [{ role: 'user', content: prompt }],
-        })
+          const raw = msg.content
+            .filter((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
+            .map(b => b.text).join('')
 
-        const rawText = message.content
-          .filter((b): b is Anthropic.Messages.TextBlock => b.type === 'text')
-          .map(b => b.text)
-          .join('')
-
-        let parsed: Record<string, FrameAIContext> | null = null
-        try {
-          parsed = JSON.parse(rawText)
-        } catch {
-          const match = rawText.match(/\{[\s\S]*\}/)
-          if (match) { try { parsed = JSON.parse(match[0]) } catch { /* ok */ } }
+          let parsed: Record<string, FrameAIContext> | null = null
+          try { parsed = JSON.parse(raw) } catch {
+            const m = raw.match(/\{[\s\S]*\}/)
+            if (m) { try { parsed = JSON.parse(m[0]) } catch { /* ok */ } }
+          }
+          if (parsed) Object.assign(aiContext, parsed)
         }
-
-        if (parsed) Object.assign(aiContext, parsed)
       } catch (aiErr) {
-        console.warn('[figma-import] AI analysis failed (non-fatal):', aiErr)
+        console.warn('[figma-import] AI analysis skipped:', aiErr)
       }
     }
 
@@ -210,29 +197,22 @@ Infer from page names and frame names. Be concise. Return ONLY the JSON object, 
       for (const frame of page.frames) {
         if (!aiContext[frame.nodeId]) {
           aiContext[frame.nodeId] = {
-            purpose:      `${frame.name} screen`,
-            userIntent:   `User navigates to ${frame.name}`,
-            route:        slugRoute(page.name, frame.name),
+            purpose:       `${frame.name} screen`,
+            userIntent:    `User navigates to ${frame.name}`,
+            route:         slugRoute(page.name, frame.name),
             layoutPattern: 'landing',
-            notes:        '',
+            notes:         '',
           }
         }
       }
     }
 
-    const result: ImportResult = {
-      fileKey,
-      fileName,
-      pages,
-      totalFrames,
-      thumbnails: normalizedThumbnails,
-      aiContext,
-    }
-
+    const result: ImportResult = { fileKey, fileName, pages, totalFrames, thumbnails, aiContext }
     return Response.json(result)
 
   } catch (err) {
-    console.error('[figma-import]', err)
-    return Response.json({ error: 'Internal error' }, { status: 500 })
+    console.error('[figma-import] unexpected error:', err)
+    const msg = err instanceof Error ? err.message : 'Erro interno'
+    return Response.json({ error: msg }, { status: 500 })
   }
 }
