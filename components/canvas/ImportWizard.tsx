@@ -388,6 +388,9 @@ export function ImportWizard({ onClose }: Props) {
                               {/* Info */}
                               <div className="px-2.5 py-2">
                                 <div className="text-[11px] font-semibold text-gray-800 truncate">{frame.name}</div>
+                                {frame.sectionName && (
+                                  <div className="text-[9px] text-gray-400 truncate">§ {frame.sectionName}</div>
+                                )}
                                 {ai?.route && (
                                   <div className="text-[10px] font-mono text-gray-400 truncate">{ai.route}</div>
                                 )}
