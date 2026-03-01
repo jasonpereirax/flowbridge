@@ -1,5 +1,6 @@
 'use client'
 
+import { useCallback } from 'react'
 import { useStore } from '@/lib/store'
 import { cn } from '@/utils'
 import type { MacroNode as MacroNodeType } from '@/types'
@@ -11,21 +12,29 @@ interface MacroNodeCardProps {
   isSelected?: boolean
 }
 
-// Interaction (drag, single-click select, double-click open) is handled
-// by useCanvasInteraction via pointer events on the parent canvas element.
-// Do NOT add onDoubleClick here — it conflicts with pointer capture.
+// MacroNodeCard is now a pure display component.
+// All interaction (drag, click, conn drag) is handled by useCanvasInteraction
+// on the parent canvas element via pointer capture + data attributes.
 export function MacroNodeCard({ node, isSelected }: MacroNodeCardProps) {
-  const store     = useStore()
-  const isDS      = node.type === 'ds'
+  const store = useStore()
+
   const canvas    = store.canvasData[store.curProjectId!]
   const connCount = canvas?.conns.filter(c => c.fromId === node.id || c.toId === node.id).length ?? 0
-  const flows     = canvas?.flows[node.id] ?? []
+  const isDS      = node.type === 'ds'
+
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (isDS) return
+    store.openJourney(node.id)
+    const flows = store.canvasData[store.curProjectId!]?.flows[node.id] ?? []
+    if (flows[0]) store.setActiveFlow(node.id, flows[0].id)
+  }, [isDS, node.id, store])
 
   return (
     <div
       className={cn(
         'absolute bg-surface rounded-[10px] border select-none cursor-grab active:cursor-grabbing',
-        'transition-shadow duration-150 node-enter',
+        'transition-shadow duration-150',
         isSelected
           ? 'border-brand-blue ring-2 ring-brand-blue/20 shadow-[0_4px_16px_rgba(0,0,0,.12)]'
           : 'border-border hover:border-border-strong hover:shadow-[0_4px_12px_rgba(0,0,0,.08)]',
@@ -33,6 +42,7 @@ export function MacroNodeCard({ node, isSelected }: MacroNodeCardProps) {
       style={{ left: node.position.x, top: node.position.y, width: MACRO_NODE_W }}
       data-node
       data-macro-id={node.id}
+      onDoubleClick={handleDoubleClick}
       tabIndex={0}
     >
       {/* ── Header ── */}
@@ -48,7 +58,7 @@ export function MacroNodeCard({ node, isSelected }: MacroNodeCardProps) {
             {isDS ? 'Design System' : 'Journey'}
           </span>
 
-          {/* DS: drag handle to connect */}
+          {/* Connector handle — DS only. data-conn-handle triggers conn drag in useCanvasInteraction */}
           {isDS && (
             <div
               data-conn-handle
@@ -62,9 +72,8 @@ export function MacroNodeCard({ node, isSelected }: MacroNodeCardProps) {
             />
           )}
 
-          {/* Journey: double-click hint */}
           {!isDS && (
-            <span className="text-[9px] text-text-3 font-mono select-none">↩ dbl-click</span>
+            <span className="text-[9px] text-text-3 font-mono select-none">↩ open</span>
           )}
         </div>
 
@@ -81,22 +90,7 @@ export function MacroNodeCard({ node, isSelected }: MacroNodeCardProps) {
           </p>
         )}
 
-        {/* Journey: show flow count as tags */}
-        {!isDS && flows.length > 0 && (
-          <div className="flex flex-wrap gap-[4px] mb-[8px]">
-            {flows.slice(0, 3).map(f => (
-              <span key={f.id} className="inline-flex px-[6px] py-[1.5px] rounded-full text-[10px] font-medium bg-bg text-text-2 border border-border">
-                {f.name}
-              </span>
-            ))}
-            {flows.length > 3 && (
-              <span className="text-[10px] text-text-3 px-[4px] py-[1.5px]">+{flows.length - 3}</span>
-            )}
-          </div>
-        )}
-
-        {/* DS: show component tags */}
-        {isDS && node.tags.length > 0 && (
+        {node.tags.length > 0 && (
           <div className="flex flex-wrap gap-[4px] mb-[8px]">
             {node.tags.slice(0, 4).map(tag => (
               <span key={tag} className="inline-flex px-[6px] py-[1.5px] rounded-full text-[10px] font-medium bg-bg text-text-2 border border-border">
@@ -111,29 +105,12 @@ export function MacroNodeCard({ node, isSelected }: MacroNodeCardProps) {
 
         <div className="flex items-center justify-between pt-[8px] border-t border-border">
           <span className="text-[10px] text-text-3 font-mono tabular-nums">
-            {isDS
-              ? `${connCount} conn${connCount !== 1 ? 's' : ''}`
-              : `${flows.length} flow${flows.length !== 1 ? 's' : ''}`
-            }
+            {connCount} conn{connCount !== 1 ? 's' : ''}
           </span>
-          {/* Status dot for journeys */}
-          {!isDS && node.status && (
-            <span className={cn(
-              'text-[8.5px] font-semibold uppercase tracking-[.06em] font-mono px-[5px] py-[1px] rounded-full',
-              node.status === 'draft'       ? 'bg-bg text-text-3 border border-border' :
-              node.status === 'in-progress' ? 'bg-yellow-50 text-yellow-600' :
-              node.status === 'ready'       ? 'bg-green-50 text-green-600' :
-              'bg-blue-50 text-brand-blue',
-            )}>
-              {node.status}
-            </span>
-          )}
-          {isDS && (
-            <div className={cn(
-              'w-[6px] h-[6px] rounded-full flex-shrink-0',
-              connCount > 0 ? 'bg-brand-purple' : 'bg-border-strong',
-            )} />
-          )}
+          <div className={cn(
+            'w-[6px] h-[6px] rounded-full flex-shrink-0',
+            connCount > 0 ? (isDS ? 'bg-brand-purple' : 'bg-brand-blue') : 'bg-border-strong',
+          )} />
         </div>
       </div>
     </div>
