@@ -3,8 +3,8 @@
 import { useState, useCallback } from 'react'
 import { X, Link2, Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronRight, Wand2, FileStack, Layers } from 'lucide-react'
 import { useStore } from '@/lib/store'
-import { cn, uid, now, makeNode, makeFlow, makeScreen, parseFigmaUrl } from '@/utils'
-import type { ImportResult, ImportedPage } from '@/app/api/figma-import/route'
+import { cn, now, makeNode, makeFlow, makeScreen, parseFigmaUrl } from '@/utils'
+import type { ImportResult } from '@/app/api/figma-import/route'
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -92,8 +92,7 @@ export function ImportWizard({ onClose }: Props) {
 
     // Layout journeys in a cascade
     const JOURNEY_W = 220
-    const JOURNEY_H = 140
-    const GAP_X = 60
+      const GAP_X = 60
     const SCREEN_COLS = 4
     const SCREEN_W = 200
     const SCREEN_H = 160
@@ -449,7 +448,7 @@ export function ImportWizard({ onClose }: Props) {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 rounded-full bg-gray-400" />
-                  Use "Analisar tela" no RightPanel para enriquecer o contexto de cada screen
+                  Use &ldquo;Analisar tela&rdquo; no RightPanel para enriquecer o contexto de cada screen
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 rounded-full bg-gray-400" />
