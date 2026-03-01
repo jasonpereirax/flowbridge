@@ -6,7 +6,7 @@ import { Maximize2, Zap, ChevronRight, FolderInput } from 'lucide-react'
 import { useStore, useTransform, useView } from '@/lib/store'
 import { useCanvasInteraction, ConnDragState } from '@/hooks/useCanvasInteraction'
 import { makeConn } from '@/utils'
-import type { MacroNode as MacroNodeType, Screen } from '@/types'
+import type { MacroNode as MacroNodeType, Flow } from '@/types'
 
 import { ConnectorLayer }  from '@/components/canvas/ConnectorLayer'
 import { MacroNodeCard }   from '@/components/nodes/MacroNode'
@@ -41,8 +41,9 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
     if (projectId !== store.curProjectId) store.openProject(projectId)
   }, [projectId, store])
 
-  const macroNodes  = (canvas?.nodes      ?? []) as MacroNodeType[]
-  const screenNodes = (activeFlow?.screens ?? []) as Screen[]
+  const macroNodes    = (canvas?.nodes ?? []) as MacroNodeType[]
+  // All flows of the current journey — used in micro view to show all flows at once
+  const journeyFlows  = (journey && canvas ? (canvas.flows[journey.id] ?? []) : []) as Flow[]
 
   // \u2500\u2500 Connector drag move \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   const onConnDragMove = useCallback((state: ConnDragState) => {
@@ -188,13 +189,57 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
                 />
               ))}
 
-              {view === 'micro' && screenNodes.map(screen => (
-                <ScreenNodeCard
-                  key={screen.id}
-                  screen={screen}
-                  isSelected={selScreenId === screen.id}
-                />
-              ))}
+              {/* ── Micro view: all flows rendered; screens use store positions (set by openJourney auto-layout) ── */}
+              {view === 'micro' && journeyFlows.map((flow) => {
+                // Flow label: positioned above the first screen in this flow
+                const firstScreen = flow.screens[0]
+                const labelX = firstScreen ? firstScreen.position.x : 0
+                const labelY = firstScreen ? firstScreen.position.y - 36 : 24
+
+                return (
+                  <div key={flow.id}>
+                    {/* Flow column label */}
+                    <div
+                      className={`absolute flex items-center gap-[6px] px-[10px] py-[4px] rounded-[7px] border cursor-pointer select-none transition-colors ${
+                        activeFlow?.id === flow.id
+                          ? 'bg-[#EFF6FF] border-[#BFDBFE] text-brand-blue'
+                          : 'bg-surface border-border text-text-2 hover:bg-bg hover:text-text-1'
+                      }`}
+                      style={{ left: labelX, top: labelY }}
+                      onClick={() => store.setActiveFlow(journey!.id, flow.id)}
+                    >
+                      <div className={`w-[6px] h-[6px] rounded-full flex-shrink-0 ${activeFlow?.id === flow.id ? 'bg-brand-blue' : 'bg-text-3'}`} />
+                      <span className="text-[11.5px] font-semibold whitespace-nowrap">{flow.name}</span>
+                      <span className="text-[10px] font-mono opacity-50">{flow.screens.length}s</span>
+                    </div>
+
+                    {/* Screens — ScreenNodeCard self-positions via screen.position.x/y */}
+                    {flow.screens.map((screen) => (
+                      <ScreenNodeCard
+                        key={screen.id}
+                        screen={screen}
+                        isSelected={selScreenId === screen.id}
+                      />
+                    ))}
+
+                    {/* Empty flow placeholder */}
+                    {flow.screens.length === 0 && (
+                      <div
+                        className="absolute rounded-[10px] border border-dashed border-border flex items-center justify-center"
+                        style={{ left: labelX, top: labelY + 36, width: 180, height: 80 }}
+                      >
+                        <span className="text-[11px] text-text-3 font-mono">no screens</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              {view === 'micro' && journeyFlows.length === 0 && (
+                <div className="absolute flex flex-col items-center gap-[8px] text-center select-none" style={{ left: '50%', top: '42%', transform: 'translate(-50%,-50%)' }}>
+                  <div className="text-[13px] text-text-3">No flows in this journey</div>
+                  <div className="text-[11px] font-mono text-text-3 bg-surface border border-border px-[10px] py-[4px] rounded-[6px]">use the + button</div>
+                </div>
+              )}
 
               {view === 'macro' && macroNodes.length === 0 && (
                 <div className="absolute flex flex-col items-center gap-[8px] text-center select-none" style={{ left: '50%', top: '42%', transform: 'translate(-50%,-50%)' }}>
@@ -202,16 +247,11 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
                   <div className="text-[11px] font-mono text-text-3 bg-surface border border-border px-[10px] py-[4px] rounded-[6px]">use the + button</div>
                 </div>
               )}
-
-              {view === 'micro' && activeFlow && screenNodes.length === 0 && (
-                <div className="absolute flex flex-col items-center gap-[8px] text-center select-none" style={{ left: '50%', top: '42%', transform: 'translate(-50%,-50%)' }}>
-                  <div className="text-[13px] text-text-3">No screens in this flow</div>
-                  <div className="text-[11px] font-mono text-text-3 bg-surface border border-border px-[10px] py-[4px] rounded-[6px]">use the + button</div>
-                </div>
-              )}
             </div>
           </div>
         </div>
+
+
       </div>
 
       <RightPanel />
