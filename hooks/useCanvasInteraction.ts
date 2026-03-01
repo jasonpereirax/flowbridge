@@ -212,9 +212,11 @@ export function useCanvasInteraction(
       if (dx < DRAG_THRESHOLD && dy < DRAG_THRESHOLD) {
         if (nodeDrag.current.kind === 'screen') {
           store.selectScreen(nodeDrag.current.id)
+          store.openRpanel()
           store.setRpTab('context')
         } else {
           store.selectNode(nodeDrag.current.id)
+          store.openRpanel()
         }
       }
       nodeDrag.current = null
@@ -271,6 +273,22 @@ export function useCanvasInteraction(
     if (e.key === '0' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); s.fitView() }
   }, [])
 
+
+  // ── Double-click — open journey (macro view) ──────────────────────────────
+  const onDblClick = useCallback((e: MouseEvent) => {
+    const target = e.target as HTMLElement
+    const nodeEl = target.closest('[data-macro-id]') as HTMLElement | null
+    if (!nodeEl) return
+    const id = nodeEl.dataset.macroId
+    if (!id) return
+    const node = useStore.getState().canvas()?.nodes.find(n => n.id === id)
+    if (!node || node.type !== 'journey') return
+    e.stopPropagation()
+    store.openJourney(id)
+    const flows = useStore.getState().canvas()?.flows[id] ?? []
+    if (flows[0]) store.setActiveFlow(id, flows[0].id)
+  }, [store])
+
   // ── Register on canvas element (not window) ────────────────────────────────
   // All pointer events are captured on the canvas element via setPointerCapture,
   // so we never need window listeners. This avoids conflicts with other handlers.
@@ -281,6 +299,7 @@ export function useCanvasInteraction(
     el.addEventListener('pointerdown', onPointerDown)
     el.addEventListener('pointermove', onPointerMove)
     el.addEventListener('pointerup',   onPointerUp)
+    el.addEventListener('dblclick',    onDblClick)
     el.addEventListener('wheel',       onWheel, { passive: false })
     window.addEventListener('keydown', onKeyDown)
 
@@ -288,10 +307,11 @@ export function useCanvasInteraction(
       el.removeEventListener('pointerdown', onPointerDown)
       el.removeEventListener('pointermove', onPointerMove)
       el.removeEventListener('pointerup',   onPointerUp)
+      el.removeEventListener('dblclick',    onDblClick)
       el.removeEventListener('wheel',       onWheel)
       window.removeEventListener('keydown', onKeyDown)
     }
-  }, [onPointerDown, onPointerMove, onPointerUp, onWheel, onKeyDown, canvasRef])
+  }, [onPointerDown, onPointerMove, onPointerUp, onDblClick, onWheel, onKeyDown, canvasRef])
 
   return {
     startReconnect: useCallback(
