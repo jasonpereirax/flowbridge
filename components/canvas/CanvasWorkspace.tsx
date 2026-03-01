@@ -2,15 +2,18 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Maximize2, Zap, ChevronRight } from 'lucide-react'
+import { Maximize2, Zap, ChevronRight, FolderInput } from 'lucide-react'
 import { useStore, useTransform, useView } from '@/lib/store'
 import { useCanvasInteraction, ConnDragState } from '@/hooks/useCanvasInteraction'
 import { makeConn } from '@/utils'
 
 import { ConnectorLayer }  from '@/components/canvas/ConnectorLayer'
+import { ImportWizard }    from '@/components/canvas/ImportWizard'
 import { MacroNodeCard }   from '@/components/nodes/MacroNode'
 import { ScreenNodeCard }  from '@/components/nodes/ScreenNode'
+import { Ibar }            from '@/components/sidebar/Ibar'
 import { Ebar }            from '@/components/sidebar/Ebar'
+import { FlowPanel }       from '@/components/panels/FlowPanel'
 import { RightPanel }      from '@/components/panels/RightPanel'
 import { FAB }             from '@/components/ui/FAB'
 
@@ -22,16 +25,18 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
   const view      = useView()
   const project   = store.projects.find(p => p.id === projectId)
 
-  const canvas      = useStore(s => s.canvas())
-  const journey     = useStore(s => s.journey())
-  const activeFlow  = useStore(s => s.activeFlow())
-  const selConnId   = useStore(s => s.selConnId)
-  const selNodeId   = useStore(s => s.selNodeId)
+  const canvas     = useStore(s => s.canvas())
+  const journey    = useStore(s => s.journey())
+  const activeFlow = useStore(s => s.activeFlow())
+  const selConnId  = useStore(s => s.selConnId)
+  const selNodeId  = useStore(s => s.selNodeId)
   const selScreenId = useStore(s => s.selScreenId)
 
+  // pendingConn drives the live connector line while dragging
   const [pendingConn, setPendingConn] = useState<{
     x1: number; y1: number; x2: number; y2: number
   } | null>(null)
+  const [showImportWizard, setShowImportWizard] = useState(false)
 
   useEffect(() => {
     if (projectId !== store.curProjectId) store.openProject(projectId)
@@ -40,58 +45,27 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
   const macroNodes  = canvas?.nodes      ?? []
   const screenNodes = activeFlow?.screens ?? []
 
+  // ── Connector drag callbacks ──────────────────────────────────────────────
   const onConnDragMove = useCallback((state: ConnDragState) => {
     setPendingConn({ x1: state.x1, y1: state.y1, x2: state.x2, y2: state.y2 })
   }, [])
 
-  const onConnDragEnd = useCallback((
-    fromId: string,
-    toId: string | null,
-    reconnectConnId?: string,
-  ) => {
+  const onConnDragEnd = useCallback((fromId: string, toId: string | null) => {
     setPendingConn(null)
+    // Only create conns in macro view — micro view has no macro nodes to connect
     if (useStore.getState().view !== 'macro') return
     if (!toId || fromId === toId || !store.curProjectId) return
-
-    const s     = useStore.getState()
-    const nodes = s.canvas()?.nodes ?? []
-
-    // Delete original conn first if this was a reconnect
-    if (reconnectConnId) s.deleteConn(reconnectConnId)
-
-    // Enforce DS → Journey direction regardless of drag direction
-    const nodeA = nodes.find(n => n.id === fromId)
-    const nodeB = nodes.find(n => n.id === toId)
-    if (!nodeA || !nodeB) return
-
-    const dsId      = nodeA.type === 'ds' ? nodeA.id : nodeB.id
-    const journeyId = nodeA.type === 'ds' ? nodeB.id : nodeA.id
-    const dsNode    = nodes.find(n => n.id === dsId)
-    const jNode     = nodes.find(n => n.id === journeyId)
-    if (!dsNode || dsNode.type !== 'ds')      return
-    if (!jNode  || jNode.type  !== 'journey') return
-
-    if (!s.connExists(dsId, journeyId)) {
-      s.addConn(makeConn(dsId, journeyId, store.curProjectId))
+    const s = useStore.getState()
+    if (!s.connExists(fromId, toId)) {
+      s.addConn(makeConn(fromId, toId, store.curProjectId))
     }
   }, [store.curProjectId])
 
-  const { startReconnect } = useCanvasInteraction(
+  useCanvasInteraction(
     canvasRef as React.RefObject<HTMLDivElement>,
     onConnDragMove,
     onConnDragEnd,
   )
-
-  // Reconnect handler — called from ConnectorLayer with the real pointerId
-  const handleReconnectStart = useCallback((
-    connId: string,
-    endpoint: 'from' | 'to',
-    x: number,
-    y: number,
-    pointerId: number,
-  ) => {
-    startReconnect(connId, endpoint, x, y, pointerId)
-  }, [startReconnect])
 
   if (!project) {
     return (
@@ -106,10 +80,14 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg">
+      <Ibar />
       <Ebar />
 
       <div className="flex flex-col flex-1 min-w-0">
-        <header className="h-[46px] bg-surface border-b border-border flex items-center justify-between z-30 flex-shrink-0 px-[16px] gap-[8px]">
+
+        {/* ── Header ── */}
+        <header className="h-[46px] bg-surface border-b border-border flex items-center justify-between z-30 flex-shrink-0 px-[12px] gap-[8px]">
+
           <nav className="flex items-center gap-[2px] min-w-0">
             <button
               onClick={() => store.goMacro()}
@@ -138,56 +116,96 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
             )}
           </nav>
 
+          <div className="flex items-center gap-[1px] bg-bg border border-border rounded-[8px] p-[2px] flex-shrink-0">
+            <button
+              onClick={() => store.goMacro()}
+              className={view === 'macro'
+                ? 'px-[8px] py-[3px] rounded-[6px] text-[11px] font-medium bg-surface shadow-sm text-text-1 transition-all'
+                : 'px-[8px] py-[3px] rounded-[6px] text-[11px] font-medium text-text-3 hover:text-text-2 transition-all'}
+            >
+              Canvas
+            </button>
+            <button
+              className={view === 'micro'
+                ? 'px-[8px] py-[3px] rounded-[6px] text-[11px] font-medium bg-surface shadow-sm text-text-1 transition-all'
+                : 'px-[8px] py-[3px] rounded-[6px] text-[11px] font-medium text-text-3 cursor-default transition-all'}
+            >
+              Flow
+            </button>
+          </div>
+
           <button className="flex items-center gap-[5px] px-[12px] h-[30px] bg-text-1 text-white text-[12px] font-medium rounded-[7px] hover:bg-neutral-800 active:scale-[.97] transition-all shadow-sm flex-shrink-0 group">
             <Zap size={11} className="group-hover:text-yellow-300 transition-colors" />
             Generate
           </button>
+          {view === 'macro' && (
+            <button
+              onClick={() => setShowImportWizard(true)}
+              className="flex items-center gap-[5px] px-[10px] h-[30px] border border-border text-text-2 text-[12px] font-medium rounded-[7px] hover:bg-bg hover:text-text-1 active:scale-[.97] transition-all flex-shrink-0"
+              title="Importar arquivo Figma"
+            >
+              <FolderInput size={11} />
+              Importar
+            </button>
+          )}
         </header>
 
-        <div className="flex-1 relative">
-          <div
-            ref={canvasRef}
-            data-canvas
-            className="canvas-root canvas-dots absolute inset-0 overflow-hidden cursor-grab active:cursor-grabbing"
-          >
+        {/* ── Canvas area ── */}
+        <div className="flex flex-1 overflow-hidden">
+          {view === 'micro' && <FlowPanel />}
+
+          <div className="flex-1 relative">
             <div
-              className="absolute top-0 left-0 origin-top-left"
-              style={{
-                transform: `translate(${transform.x}px,${transform.y}px) scale(${transform.scale})`,
-                width: 8000, height: 8000,
-              }}
+              ref={canvasRef}
+              data-canvas
+              className="canvas-root canvas-dots absolute inset-0 overflow-hidden cursor-grab active:cursor-grabbing"
             >
-              <ConnectorLayer
-                nodes={macroNodes}
-                conns={view === 'macro' ? (canvas?.conns ?? []) : []}
-                pendingConn={view === 'macro' ? pendingConn : null}
-                selectedConnId={selConnId}
-                onConnSelect={id => store.selectConn(id)}
-                onConnDelete={id => store.deleteConn(id)}
-                onReconnectStart={handleReconnectStart}
-              />
+              <div
+                className="absolute top-0 left-0 origin-top-left"
+                style={{
+                  transform: `translate(${transform.x}px,${transform.y}px) scale(${transform.scale})`,
+                  width: 8000, height: 8000,
+                }}
+              >
+                <ConnectorLayer
+                  nodes={macroNodes}
+                  conns={view === 'macro' ? (canvas?.conns ?? []) : []}
+                  pendingConn={view === 'macro' ? pendingConn : null}
+                  selectedConnId={selConnId}
+                  onConnSelect={id => store.selectConn(id)}
+                  onConnDelete={id => store.deleteConn(id)}
+                />
 
-              {view === 'macro' && macroNodes.map(node => (
-                <MacroNodeCard key={node.id} node={node} isSelected={selNodeId === node.id} />
-              ))}
+                {view === 'macro' && macroNodes.map(node => (
+                  <MacroNodeCard
+                    key={node.id}
+                    node={node}
+                    isSelected={selNodeId === node.id}
+                  />
+                ))}
 
-              {view === 'micro' && screenNodes.map(screen => (
-                <ScreenNodeCard key={screen.id} screen={screen} isSelected={selScreenId === screen.id} />
-              ))}
+                {view === 'micro' && screenNodes.map(screen => (
+                  <ScreenNodeCard
+                    key={screen.id}
+                    screen={screen}
+                    isSelected={selScreenId === screen.id}
+                  />
+                ))}
 
-              {view === 'macro' && macroNodes.length === 0 && (
-                <div className="absolute flex flex-col items-center gap-[8px] text-center select-none" style={{ left: '50%', top: '42%', transform: 'translate(-50%,-50%)' }}>
-                  <div className="text-[13px] text-text-3">Add a DS and a Journey to start</div>
-                  <div className="text-[11px] font-mono text-text-3 bg-surface border border-border px-[10px] py-[4px] rounded-[6px]">use the + button</div>
-                </div>
-              )}
+                {view === 'macro' && macroNodes.length === 0 && (
+                  <div className="absolute flex flex-col items-center gap-[8px] text-center select-none" style={{ left: '50%', top: '42%', transform: 'translate(-50%,-50%)' }}>
+                    <div className="text-[13px] text-text-3">Add a DS and a Journey to start</div>
+                    <div className="text-[11px] font-mono text-text-3 bg-surface border border-border px-[10px] py-[4px] rounded-[6px]">use the + button</div>
+                  </div>
+                )}
 
-              {view === 'micro' && activeFlow && screenNodes.length === 0 && (
-                <div className="absolute flex flex-col items-center gap-[8px] text-center select-none" style={{ left: '50%', top: '42%', transform: 'translate(-50%,-50%)' }}>
-                  <div className="text-[13px] text-text-3">No screens in this flow</div>
-                  <div className="text-[11px] font-mono text-text-3 bg-surface border border-border px-[10px] py-[4px] rounded-[6px]">use the + button</div>
-                </div>
-              )}
+                {view === 'micro' && activeFlow && screenNodes.length === 0 && (
+                  <div className="absolute flex flex-col items-center gap-[8px] text-center select-none" style={{ left: '50%', top: '42%', transform: 'translate(-50%,-50%)' }}>
+                    <div className="text-[13px] text-text-3">No screens in this flow</div>
+                    <div className="text-[11px] font-mono text-text-3 bg-surface border border-border px-[10px] py-[4px] rounded-[6px]">use the + button</div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -195,6 +213,12 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
 
       <RightPanel />
 
+      {/* Import Wizard */}
+      {showImportWizard && (
+        <ImportWizard onClose={() => setShowImportWizard(false)} />
+      )}
+
+      {/* Zoom bar */}
       <div className="fixed bottom-4 right-4 bg-surface border border-border rounded-[9px] shadow-md flex items-center overflow-hidden z-40">
         <button onClick={() => store.setTransform({ scale: Math.max(0.15, transform.scale - 0.15) })} className="w-8 h-8 flex items-center justify-center text-text-2 hover:bg-bg hover:text-text-1 transition-colors text-[16px] leading-none select-none">−</button>
         <button onClick={() => store.setTransform({ scale: 1 })} className="text-[11px] font-mono text-text-2 hover:text-text-1 px-2 hover:bg-bg transition-colors h-8 min-w-[44px] text-center tabular-nums">{Math.round(transform.scale * 100)}%</button>
