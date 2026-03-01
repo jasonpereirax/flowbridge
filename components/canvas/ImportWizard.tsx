@@ -88,48 +88,35 @@ export function ImportWizard({ onClose }: Props) {
     setStep('importing')
     setProgress({ step: 0, total: totalFrames, label: 'Criando estrutura…' })
 
-    const created: { journeyId: string }[] = []
-
-    // Layout journeys in a cascade
-    const JOURNEY_W = 220
-      const GAP_X = 60
     const SCREEN_COLS = 4
     const SCREEN_W = 200
     const SCREEN_H = 160
     const SCREEN_GAP_X = 24
     const SCREEN_GAP_Y = 24
-
-    let journeyX = 60
-    const journeyY = 80
-
     let framesDone = 0
 
-    for (const page of selectedPages) {
-      setProgress({ step: framesDone, total: totalFrames, label: `Importando página "${page.name}"…` })
+    // ── 1 Journey (file name) + N Flows (pages) + M Screens (frames) ──────
+    const journey = makeNode({
+      projectId,
+      type:     'journey',
+      name:     result.fileName,
+      position: { x: 120, y: 80 },
+    })
+    store.addNode(journey)
 
-      // Create journey node for this page
-      const journey = makeNode({
-        projectId,
-        type:    'journey',
-        name:    page.name,
-        position: { x: journeyX, y: journeyY },
-      })
-      store.addNode(journey)
+    for (const [pageIdx, page] of selectedPages.entries()) {
+      setProgress({ step: framesDone, total: totalFrames, label: `Importando "${page.name}"…` })
 
-      // Create one flow per page
+      // Each Figma page → one Flow
       const flow = makeFlow({
         journeyId: journey.id,
         projectId,
         name:  page.name,
-        order: 0,
+        order: pageIdx,
       })
       store.addFlow(journey.id, flow)
 
-      // Create screens for each frame in this page
-      const rows = Math.ceil(page.frames.length / SCREEN_COLS)
-      const microH = rows * (SCREEN_H + SCREEN_GAP_Y)
-
-      // Position screens in a grid
+      // Each Figma frame → one Screen, arranged in a grid
       for (let i = 0; i < page.frames.length; i++) {
         const frame   = page.frames[i]
         const col     = i % SCREEN_COLS
@@ -137,7 +124,7 @@ export function ImportWizard({ onClose }: Props) {
         const screenX = col * (SCREEN_W + SCREEN_GAP_X) + 60
         const screenY = row * (SCREEN_H + SCREEN_GAP_Y) + 60
 
-        const ai   = result.aiContext[frame.nodeId] ?? result.aiContext[frame.nodeId.replace(/:/g, '-')]
+        const ai    = result.aiContext[frame.nodeId] ?? result.aiContext[frame.nodeId.replace(/:/g, '-')]
         const thumb = result.thumbnails[frame.nodeId] ?? result.thumbnails[frame.nodeId.replace(/:/g, '-')]
 
         const screen = makeScreen({
@@ -157,35 +144,24 @@ export function ImportWizard({ onClose }: Props) {
             notes:        ai?.notes        ?? '',
             genRules:     '',
           },
-          figma: thumb
-            ? {
-                url:          url.trim(),
-                nodeId:       frame.nodeId,
-                fileKey:      result.fileKey,
-                thumbnailUrl: thumb,
-                componentMap: [],
-                fetchedAt:    now(),
-              }
-            : undefined,
+          figma: {
+            url:          url.trim(),
+            nodeId:       frame.nodeId,
+            fileKey:      result.fileKey,
+            thumbnailUrl: thumb ?? '',
+            componentMap: [],
+            fetchedAt:    now(),
+          },
         })
 
         store.addScreen(journey.id, flow.id, screen)
         framesDone++
         setProgress({ step: framesDone, total: totalFrames, label: `${framesDone}/${totalFrames} screens criadas…` })
-
-        // Tiny yield to allow UI update
-        await new Promise(r => setTimeout(r, 8))
+        await new Promise(r => setTimeout(r, 6))
       }
-
-      created.push({ journeyId: journey.id })
-
-      // Advance X for next journey block
-      const blockW = Math.max(JOURNEY_W, SCREEN_COLS * (SCREEN_W + SCREEN_GAP_X))
-      journeyX += blockW + GAP_X + 80
-      void microH // used implicitly for layout planning
     }
 
-    setImportedIds(created)
+    setImportedIds([{ journeyId: journey.id }])
     setStep('done')
   }, [result, pageToggle, store, url])
 
@@ -279,11 +255,11 @@ export function ImportWizard({ onClose }: Props) {
                 <ul className="space-y-1.5 text-xs text-purple-600">
                   <li className="flex items-center gap-2">
                     <div className="w-1 h-1 rounded-full bg-purple-400" />
-                    Cada página do Figma → um Journey node no canvas
+                    Arquivo Figma → 1 Journey node no canvas
                   </li>
                   <li className="flex items-center gap-2">
                     <div className="w-1 h-1 rounded-full bg-purple-400" />
-                    Cada frame top-level → uma Screen com thumbnail
+                    Cada página do Figma → um Flow dentro do Journey
                   </li>
                   <li className="flex items-center gap-2">
                     <div className="w-1 h-1 rounded-full bg-purple-400" />
@@ -301,7 +277,7 @@ export function ImportWizard({ onClose }: Props) {
               <div className="px-6 py-3 bg-gray-50 flex items-center justify-between">
                 <div className="flex items-center gap-4 text-xs text-gray-500">
                   <span>
-                    <span className="font-bold text-gray-800">{result.pages.length}</span> páginas
+                    <span className="font-bold text-gray-800">{result.pages.length}</span> flows
                   </span>
                   <span>
                     <span className="font-bold text-gray-800">{result.totalFrames}</span> frames
@@ -345,7 +321,7 @@ export function ImportWizard({ onClose }: Props) {
                       <Layers size={13} className="text-purple-500 flex-shrink-0" />
                       <span className="text-sm font-semibold text-gray-800">{page.name}</span>
                       <span className="text-xs text-gray-400 ml-1">
-                        {page.frames.length} frames → 1 journey + 1 flow
+                        {page.frames.length} frame{page.frames.length !== 1 ? 's' : ''} → 1 flow
                       </span>
                     </button>
                   </div>
@@ -440,7 +416,7 @@ export function ImportWizard({ onClose }: Props) {
               <div className="text-center space-y-1">
                 <div className="text-[15px] font-semibold text-gray-800">Import concluído!</div>
                 <div className="text-xs text-gray-400">
-                  {importedIds.length} journey{importedIds.length !== 1 ? 's' : ''} criados com {selectedCount} screens
+                  Journey "{result?.fileName}" criado com {selectedCount} screens em {importedIds.length > 0 ? totalSelected : 0} flows
                 </div>
               </div>
               <div className="bg-gray-50 rounded-xl p-4 w-full text-xs text-gray-600 space-y-1.5">
@@ -500,7 +476,7 @@ export function ImportWizard({ onClose }: Props) {
               </button>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-400">
-                  {totalSelected} página{totalSelected !== 1 ? 's' : ''} • {selectedCount} screens
+                  {totalSelected} flow{totalSelected !== 1 ? 's' : ''} • {selectedCount} screens
                 </span>
                 <button
                   onClick={handleImport}
