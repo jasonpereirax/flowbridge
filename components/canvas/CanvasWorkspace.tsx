@@ -31,6 +31,27 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
   const selNodeId   = useStore(s => s.selNodeId)
   const selScreenId = useStore(s => s.selScreenId)
 
+  // ── Double-click on canvas → open journey ─────────────────────────────────
+  const handleCanvasDblClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    let el = e.target as HTMLElement | null
+    while (el && el !== e.currentTarget) {
+      if (el.dataset?.macroId) {
+        const journeyId = el.dataset.macroId
+        const state = useStore.getState()
+        const cvs   = state.canvasData[projectId]
+        if (!cvs) return
+        const node = cvs.nodes.find(n => n.id === journeyId)
+        if (!node || node.type !== 'journey') return
+        state.openJourney(journeyId)
+        const flows = cvs.flows[journeyId] ?? []
+        if (flows[0]) state.setActiveFlow(journeyId, flows[0].id)
+        return
+      }
+      el = el.parentElement
+    }
+  }, [projectId])
+
+
   const [pendingConn, setPendingConn] = useState<{
     x1: number; y1: number; x2: number; y2: number
   } | null>(null)
@@ -162,6 +183,7 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
             ref={canvasRef}
             data-canvas
             className="canvas-root canvas-dots absolute inset-0 overflow-hidden cursor-grab active:cursor-grabbing"
+            onDoubleClick={handleCanvasDblClick}
           >
             <div
               className="absolute top-0 left-0 origin-top-left"
