@@ -76,16 +76,16 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: 'FIGMA_ACCESS_TOKEN não configurado no servidor' }, { status: 500 })
     }
 
-    // ── 1. Fetch file with depth=2 (pages → sections/frames) ──────────────
-    // depth=2 needed so page.children is populated
-    // Some files have PAGE → SECTION → FRAME structure, not PAGE → FRAME directly
-    const fileUrl = `${FIGMA_BASE}/files/${fileKey}?depth=2&branch_data=false`
+    // ── 1. Fetch file with depth=3 ──────────────────────────────────────────
+    // depth=3 needed to see: document → pages → sections → frames
+    // Files with PAGE → SECTION → FRAME structure require at least depth=3
+    const fileUrl = `${FIGMA_BASE}/files/${fileKey}?depth=3&branch_data=false`
 
     let fileRes: Response
     try {
       fileRes = await fetch(fileUrl, {
         headers: figmaHeaders(),
-        signal: AbortSignal.timeout(25000),
+        signal: AbortSignal.timeout(40000),
       })
     } catch (fetchErr) {
       const msg = fetchErr instanceof Error ? fetchErr.message : 'timeout'
