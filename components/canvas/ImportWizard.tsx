@@ -416,7 +416,7 @@ export function ImportWizard({ onClose }: Props) {
               <div className="text-center space-y-1">
                 <div className="text-[15px] font-semibold text-gray-800">Import concluído!</div>
                 <div className="text-xs text-gray-400">
-                  Journey "{result?.fileName}" criado com {selectedCount} screens em {importedIds.length > 0 ? totalSelected : 0} flows
+                  Journey &ldquo;{result?.fileName}&rdquo; criado com {selectedCount} screens em {importedIds.length > 0 ? totalSelected : 0} flows
                 </div>
               </div>
               <div className="bg-gray-50 rounded-xl p-4 w-full text-xs text-gray-600 space-y-1.5">
