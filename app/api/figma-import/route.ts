@@ -28,7 +28,30 @@ interface FigmaPage {
 }
 
 function isTopLevelFrame(node: FigmaChild): boolean {
-  return node.type === 'FRAME' || node.type === 'COMPONENT' || node.type === 'SECTION'
+  return node.type === 'FRAME' || node.type === 'COMPONENT'
+}
+
+function isContainer(node: FigmaChild): boolean {
+  // SECTION and GROUP can contain frames but are not screens themselves
+  return node.type === 'SECTION' || node.type === 'GROUP'
+}
+
+// Recursively collect screens: frames inside PAGE, SECTION, or GROUP
+// Returns flat list of { frame, sectionName? }
+function collectFrames(
+  nodes: FigmaChild[],
+  sectionName?: string,
+): Array<{ frame: FigmaChild; sectionName?: string }> {
+  const result: Array<{ frame: FigmaChild; sectionName?: string }> = []
+  for (const node of nodes) {
+    if (isTopLevelFrame(node)) {
+      result.push({ frame: node, sectionName })
+    } else if (isContainer(node)) {
+      // Use section name as group label
+      result.push(...collectFrames(node.children ?? [], node.name))
+    }
+  }
+  return result
 }
 
 function slugRoute(pageName: string, frameName: string): string {
@@ -53,10 +76,10 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: 'FIGMA_ACCESS_TOKEN não configurado no servidor' }, { status: 500 })
     }
 
-    // ── 1. Fetch file with depth=1 (pages + top-level frames only) ──────────
-    // depth=1 returns pages with their direct children (frames) but not deeper nodes
-    // This keeps the payload small even for large files
-    const fileUrl = `${FIGMA_BASE}/files/${fileKey}?depth=1&branch_data=false`
+    // ── 1. Fetch file with depth=2 (pages → sections/frames) ──────────────
+    // depth=2 needed so page.children is populated
+    // Some files have PAGE → SECTION → FRAME structure, not PAGE → FRAME directly
+    const fileUrl = `${FIGMA_BASE}/files/${fileKey}?depth=2&branch_data=false`
 
     let fileRes: Response
     try {
@@ -93,18 +116,19 @@ export async function POST(req: NextRequest) {
     for (const [pageIdx, page] of rawPages.entries()) {
       if (page.type !== 'CANVAS') continue
 
-      const frames = (page.children ?? [])
-        .filter(isTopLevelFrame)
-        .map((frame, frameIdx) => {
-          allFrameIds.push(frame.id)
-          return {
-            nodeId:   frame.id,
-            name:     frame.name,
-            pageId:   page.id,
-            pageName: page.name,
-            order:    frameIdx,
-          }
-        })
+      const collected = collectFrames(page.children ?? [])
+
+      const frames = collected.map(({ frame, sectionName }, frameIdx) => {
+        allFrameIds.push(frame.id)
+        return {
+          nodeId:      frame.id,
+          name:        frame.name,
+          pageId:      page.id,
+          pageName:    page.name,
+          sectionName,   // carries section name for grouping (optional)
+          order:       frameIdx,
+        }
+      })
 
       if (frames.length > 0) {
         pages.push({ pageId: page.id, name: page.name, order: pageIdx, frames })
