@@ -271,20 +271,20 @@ export function useCanvasInteraction(
   }, [])
 
 
-  // ── Double-click — open journey (macro view) ──────────────────────────────
+  // ── Double-click — open journey ────────────────────────────────────────────
   const onDblClick = useCallback((e: MouseEvent) => {
     const target = e.target as HTMLElement
     const nodeEl = target.closest('[data-macro-id]') as HTMLElement | null
     if (!nodeEl) return
     const id = nodeEl.dataset.macroId
     if (!id) return
-    const node = useStore.getState().canvas()?.nodes.find(n => n.id === id)
+    const state = useStore.getState()
+    const node = state.canvas()?.nodes.find(n => n.id === id)
     if (!node || node.type !== 'journey') return
-    e.stopPropagation()
-    store.openJourney(id)
-    const flows = useStore.getState().canvas()?.flows[id] ?? []
-    if (flows[0]) store.setActiveFlow(id, flows[0].id)
-  }, [store])
+    state.openJourney(id)
+    const flows = state.canvas()?.flows[id] ?? []
+    if (flows[0]) state.setActiveFlow(id, flows[0].id)
+  }, [])
 
   // ── Register on canvas element (not window) ────────────────────────────────
   // All pointer events are captured on the canvas element via setPointerCapture,
@@ -296,7 +296,7 @@ export function useCanvasInteraction(
     el.addEventListener('pointerdown', onPointerDown)
     el.addEventListener('pointermove', onPointerMove)
     el.addEventListener('pointerup',   onPointerUp)
-    el.addEventListener('dblclick',    onDblClick)
+    el.addEventListener('dblclick',    onDblClick, true)  // capture phase — fires before React handlers
     el.addEventListener('wheel',       onWheel, { passive: false })
     window.addEventListener('keydown', onKeyDown)
 
@@ -304,7 +304,7 @@ export function useCanvasInteraction(
       el.removeEventListener('pointerdown', onPointerDown)
       el.removeEventListener('pointermove', onPointerMove)
       el.removeEventListener('pointerup',   onPointerUp)
-      el.removeEventListener('dblclick',    onDblClick)
+      el.removeEventListener('dblclick',    onDblClick, true)
       el.removeEventListener('wheel',       onWheel)
       window.removeEventListener('keydown', onKeyDown)
     }
