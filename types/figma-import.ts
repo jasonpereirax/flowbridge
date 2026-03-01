@@ -1,9 +1,10 @@
 export interface ImportedFrame {
-  nodeId:   string
-  name:     string
-  pageId:   string
-  pageName: string
-  order:    number
+  nodeId:       string
+  name:         string
+  pageId:       string
+  pageName:     string
+  sectionName?: string   // Figma SECTION container name, if any
+  order:        number
 }
 
 export interface ImportedPage {
