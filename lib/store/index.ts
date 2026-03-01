@@ -40,6 +40,7 @@ interface Store {
   // View state
   view:         CanvasView
   curJourneyId: NodeId | null
+  microMode:    'all' | 'single'   // all = show all flows; single = show only activeFlow
   transform:    CanvasTransform
 
   // Selection
@@ -121,6 +122,18 @@ function getCanvas(s: Store): CanvasData | null {
   return s.canvasData[s.curProjectId] ?? null
 }
 
+// Auto-layout: distribute all screens of a journey into per-flow columns
+function layoutFlowScreens(c: CanvasData, journeyId: string) {
+  const SCREEN_W = 180, SCREEN_H = 160, SCREEN_VGAP = 28
+  const COL_GAP  = 80, START_X = 60, START_Y = 60
+  ;(c.flows[journeyId] ?? []).forEach((flow, fi) => {
+    const colX = START_X + fi * (SCREEN_W + COL_GAP)
+    flow.screens.forEach((screen, si) => {
+      screen.position = { x: colX, y: START_Y + si * (SCREEN_H + SCREEN_VGAP) }
+    })
+  })
+}
+
 // ── Store ─────────────────────────────────────────────────────────────────────
 
 export const useStore = create<Store>()(
@@ -133,6 +146,7 @@ export const useStore = create<Store>()(
         canvasData:   {},
         view:         'macro',
         curJourneyId: null,
+        microMode:    'all',
         transform:    { x: 0, y: 0, scale: 1 },
         selNodeId:    null,
         selConnId:    null,
@@ -258,6 +272,14 @@ export const useStore = create<Store>()(
         setActiveFlow: (journeyId, flowId) => set(s => {
           const c = getCanvas(s); if (!c) return
           c.curFlow[journeyId] = flowId
+          // Selecting a specific flow = single mode; also enter micro view
+          s.curJourneyId = journeyId
+          s.view         = 'micro'
+          s.microMode    = 'single'
+          s.selNodeId    = null
+          s.selConnId    = null
+          s.selScreenId  = null
+          layoutFlowScreens(c, journeyId)
         }),
 
         // ── Screens ───────────────────────────────────────────────────────────
@@ -313,6 +335,7 @@ export const useStore = create<Store>()(
           s.selConnId    = null
           s.selScreenId  = null
           s.rpanelOpen   = false
+          s.microMode    = 'all'
 
           const c = getCanvas(s)
           if (!c) return
@@ -323,24 +346,7 @@ export const useStore = create<Store>()(
             if (firstFlow) c.curFlow[id] = firstFlow.id
           }
 
-          // Auto-layout: place each flow's screens in its own column so
-          // ScreenNodeCard (which reads screen.position.x/y) renders correctly.
-          const SCREEN_W    = 180
-          const SCREEN_H    = 160
-          const SCREEN_VGAP = 28
-          const COL_GAP     = 80
-          const START_X     = 60
-          const START_Y     = 60
-          const flows = c.flows[id] ?? []
-          flows.forEach((flow, fi) => {
-            const colX = START_X + fi * (SCREEN_W + COL_GAP)
-            flow.screens.forEach((screen, si) => {
-              screen.position = {
-                x: colX,
-                y: START_Y + si * (SCREEN_H + SCREEN_VGAP),
-              }
-            })
-          })
+          layoutFlowScreens(c, id)
         }),
 
         setTransform: (t) => set(s => { Object.assign(s.transform, t) }),
