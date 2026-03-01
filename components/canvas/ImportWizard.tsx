@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react'
 import { X, Link2, Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronRight, Wand2, FileStack, Layers } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { cn, now, makeNode, makeFlow, makeScreen, parseFigmaUrl } from '@/utils'
-import type { ImportResult } from '@/app/api/figma-import/route'
+import type { ImportResult } from '@/types/figma-import'
 
 // ─────────────────────────────────────────────────────────────────────────────
 
