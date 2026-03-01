@@ -68,7 +68,7 @@ export function ImportWizard({ onClose }: Props) {
       setExpanded(exp)
       setStep('preview')
     } catch (err) {
-      setError('Falha na conexão — tente novamente')
+      setError(err instanceof Error ? err.message : 'Falha na conexão — tente novamente')
       console.error(err)
     } finally {
       setLoading(false)
