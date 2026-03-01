@@ -4,7 +4,10 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { useStore, useProject } from '@/lib/store'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/utils'
-import { ChevronLeft, ChevronRight, X, Trash2, Database, GitBranch, Plus, Component } from 'lucide-react'
+import {
+  ChevronLeft, ChevronRight, X, Trash2,
+  Database, GitBranch, Plus, Component, Layout,
+} from 'lucide-react'
 
 export function Ebar() {
   const store        = useStore()
@@ -14,36 +17,42 @@ export function Ebar() {
   const ebarSection  = useStore(s => s.ebarSection)
   const curProjectId = useStore(s => s.curProjectId)
   const selNodeId    = useStore(s => s.selNodeId)
+  const selScreenId  = useStore(s => s.selScreenId)
+  const view         = useStore(s => s.view)
+  const curFlow      = useStore(s => s.curJourneyId ? s.canvas()?.curFlow[s.curJourneyId] : undefined)
 
-  const [expanded,  setExpanded] = useState<Set<string>>(new Set())
+  // expandedJourneys: set of journey IDs with open flows list
+  // expandedFlows: set of flow IDs with open screens list
+  const [expandedJ, setExpandedJ] = useState<Set<string>>(new Set())
+  const [expandedF, setExpandedF] = useState<Set<string>>(new Set())
+
   const [ebarWidth, setEbarWidth] = useState(240)
-  const isResizing  = useRef(false)
-  const startX      = useRef(0)
-  const startWidth  = useRef(0)
+  const isResizing = useRef(false)
+  const startX     = useRef(0)
+  const startW     = useRef(0)
 
-  const MIN_WIDTH = 200
-  const MAX_WIDTH = 480
+  const MIN_W = 200
+  const MAX_W = 480
 
   const onResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     isResizing.current = true
-    startX.current     = e.clientX
-    startWidth.current = ebarWidth
-    document.body.style.cursor    = 'col-resize'
+    startX.current = e.clientX
+    startW.current = ebarWidth
+    document.body.style.cursor     = 'col-resize'
     document.body.style.userSelect = 'none'
   }, [ebarWidth])
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!isResizing.current) return
-      const delta = e.clientX - startX.current
-      const next  = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth.current + delta))
+      const next = Math.min(MAX_W, Math.max(MIN_W, startW.current + e.clientX - startX.current))
       setEbarWidth(next)
     }
     const onUp = () => {
       if (!isResizing.current) return
-      isResizing.current            = false
-      document.body.style.cursor    = ''
+      isResizing.current             = false
+      document.body.style.cursor     = ''
       document.body.style.userSelect = ''
     }
     window.addEventListener('mousemove', onMove)
@@ -54,13 +63,32 @@ export function Ebar() {
     }
   }, [])
 
+  // Auto-expand journey + flow when navigating to micro view
+  useEffect(() => {
+    const s = useStore.getState()
+    if (s.view !== 'micro' || !s.curJourneyId) return
+    setExpandedJ(prev => new Set(prev).add(s.curJourneyId!))
+    const flows = s.canvas()?.flows[s.curJourneyId] ?? []
+    const curFlow = s.activeFlow()
+    if (curFlow) setExpandedF(prev => new Set(prev).add(curFlow.id))
+    else if (flows[0]) setExpandedF(prev => new Set(prev).add(flows[0].id))
+  }, [view])
+
   const canvas = curProjectId ? store.canvasData[curProjectId] : null
 
-  const toggleExpand = useCallback((id: string) => {
-    setExpanded(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) { next.delete(id) } else { next.add(id) }
-      return next
+  const toggleJ = useCallback((id: string) => {
+    setExpandedJ(prev => {
+      const s = new Set(prev)
+      s.has(id) ? s.delete(id) : s.add(id)
+      return s
+    })
+  }, [])
+
+  const toggleF = useCallback((id: string) => {
+    setExpandedF(prev => {
+      const s = new Set(prev)
+      s.has(id) ? s.delete(id) : s.add(id)
+      return s
     })
   }, [])
 
@@ -75,19 +103,16 @@ export function Ebar() {
       className="relative bg-surface border-r border-border flex flex-col flex-shrink-0 overflow-hidden panel-enter-left"
       style={{ width: ebarWidth }}
     >
-      {/* Resize handle */}
+      {/* ── Resize handle ── */}
       <div
         onMouseDown={onResizeStart}
         className="absolute right-0 top-0 bottom-0 w-[4px] cursor-col-resize z-10 group hover:bg-brand-blue/20 transition-colors"
-        title="Arrastar para redimensionar"
       >
         <div className="absolute right-[1px] top-1/2 -translate-y-1/2 w-[2px] h-8 rounded-full bg-border group-hover:bg-brand-blue/60 transition-colors" />
       </div>
 
       {/* ── Project header ── */}
       <div className="px-[14px] pt-[11px] pb-[10px] border-b border-border flex-shrink-0">
-
-        {/* Top row: back link + close */}
         <div className="flex items-center justify-between mb-[9px]">
           <button
             onClick={() => router.push('/')}
@@ -99,13 +124,11 @@ export function Ebar() {
           <button
             onClick={() => store.toggleEbar()}
             className="w-[20px] h-[20px] rounded-[5px] flex items-center justify-center text-text-3 hover:text-text-1 hover:bg-bg transition-all"
-            title="Close panel"
           >
             <X size={11} strokeWidth={2} />
           </button>
         </div>
 
-        {/* Project identity */}
         <div className="flex items-center gap-[9px]">
           <div
             className="w-[24px] h-[24px] rounded-[6px] flex-shrink-0 shadow-sm"
@@ -116,14 +139,14 @@ export function Ebar() {
               {project?.name ?? '—'}
             </span>
             <span className="text-[10px] font-mono text-text-3">
-              {total} node{total !== 1 ? 's' : ''} · {journeyNodes.length} journey{journeyNodes.length !== 1 ? 's' : ''}
+              {total} node{total !== 1 ? 's' : ''} · {journeyNodes.length}j
             </span>
           </div>
         </div>
       </div>
 
       {/* ── Section tabs ── */}
-      <div className="flex border-b border-border flex-shrink-0 px-[10px] gap-[0px]">
+      <div className="flex border-b border-border flex-shrink-0 px-[10px]">
         {([
           { key: 'macro', label: 'Layers'     },
           { key: 'comp',  label: 'Components' },
@@ -174,17 +197,18 @@ export function Ebar() {
                 </p>
               </div>
             ) : (
-              <div className="py-[8px]">
+              <div className="py-[6px]">
 
-                {/* Design Systems */}
+                {/* ── Design Systems ── */}
                 {dsNodes.length > 0 && (
                   <div className="mb-[4px]">
-                    <GroupLabel label="Design Systems" count={dsNodes.length} />
+                    <GroupLabel label="Styles & DS" count={dsNodes.length} />
                     {dsNodes.map(node => (
                       <LayerRow
                         key={node.id}
                         label={node.name}
                         meta={node.tags.length > 0 ? `${node.tags.length}` : undefined}
+                        depth={0}
                         isSelected={selNodeId === node.id}
                         onSelect={() => store.selectNode(node.id)}
                         onDelete={() => store.deleteNode(node.id)}
@@ -198,26 +222,40 @@ export function Ebar() {
                   </div>
                 )}
 
-                {/* Journeys */}
+                {/* ── Journeys ── */}
                 {journeyNodes.length > 0 && (
                   <div>
                     <GroupLabel label="Journeys" count={journeyNodes.length} />
                     {journeyNodes.map(node => {
-                      const isExpanded  = expanded.has(node.id)
+                      const jExpanded   = expandedJ.has(node.id)
                       const flows       = canvas?.flows[node.id] ?? []
                       const screenCount = flows.reduce((a, f) => a + f.screens.length, 0)
+                      const isJSel      = selNodeId === node.id
 
                       return (
                         <div key={node.id}>
+
+                          {/* Journey row — single click selects, double click enters micro view */}
                           <LayerRow
                             label={node.name}
                             meta={flows.length > 0 ? `${flows.length}f · ${screenCount}s` : undefined}
-                            isSelected={selNodeId === node.id}
+                            depth={0}
+                            isSelected={isJSel}
                             onSelect={() => store.selectNode(node.id)}
                             onDelete={() => store.deleteNode(node.id)}
                             expandable
-                            isExpanded={isExpanded}
-                            onToggleExpand={e => { e.stopPropagation(); toggleExpand(node.id) }}
+                            isExpanded={jExpanded}
+                            onToggleExpand={e => { e.stopPropagation(); toggleJ(node.id) }}
+                            onDoubleClick={() => {
+                              store.openJourney(node.id)
+                              // Auto-open first flow
+                              const f = canvas?.flows[node.id]?.[0]
+                              if (f) {
+                                store.setActiveFlow(node.id, f.id)
+                                setExpandedF(prev => new Set(prev).add(f.id))
+                              }
+                              setExpandedJ(prev => new Set(prev).add(node.id))
+                            }}
                             icon={
                               <span className="w-[16px] h-[16px] rounded-[4px] bg-[#EFF6FF] border border-[#BFDBFE] flex items-center justify-center flex-shrink-0">
                                 <GitBranch size={8} className="text-brand-blue" />
@@ -225,27 +263,94 @@ export function Ebar() {
                             }
                           />
 
-                          {isExpanded && (
+                          {/* Flows list */}
+                          {jExpanded && (
                             <div className="pb-[2px]">
                               {flows.length === 0 ? (
-                                <p className="pl-[42px] py-[4px] text-[10.5px] text-text-3 italic">no flows</p>
+                                <p className="pl-[46px] py-[4px] text-[10.5px] text-text-3 italic">no flows</p>
                               ) : (
-                                flows.map(flow => (
-                                  <button
-                                    key={flow.id}
-                                    onClick={() => { store.selectNode(node.id); store.setActiveFlow(node.id, flow.id) }}
-                                    className="w-full flex items-center gap-[8px] pl-[36px] pr-[12px] py-[4px] group hover:bg-bg transition-colors"
-                                  >
-                                    <div className="w-[1px] h-[14px] bg-border flex-shrink-0 self-center" />
-                                    <div className="w-[4px] h-[4px] rounded-full bg-border-strong flex-shrink-0" />
-                                    <span className="text-[11.5px] text-text-2 group-hover:text-text-1 flex-1 truncate text-left transition-colors">
-                                      {flow.name}
-                                    </span>
-                                    <span className="text-[10px] font-mono text-text-3 flex-shrink-0 tabular-nums">
-                                      {flow.screens.length}
-                                    </span>
-                                  </button>
-                                ))
+                                flows.map(flow => {
+                                  const fExpanded = expandedF.has(flow.id)
+                                  const isActiveFl = curFlow === flow.id && view === 'micro' && selNodeId === node.id
+
+                                  return (
+                                    <div key={flow.id}>
+
+                                      {/* Flow row */}
+                                      <div className="flex items-center group">
+                                        {/* expand toggle */}
+                                        <button
+                                          onClick={() => toggleF(flow.id)}
+                                          className="flex-shrink-0 w-[28px] flex items-center justify-end pr-[2px] text-text-3 hover:text-text-1 transition-colors"
+                                        >
+                                          <ChevronRight
+                                            size={9}
+                                            strokeWidth={2.5}
+                                            className={cn('transition-transform duration-150', fExpanded && 'rotate-90')}
+                                          />
+                                        </button>
+
+                                        <button
+                                          onClick={() => {
+                                            store.openJourney(node.id)
+                                            store.setActiveFlow(node.id, flow.id)
+                                          }}
+                                          className={cn(
+                                            'flex-1 flex items-center gap-[6px] pr-[10px] py-[4px] min-w-0 transition-colors',
+                                            isActiveFl ? 'text-text-1' : 'text-text-2 hover:text-text-1'
+                                          )}
+                                        >
+                                          <div className="w-[1px] h-[12px] bg-border flex-shrink-0" />
+                                          <div className={cn(
+                                            'w-[4px] h-[4px] rounded-full flex-shrink-0 transition-colors',
+                                            isActiveFl ? 'bg-brand-blue' : 'bg-border-strong'
+                                          )} />
+                                          <span className="text-[11.5px] flex-1 truncate text-left font-medium">
+                                            {flow.name}
+                                          </span>
+                                          <span className="text-[10px] font-mono text-text-3 flex-shrink-0 tabular-nums opacity-0 group-hover:opacity-100 transition-opacity">
+                                            {flow.screens.length}s
+                                          </span>
+                                        </button>
+                                      </div>
+
+                                      {/* Screens list */}
+                                      {fExpanded && flow.screens.length > 0 && (
+                                        <div className="pb-[2px]">
+                                          {flow.screens.map(screen => (
+                                            <button
+                                              key={screen.id}
+                                              onClick={() => {
+                                                store.openJourney(node.id)
+                                                store.setActiveFlow(node.id, flow.id)
+                                                store.selectScreen(screen.id)
+                                              }}
+                                              className={cn(
+                                                'w-full flex items-center gap-[6px] pl-[44px] pr-[10px] py-[3px] group/s transition-colors',
+                                                selScreenId === screen.id
+                                                  ? 'bg-brand-blue/8 text-brand-blue'
+                                                  : 'hover:bg-bg text-text-3 hover:text-text-2'
+                                              )}
+                                            >
+                                              <div className="w-[1px] h-[11px] bg-border flex-shrink-0" />
+                                              <span className="w-[14px] h-[14px] rounded-[3px] bg-bg border border-border flex items-center justify-center flex-shrink-0">
+                                                <Layout size={7} className="text-text-3" />
+                                              </span>
+                                              <span className="text-[11px] flex-1 truncate text-left">
+                                                {screen.name}
+                                              </span>
+                                              {screen.isEntry && (
+                                                <span className="text-[8.5px] font-mono text-brand-blue bg-brand-blue/10 px-[4px] py-[1px] rounded-[3px] flex-shrink-0">
+                                                  entry
+                                                </span>
+                                              )}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )
+                                })
                               )}
                             </div>
                           )}
@@ -263,11 +368,11 @@ export function Ebar() {
   )
 }
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function GroupLabel({ label, count }: { label: string; count: number }) {
   return (
-    <div className="flex items-center gap-[8px] px-[14px] pb-[2px]">
+    <div className="flex items-center gap-[8px] px-[14px] pt-[4px] pb-[3px]">
       <span className="text-[9.5px] font-semibold uppercase tracking-[.08em] text-text-3 font-mono whitespace-nowrap">
         {label}
       </span>
@@ -281,18 +386,25 @@ interface LayerRowProps {
   label:           string
   meta?:           string
   icon:            React.ReactNode
+  depth:           number
   isSelected:      boolean
   onSelect:        () => void
   onDelete:        () => void
+  onDoubleClick?:  () => void
   expandable?:     boolean
   isExpanded?:     boolean
   onToggleExpand?: (e: React.MouseEvent) => void
 }
 
-function LayerRow({ label, meta, icon, isSelected, onSelect, onDelete, expandable, isExpanded, onToggleExpand }: LayerRowProps) {
+function LayerRow({
+  label, meta, icon, isSelected,
+  onSelect, onDelete, onDoubleClick,
+  expandable, isExpanded, onToggleExpand,
+}: LayerRowProps) {
   return (
     <div
       onClick={onSelect}
+      onDoubleClick={onDoubleClick}
       className={cn(
         'flex items-center gap-[5px] mx-[6px] px-[7px] py-[4px] rounded-[7px] cursor-pointer group transition-colors',
         isSelected ? 'bg-text-1' : 'hover:bg-bg',
