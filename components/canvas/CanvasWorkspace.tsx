@@ -39,9 +39,11 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
         const journeyId = el.dataset.macroId
         const state = useStore.getState()
         const cvs   = state.canvasData[projectId]
-        if (!cvs) return
+        if (!cvs) { console.warn('[dblclick] no canvas for project', projectId); return }
         const node = cvs.nodes.find(n => n.id === journeyId)
-        if (!node || node.type !== 'journey') return
+        if (!node) { console.warn('[dblclick] node not found', journeyId); return }
+        if (node.type !== 'journey') { console.log('[dblclick] node is DS, skipping'); return }
+        console.log('[dblclick] openJourney', journeyId)
         state.openJourney(journeyId)
         const flows = cvs.flows[journeyId] ?? []
         if (flows[0]) state.setActiveFlow(journeyId, flows[0].id)
@@ -49,6 +51,7 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
       }
       el = el.parentElement
     }
+    console.log('[dblclick] no macro-id found in', (e.target as HTMLElement).tagName)
   }, [projectId])
 
 
