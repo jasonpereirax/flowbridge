@@ -273,18 +273,29 @@ export function useCanvasInteraction(
 
   // ── Double-click — open journey ────────────────────────────────────────────
   const onDblClick = useCallback((e: MouseEvent) => {
-    const target = e.target as HTMLElement
-    const nodeEl = target.closest('[data-macro-id]') as HTMLElement | null
-    if (!nodeEl) return
-    const id = nodeEl.dataset.macroId
-    if (!id) return
+    // Walk up from the click target to find a node with data-macro-id
+    let el = e.target as HTMLElement | null
+    let journeyId: string | null = null
+    while (el && el !== canvasRef.current) {
+      if (el.dataset?.macroId) {
+        journeyId = el.dataset.macroId
+        break
+      }
+      el = el.parentElement
+    }
+    if (!journeyId) return
+
     const state = useStore.getState()
-    const node = state.canvas()?.nodes.find(n => n.id === id)
+    const canvas = state.canvasData[state.curProjectId!]
+    if (!canvas) return
+
+    const node = canvas.nodes.find(n => n.id === journeyId)
     if (!node || node.type !== 'journey') return
-    state.openJourney(id)
-    const flows = state.canvas()?.flows[id] ?? []
-    if (flows[0]) state.setActiveFlow(id, flows[0].id)
-  }, [])
+
+    state.openJourney(journeyId)
+    const flows = canvas.flows[journeyId] ?? []
+    if (flows[0]) state.setActiveFlow(journeyId, flows[0].id)
+  }, [canvasRef])
 
   // ── Register on canvas element (not window) ────────────────────────────────
   // All pointer events are captured on the canvas element via setPointerCapture,
