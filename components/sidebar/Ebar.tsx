@@ -1,470 +1,340 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
-import { useStore } from '@/lib/store'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { useStore, useProject } from '@/lib/store'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/utils'
-import { makeFlow, makeScreen } from '@/utils'
-import {
-  ChevronRight, ChevronLeft, Trash2, GitBranch,
-  Layers, Database, Plus, Settings,
-} from 'lucide-react'
-
-type EbarFilter = 'all' | 'journeys' | 'styles'
-
-const STATUS_DOT: Record<string, string> = {
-  draft:         'bg-neutral-300',
-  'in-progress': 'bg-yellow-400',
-  ready:         'bg-green-400',
-  generated:     'bg-brand-blue',
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
+import { ChevronLeft, ChevronRight, X, Trash2, Database, GitBranch, Plus, Component } from 'lucide-react'
 
 export function Ebar() {
   const store        = useStore()
+  const project      = useProject()
   const router       = useRouter()
+  const ebarOpen     = useStore(s => s.ebarOpen)
+  const ebarSection  = useStore(s => s.ebarSection)
   const curProjectId = useStore(s => s.curProjectId)
   const selNodeId    = useStore(s => s.selNodeId)
-  const view         = useStore(s => s.view)
-  const curJourneyId = useStore(s => s.curJourneyId)
 
-  const canvas  = curProjectId ? store.canvasData[curProjectId] : null
-  const project = store.projects.find(p => p.id === curProjectId)
+  const [expanded,  setExpanded] = useState<Set<string>>(new Set())
+  const [ebarWidth, setEbarWidth] = useState(240)
+  const isResizing  = useRef(false)
+  const startX      = useRef(0)
+  const startWidth  = useRef(0)
 
-  const [filter, setFilter] = useState<EbarFilter>('all')
-  const [jExp,   setJExp]   = useState<Set<string>>(new Set())
-  const [fExp,   setFExp]   = useState<Set<string>>(new Set())
-  const [dsExp,  setDsExp]  = useState<Set<string>>(new Set())
+  const MIN_WIDTH = 200
+  const MAX_WIDTH = 480
+
+  const onResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    isResizing.current = true
+    startX.current     = e.clientX
+    startWidth.current = ebarWidth
+    document.body.style.cursor    = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }, [ebarWidth])
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!isResizing.current) return
+      const delta = e.clientX - startX.current
+      const next  = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth.current + delta))
+      setEbarWidth(next)
+    }
+    const onUp = () => {
+      if (!isResizing.current) return
+      isResizing.current            = false
+      document.body.style.cursor    = ''
+      document.body.style.userSelect = ''
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup',   onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup',   onUp)
+    }
+  }, [])
+
+  const canvas = curProjectId ? store.canvasData[curProjectId] : null
+
+  const toggleExpand = useCallback((id: string) => {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
+      return next
+    })
+  }, [])
+
+  if (!ebarOpen) return null
 
   const dsNodes      = canvas?.nodes.filter(n => n.type === 'ds')      ?? []
   const journeyNodes = canvas?.nodes.filter(n => n.type === 'journey') ?? []
-  const totalNodes   = canvas?.nodes.length ?? 0
-
-  // ── Expand helpers ─────────────────────────────────────────────────────────
-  const toggleJ  = (id: string) => setJExp(p  => flipSet(p, id))
-  const toggleF  = (id: string) => setFExp(p  => flipSet(p, id))
-  const toggleDs = (id: string) => setDsExp(p => flipSet(p, id))
-
-  function flipSet(prev: Set<string>, id: string) {
-    const n = new Set(prev)
-    if (n.has(id)) { n.delete(id) } else { n.add(id) }
-    return n
-  }
-
-  // ── Auto-expand when canvas node selected ─────────────────────────────────
-  useEffect(() => {
-    if (!selNodeId) return
-    const node = canvas?.nodes.find(n => n.id === selNodeId)
-    if (!node) return
-    if (node.type === 'journey') {
-      setJExp(p => { const n = new Set(p); n.add(selNodeId); return n })
-      setFilter(f => f === 'styles'   ? 'all' : f)
-    } else {
-      setDsExp(p => { const n = new Set(p); n.add(selNodeId); return n })
-      setFilter(f => f === 'journeys' ? 'all' : f)
-    }
-  }, [selNodeId]) // eslint-disable-line
-
-  // ── Open flow (enter micro view) ───────────────────────────────────────────
-  const openFlow = useCallback((journeyId: string, flowId: string) => {
-    store.openJourney(journeyId)
-    store.setActiveFlow(journeyId, flowId)
-    setJExp(p => { const n = new Set(p); n.add(journeyId); return n })
-    setFExp(p => { const n = new Set(p); n.add(flowId);    return n })
-  }, [store])
-
-  // ── Add flow ───────────────────────────────────────────────────────────────
-  const addFlow = useCallback((journeyId: string) => {
-    if (!curProjectId) return
-    const existing = canvas?.flows[journeyId] ?? []
-    const flow = makeFlow({ journeyId, projectId: curProjectId, name: `Flow ${existing.length + 1}`, order: existing.length })
-    store.addFlow(journeyId, flow)
-    // Expand the journey to show the new flow
-    setJExp(p => { const n = new Set(p); n.add(journeyId); return n })
-  }, [store, curProjectId, canvas])
-
-  // ── Add screen ─────────────────────────────────────────────────────────────
-  const addScreen = useCallback((journeyId: string, flowId: string) => {
-    if (!curProjectId) return
-    const flow   = (canvas?.flows[journeyId] ?? []).find(f => f.id === flowId)
-    const count  = flow?.screens.length ?? 0
-    const screen = makeScreen({ flowId, projectId: curProjectId, name: `Screen ${count + 1}`, position: { x: 160 + count * 220, y: 160 }, order: count })
-    store.addScreen(journeyId, flowId, screen)
-    setFExp(p => { const n = new Set(p); n.add(flowId); return n })
-    if (view === 'micro' && curJourneyId === journeyId) {
-      store.setActiveFlow(journeyId, flowId)
-      store.selectScreen(screen.id)
-    }
-  }, [store, curProjectId, canvas, view, curJourneyId])
-
-  const showJ = filter === 'all' || filter === 'journeys'
-  const showS = filter === 'all' || filter === 'styles'
+  const total        = canvas?.nodes.length ?? 0
 
   return (
-    <aside className="w-[240px] bg-surface border-r border-border flex flex-col flex-shrink-0 overflow-hidden">
-
-      {/* ── Logo + project header ── */}
-      <div className="flex items-center gap-[10px] px-[12px] h-[46px] border-b border-border flex-shrink-0">
-        <button onClick={() => router.push('/')} title="Flowbridge"
-          className="w-[26px] h-[26px] bg-text-1 rounded-[6px] flex items-center justify-center flex-shrink-0 hover:bg-neutral-700 active:scale-95 transition-all">
-          <span className="text-white font-serif italic text-[13px] leading-none">F</span>
-        </button>
-        <div className="flex flex-col gap-[1px] flex-1 min-w-0">
-          <span className="text-[13px] font-semibold text-text-1 leading-tight truncate">{project?.name ?? '—'}</span>
-          <span className="text-[10px] font-mono text-text-3">{totalNodes} nodes · {journeyNodes.length}j · {dsNodes.length} libs</span>
-        </div>
-        <button title="Project settings"
-          className="w-[24px] h-[24px] rounded-[5px] flex items-center justify-center text-text-3 hover:text-text-1 hover:bg-bg transition-all flex-shrink-0">
-          <Settings size={12} strokeWidth={1.8} />
-        </button>
+    <aside
+      className="relative bg-surface border-r border-border flex flex-col flex-shrink-0 overflow-hidden panel-enter-left"
+      style={{ width: ebarWidth }}
+    >
+      {/* Resize handle */}
+      <div
+        onMouseDown={onResizeStart}
+        className="absolute right-0 top-0 bottom-0 w-[4px] cursor-col-resize z-10 group hover:bg-brand-blue/20 transition-colors"
+        title="Arrastar para redimensionar"
+      >
+        <div className="absolute right-[1px] top-1/2 -translate-y-1/2 w-[2px] h-8 rounded-full bg-border group-hover:bg-brand-blue/60 transition-colors" />
       </div>
 
-      {/* ── Filter bar ── */}
-      <div className="flex items-center gap-[2px] px-[8px] py-[6px] border-b border-border flex-shrink-0">
-        {(['all', 'journeys', 'styles'] as EbarFilter[]).map(key => (
-          <button key={key} onClick={() => setFilter(key)}
+      {/* ── Project header ── */}
+      <div className="px-[14px] pt-[11px] pb-[10px] border-b border-border flex-shrink-0">
+
+        {/* Top row: back link + close */}
+        <div className="flex items-center justify-between mb-[9px]">
+          <button
+            onClick={() => router.push('/')}
+            className="flex items-center gap-[3px] text-[10.5px] text-text-3 hover:text-text-2 transition-colors group"
+          >
+            <ChevronLeft size={11} strokeWidth={2} className="group-hover:-translate-x-[1px] transition-transform" />
+            All projects
+          </button>
+          <button
+            onClick={() => store.toggleEbar()}
+            className="w-[20px] h-[20px] rounded-[5px] flex items-center justify-center text-text-3 hover:text-text-1 hover:bg-bg transition-all"
+            title="Close panel"
+          >
+            <X size={11} strokeWidth={2} />
+          </button>
+        </div>
+
+        {/* Project identity */}
+        <div className="flex items-center gap-[9px]">
+          <div
+            className="w-[24px] h-[24px] rounded-[6px] flex-shrink-0 shadow-sm"
+            style={{ background: project?.color ?? '#18181A' }}
+          />
+          <div className="flex flex-col gap-[1px] min-w-0">
+            <span className="text-[13px] font-semibold text-text-1 leading-tight truncate">
+              {project?.name ?? '—'}
+            </span>
+            <span className="text-[10px] font-mono text-text-3">
+              {total} node{total !== 1 ? 's' : ''} · {journeyNodes.length} journey{journeyNodes.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Section tabs ── */}
+      <div className="flex border-b border-border flex-shrink-0 px-[10px] gap-[0px]">
+        {([
+          { key: 'macro', label: 'Layers'     },
+          { key: 'comp',  label: 'Components' },
+        ] as const).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => store.toggleEbar(key)}
             className={cn(
-              'flex items-center gap-[4px] px-[8px] py-[4px] rounded-[6px] text-[11.5px] font-medium transition-all',
-              filter === key ? 'bg-bg text-text-1 shadow-[inset_0_0_0_1px_var(--border)]' : 'text-text-3 hover:bg-bg hover:text-text-2',
-            )}>
-            {key === 'journeys' && <GitBranch size={10} strokeWidth={2} />}
-            {key === 'styles'   && <Layers    size={10} strokeWidth={2} />}
-            {key === 'all' ? 'All' : key === 'journeys' ? 'Journeys' : 'Styles'}
+              'px-[8px] py-[7px] text-[11.5px] font-medium transition-all border-b-[2px] -mb-px',
+              ebarSection === key
+                ? 'text-text-1 border-text-1'
+                : 'text-text-3 border-transparent hover:text-text-2'
+            )}
+          >
+            {label}
           </button>
         ))}
       </div>
 
       {/* ── Body ── */}
-      <div className="flex-1 overflow-y-auto overscroll-contain py-[8px]">
-        {totalNodes === 0 ? (
-          <EmptyState />
-        ) : (
+      <div className="flex-1 overflow-y-auto overscroll-contain">
+
+        {/* Components placeholder */}
+        {ebarSection === 'comp' && (
+          <div className="flex flex-col items-center gap-[10px] px-[24px] py-[40px] text-center">
+            <div className="w-[38px] h-[38px] rounded-[10px] bg-bg border border-border flex items-center justify-center">
+              <Component size={16} className="text-text-3" />
+            </div>
+            <p className="text-[11.5px] text-text-2 leading-[1.55]">
+              Component browser<br />coming in Phase 3
+            </p>
+          </div>
+        )}
+
+        {/* Layers */}
+        {ebarSection === 'macro' && (
           <>
-            {/* ──── Journeys ──── */}
-            {showJ && (
-              <>
-                {filter === 'all' && <GroupLabel label="Journeys" count={journeyNodes.length} />}
-                {journeyNodes.map(node => {
-                  const flows       = canvas?.flows[node.id] ?? []
-                  const screenCount = flows.reduce((a, f) => a + f.screens.length, 0)
-                  const isJOpen     = jExp.has(node.id)
-                  const activeFid   = canvas?.curFlow[node.id]
+            {total === 0 ? (
+              <div className="flex flex-col items-center gap-[10px] px-[24px] py-[36px] text-center">
+                <div className="w-[38px] h-[38px] rounded-[10px] bg-bg border border-border flex items-center justify-center">
+                  <Plus size={16} className="text-text-3" />
+                </div>
+                <p className="text-[11.5px] text-text-2 leading-[1.55]">
+                  No nodes yet.<br />
+                  Use the{' '}
+                  <kbd className="font-mono text-[10px] bg-bg border border-border rounded-[4px] px-[5px] py-[1px] text-text-1">+</kbd>{' '}
+                  to add one.
+                </p>
+              </div>
+            ) : (
+              <div className="py-[8px]">
 
-                  return (
-                    <div key={node.id} className="ebar-jcard mx-[6px] mb-[4px] rounded-[8px] border border-border overflow-hidden">
-
-                      {/* Journey row */}
-                      <div
-                        className="flex items-center gap-[7px] px-[10px] py-[7px] cursor-pointer hover:bg-bg transition-colors group/jrow"
-                        onClick={() => toggleJ(node.id)}
-                        onDoubleClick={e => { e.stopPropagation(); store.openJourney(node.id) }}
-                      >
-                        <Chevron open={isJOpen} />
-                        <span className="w-[16px] h-[16px] rounded-[4px] bg-[#EFF6FF] border border-[#BFDBFE] flex items-center justify-center flex-shrink-0">
-                          <GitBranch size={8} className="text-brand-blue" />
-                        </span>
-                        <InlineEdit
-                          value={node.name}
-                          onSave={name => store.updateNode(node.id, { name })}
-                          className="text-[12px] font-semibold text-text-1 flex-1 min-w-0"
-                        />
-                        {node.status && (
-                          <div className={cn('w-[6px] h-[6px] rounded-full flex-shrink-0', STATUS_DOT[node.status] ?? 'bg-border-strong')} title={node.status} />
-                        )}
-                        <span className="text-[10px] font-mono text-text-3 tabular-nums opacity-0 group-hover/jrow:opacity-100 transition-opacity flex-shrink-0">
-                          {flows.length}f·{screenCount}s
-                        </span>
-                        <button
-                          onClick={e => { e.stopPropagation(); store.deleteNode(node.id) }}
-                          title="Delete journey"
-                          className="ebar-del w-[16px] h-[16px] rounded-[4px] flex items-center justify-center flex-shrink-0 text-text-3 hover:text-brand-red hover:bg-[#FEF2F2] transition-all"
-                        >
-                          <Trash2 size={9} strokeWidth={2} />
-                        </button>
-                      </div>
-
-                      {/* Flows */}
-                      {isJOpen && (
-                        <div className="border-t border-border bg-bg pb-[2px]">
-                          {flows.length === 0 && (
-                            <p className="px-[14px] py-[5px] text-[10.5px] text-text-3 italic">no flows yet</p>
-                          )}
-
-                          {flows.map(flow => {
-                            const isFOpen     = fExp.has(flow.id)
-                            const isActiveFl  = view === 'micro' && curJourneyId === node.id && activeFid === flow.id
-
-                            return (
-                              <div key={flow.id} className="ebar-fcard mx-[8px] mt-[3px] rounded-[6px] border border-border overflow-hidden">
-
-                                {/* Flow row */}
-                                <div
-                                  className={cn(
-                                    'flex items-center gap-[7px] px-[8px] py-[5px] cursor-pointer transition-colors group/frow',
-                                    isActiveFl ? 'bg-[#EFF6FF]' : 'hover:bg-surface',
-                                  )}
-                                  onClick={() => openFlow(node.id, flow.id)}
-                                  onDoubleClick={e => { e.stopPropagation(); openFlow(node.id, flow.id) }}
-                                >
-                                  <span
-                                    onClick={e => { e.stopPropagation(); toggleF(flow.id) }}
-                                    className={cn('flex items-center flex-shrink-0 transition-transform duration-150 hover:text-text-1', isFOpen && 'rotate-90', isActiveFl ? 'text-brand-blue' : 'text-text-3')}
-                                  >
-                                    <ChevronRight size={10} strokeWidth={2.5} />
-                                  </span>
-                                  <div className={cn('w-[7px] h-[7px] rounded-full border-[1.5px] flex-shrink-0 transition-all', isActiveFl ? 'bg-brand-blue border-brand-blue' : 'bg-white border-border-strong')} />
-                                  <InlineEdit
-                                    value={flow.name}
-                                    onSave={name => store.updateFlow(node.id, flow.id, { name })}
-                                    className={cn('text-[11.5px] font-medium flex-1 min-w-0', isActiveFl ? 'text-brand-blue' : 'text-text-2')}
-                                  />
-                                  <span className={cn('text-[10px] font-mono tabular-nums flex-shrink-0 opacity-0 group-hover/frow:opacity-100 transition-opacity', isActiveFl ? 'text-brand-blue/60' : 'text-text-3')}>
-                                    {flow.screens.length}s
-                                  </span>
-                                  {/* Add screen */}
-                                  <button
-                                    onClick={e => { e.stopPropagation(); addScreen(node.id, flow.id) }}
-                                    title="Add screen"
-                                    className="ebar-fcard-act w-[14px] h-[14px] rounded-[3px] flex items-center justify-center flex-shrink-0 text-text-3 hover:text-brand-blue hover:bg-[#EFF6FF] transition-all"
-                                  >
-                                    <Plus size={8} strokeWidth={2.5} />
-                                  </button>
-                                  {/* Delete flow */}
-                                  <button
-                                    onClick={e => { e.stopPropagation(); store.deleteFlow(node.id, flow.id) }}
-                                    title="Delete flow"
-                                    className="ebar-fcard-act w-[14px] h-[14px] rounded-[3px] flex items-center justify-center flex-shrink-0 text-text-3 hover:text-brand-red hover:bg-[#FEF2F2] transition-all"
-                                  >
-                                    <Trash2 size={8} strokeWidth={2} />
-                                  </button>
-                                </div>
-
-                                {/* Screens */}
-                                {isFOpen && (
-                                  <div className="border-t border-border bg-surface py-[2px]">
-                                    {flow.screens.length === 0 && (
-                                      <p className="px-[12px] py-[3px] text-[10.5px] text-text-3 italic">no screens</p>
-                                    )}
-                                    {flow.screens.map(screen => (
-                                      <div
-                                        key={screen.id}
-                                        className="flex items-center gap-[7px] px-[8px] py-[3px] cursor-pointer hover:bg-bg transition-colors group/srow"
-                                        onClick={() => { openFlow(node.id, flow.id); store.selectScreen(screen.id) }}
-                                      >
-                                        <div className="w-[5px] h-[5px] rounded-[1.5px] bg-brand-blue opacity-25 flex-shrink-0 group-hover/srow:opacity-70 transition-opacity" />
-                                        <InlineEdit
-                                          value={screen.name}
-                                          onSave={name => store.updateScreen(node.id, flow.id, screen.id, { name })}
-                                          className="text-[11px] text-text-2 flex-1 min-w-0 group-hover/srow:text-text-1 transition-colors"
-                                        />
-                                        {screen.status && screen.status !== 'empty' && (
-                                          <span className={cn(
-                                            'text-[8.5px] font-mono px-[4px] py-[0.5px] rounded-full flex-shrink-0 border',
-                                            screen.status === 'ready'     ? 'bg-green-50 text-green-600 border-green-200' :
-                                            screen.status === 'generated' ? 'bg-blue-50 text-blue-600 border-blue-200' :
-                                            'bg-yellow-50 text-yellow-600 border-yellow-200'
-                                          )}>
-                                            {screen.status}
-                                          </span>
-                                        )}
-                                        <button
-                                          onClick={e => { e.stopPropagation(); store.deleteScreen(node.id, flow.id, screen.id) }}
-                                          title="Delete screen"
-                                          className="w-[14px] h-[14px] rounded-[3px] flex items-center justify-center flex-shrink-0 text-text-3 hover:text-brand-red hover:bg-[#FEF2F2] opacity-0 group-hover/srow:opacity-100 transition-all"
-                                        >
-                                          <Trash2 size={8} strokeWidth={2} />
-                                        </button>
-                                      </div>
-                                    ))}
-                                    {/* Add screen button */}
-                                    <button
-                                      onClick={() => addScreen(node.id, flow.id)}
-                                      className="w-full flex items-center gap-[5px] px-[10px] py-[4px] text-[10.5px] text-text-3 hover:text-brand-blue hover:bg-[#EFF6FF] transition-all"
-                                    >
-                                      <Plus size={9} strokeWidth={2.5} />
-                                      Add screen
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          })}
-
-                          {/* Add flow button — always visible inside open journey */}
-                          <button
-                            onClick={() => addFlow(node.id)}
-                            className="w-full flex items-center gap-[5px] px-[12px] py-[5px] mt-[1px] text-[11px] text-text-3 hover:text-brand-blue hover:bg-[#EFF6FF] transition-all"
-                          >
-                            <Plus size={9} strokeWidth={2.5} />
-                            Add flow
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </>
-            )}
-
-            {showJ && showS && <div className="h-[8px]" />}
-
-            {/* ──── Styles & DS ──── */}
-            {showS && (
-              <>
-                {filter === 'all' && <GroupLabel label="Styles & DS" count={dsNodes.length} />}
-                {dsNodes.map(node => {
-                  const isDsOpen = dsExp.has(node.id)
-                  return (
-                    <div key={node.id} className="ebar-jcard mx-[6px] mb-[4px] rounded-[8px] border border-border overflow-hidden">
-                      <div
-                        className="flex items-center gap-[7px] px-[10px] py-[7px] cursor-pointer hover:bg-bg transition-colors group/dsrow"
-                        onClick={() => toggleDs(node.id)}
-                        onDoubleClick={e => { e.stopPropagation(); store.selectNode(node.id) }}
-                      >
-                        <Chevron open={isDsOpen} />
-                        <span className="w-[16px] h-[16px] rounded-[4px] bg-[#F5F3FF] border border-[#DDD6FE] flex items-center justify-center flex-shrink-0">
-                          <Database size={8} className="text-brand-purple" />
-                        </span>
-                        <InlineEdit
-                          value={node.name}
-                          onSave={name => store.updateNode(node.id, { name })}
-                          className="text-[12px] font-semibold text-text-1 flex-1 min-w-0"
-                        />
-                        <span className="text-[10px] font-mono text-text-3 tabular-nums flex-shrink-0 opacity-0 group-hover/dsrow:opacity-100 transition-opacity">
-                          {node.tags.length}
-                        </span>
-                        <button
-                          onClick={e => { e.stopPropagation(); store.deleteNode(node.id) }}
-                          title="Delete DS"
-                          className="ebar-del w-[16px] h-[16px] rounded-[4px] flex items-center justify-center flex-shrink-0 text-text-3 hover:text-brand-red hover:bg-[#FEF2F2] transition-all"
-                        >
-                          <Trash2 size={9} strokeWidth={2} />
-                        </button>
-                      </div>
-
-                      {isDsOpen && (
-                        <div className="border-t border-border bg-bg py-[3px]">
-                          {node.tags.length === 0 ? (
-                            <p className="px-[12px] py-[4px] text-[10.5px] text-text-3 italic">no components yet</p>
-                          ) : (
-                            node.tags.map(tag => (
-                              <div key={tag} className="flex items-center gap-[8px] px-[10px] py-[4px] cursor-pointer hover:bg-surface transition-colors group/comp"
-                                onClick={() => store.selectNode(node.id)}>
-                                <div className="w-[6px] h-[6px] rounded-[2px] bg-brand-purple opacity-40 flex-shrink-0 group-hover/comp:opacity-80 transition-opacity" />
-                                <span className="text-[11.5px] text-text-2 flex-1 group-hover/comp:text-text-1 transition-colors">{tag}</span>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-
-                {filter !== 'all' && (
-                  <div className="flex flex-col items-center gap-[8px] mx-[6px] mt-[4px] px-[16px] py-[20px] text-center border border-dashed border-border rounded-[8px]">
-                    <span className="text-[18px]">🎨</span>
-                    <p className="text-[11px] text-text-3 leading-[1.55]">Tokens, cores e tipografia<br />chegam na Phase 3</p>
+                {/* Design Systems */}
+                {dsNodes.length > 0 && (
+                  <div className="mb-[4px]">
+                    <GroupLabel label="Design Systems" count={dsNodes.length} />
+                    {dsNodes.map(node => (
+                      <LayerRow
+                        key={node.id}
+                        label={node.name}
+                        meta={node.tags.length > 0 ? `${node.tags.length}` : undefined}
+                        isSelected={selNodeId === node.id}
+                        onSelect={() => store.selectNode(node.id)}
+                        onDelete={() => store.deleteNode(node.id)}
+                        icon={
+                          <span className="w-[16px] h-[16px] rounded-[4px] bg-[#F5F3FF] border border-[#DDD6FE] flex items-center justify-center flex-shrink-0">
+                            <Database size={8} className="text-brand-purple" />
+                          </span>
+                        }
+                      />
+                    ))}
                   </div>
                 )}
-              </>
+
+                {/* Journeys */}
+                {journeyNodes.length > 0 && (
+                  <div>
+                    <GroupLabel label="Journeys" count={journeyNodes.length} />
+                    {journeyNodes.map(node => {
+                      const isExpanded  = expanded.has(node.id)
+                      const flows       = canvas?.flows[node.id] ?? []
+                      const screenCount = flows.reduce((a, f) => a + f.screens.length, 0)
+
+                      return (
+                        <div key={node.id}>
+                          <LayerRow
+                            label={node.name}
+                            meta={flows.length > 0 ? `${flows.length}f · ${screenCount}s` : undefined}
+                            isSelected={selNodeId === node.id}
+                            onSelect={() => store.selectNode(node.id)}
+                            onDelete={() => store.deleteNode(node.id)}
+                            expandable
+                            isExpanded={isExpanded}
+                            onToggleExpand={e => { e.stopPropagation(); toggleExpand(node.id) }}
+                            icon={
+                              <span className="w-[16px] h-[16px] rounded-[4px] bg-[#EFF6FF] border border-[#BFDBFE] flex items-center justify-center flex-shrink-0">
+                                <GitBranch size={8} className="text-brand-blue" />
+                              </span>
+                            }
+                          />
+
+                          {isExpanded && (
+                            <div className="pb-[2px]">
+                              {flows.length === 0 ? (
+                                <p className="pl-[42px] py-[4px] text-[10.5px] text-text-3 italic">no flows</p>
+                              ) : (
+                                flows.map(flow => (
+                                  <button
+                                    key={flow.id}
+                                    onClick={() => { store.selectNode(node.id); store.setActiveFlow(node.id, flow.id) }}
+                                    className="w-full flex items-center gap-[8px] pl-[36px] pr-[12px] py-[4px] group hover:bg-bg transition-colors"
+                                  >
+                                    <div className="w-[1px] h-[14px] bg-border flex-shrink-0 self-center" />
+                                    <div className="w-[4px] h-[4px] rounded-full bg-border-strong flex-shrink-0" />
+                                    <span className="text-[11.5px] text-text-2 group-hover:text-text-1 flex-1 truncate text-left transition-colors">
+                                      {flow.name}
+                                    </span>
+                                    <span className="text-[10px] font-mono text-text-3 flex-shrink-0 tabular-nums">
+                                      {flow.screens.length}
+                                    </span>
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             )}
           </>
         )}
-      </div>
-
-      {/* ── Footer ── */}
-      <div className="px-[12px] py-[8px] border-t border-border flex-shrink-0">
-        <button onClick={() => router.push('/')}
-          className="flex items-center gap-[4px] text-[10.5px] text-text-3 hover:text-text-2 transition-colors">
-          <ChevronLeft size={10} strokeWidth={2} />
-          All projects
-        </button>
       </div>
     </aside>
   )
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function Chevron({ open, active }: { open: boolean; active?: boolean }) {
-  return (
-    <span className={cn('flex items-center flex-shrink-0 transition-transform duration-150', open && 'rotate-90', active ? 'text-brand-blue' : 'text-text-3')}>
-      <ChevronRight size={10} strokeWidth={2.5} />
-    </span>
-  )
-}
+// ─── Sub-components ──────────────────────────────────────────────────────────
 
 function GroupLabel({ label, count }: { label: string; count: number }) {
   return (
-    <div className="flex items-center gap-[8px] px-[14px] pb-[4px]">
-      <span className="text-[9.5px] font-semibold uppercase tracking-[.08em] text-text-3 font-mono whitespace-nowrap">{label}</span>
+    <div className="flex items-center gap-[8px] px-[14px] pb-[2px]">
+      <span className="text-[9.5px] font-semibold uppercase tracking-[.08em] text-text-3 font-mono whitespace-nowrap">
+        {label}
+      </span>
       <div className="flex-1 h-px bg-border" />
       <span className="text-[9.5px] font-mono text-text-3 tabular-nums">{count}</span>
     </div>
   )
 }
 
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center gap-[10px] px-[24px] py-[36px] text-center">
-      <div className="w-[38px] h-[38px] rounded-[10px] bg-bg border border-border flex items-center justify-center">
-        <Plus size={16} className="text-text-3" />
-      </div>
-      <p className="text-[11.5px] text-text-2 leading-[1.55]">
-        No nodes yet.<br />Use o <kbd className="font-mono text-[10px] bg-bg border border-border rounded-[4px] px-[5px] py-[1px] text-text-1">+</kbd> para adicionar.
-      </p>
-    </div>
-  )
+interface LayerRowProps {
+  label:           string
+  meta?:           string
+  icon:            React.ReactNode
+  isSelected:      boolean
+  onSelect:        () => void
+  onDelete:        () => void
+  expandable?:     boolean
+  isExpanded?:     boolean
+  onToggleExpand?: (e: React.MouseEvent) => void
 }
 
-// ─── InlineEdit ───────────────────────────────────────────────────────────────
-// Double-click on the label text enters edit mode.
-// IMPORTANT: must stopPropagation on its own dblclick to avoid triggering the
-// parent card's onDoubleClick (which would open a journey or DS panel).
-function InlineEdit({ value, onSave, className }: {
-  value: string; onSave: (v: string) => void; className?: string
-}) {
-  const [editing, setEditing] = useState(false)
-  const [draft,   setDraft]   = useState(value)
-  const ref = useRef<HTMLInputElement>(null)
-
-  useEffect(() => { setDraft(value) }, [value])
-  useEffect(() => { if (editing) { ref.current?.focus(); ref.current?.select() } }, [editing])
-
-  function commit() {
-    setEditing(false)
-    const t = draft.trim()
-    if (t && t !== value) onSave(t)
-    else setDraft(value)
-  }
-
-  if (editing) {
-    return (
-      <input
-        ref={ref}
-        value={draft}
-        onChange={e => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={e => {
-          e.stopPropagation()
-          if (e.key === 'Enter')  { e.preventDefault(); commit() }
-          if (e.key === 'Escape') { setEditing(false); setDraft(value) }
-        }}
-        onClick={e  => e.stopPropagation()}
-        onDoubleClick={e => e.stopPropagation()}
-        className="flex-1 min-w-0 bg-surface border border-brand-blue rounded-[4px] px-[5px] py-[1px] text-[11.5px] font-medium text-text-1 outline-none"
-      />
-    )
-  }
-
+function LayerRow({ label, meta, icon, isSelected, onSelect, onDelete, expandable, isExpanded, onToggleExpand }: LayerRowProps) {
   return (
-    <span
-      className={cn('truncate cursor-default select-none', className)}
-      onDoubleClick={e => { e.stopPropagation(); setEditing(true) }}
+    <div
+      onClick={onSelect}
+      className={cn(
+        'flex items-center gap-[5px] mx-[6px] px-[7px] py-[4px] rounded-[7px] cursor-pointer group transition-colors',
+        isSelected ? 'bg-text-1' : 'hover:bg-bg',
+      )}
     >
-      {value}
-    </span>
+      {expandable ? (
+        <button
+          onClick={onToggleExpand}
+          className={cn(
+            'w-[14px] h-[14px] flex items-center justify-center flex-shrink-0 rounded-[3px] transition-colors',
+            isSelected ? 'text-white/50 hover:text-white' : 'text-text-3 hover:text-text-1'
+          )}
+        >
+          <ChevronRight size={10} strokeWidth={2.5} className={cn('transition-transform duration-150', isExpanded && 'rotate-90')} />
+        </button>
+      ) : (
+        <div className="w-[14px] flex-shrink-0" />
+      )}
+
+      {icon}
+
+      <span className={cn('text-[12px] font-medium flex-1 truncate leading-none', isSelected ? 'text-white' : 'text-text-1')}>
+        {label}
+      </span>
+
+      {meta && !isSelected && (
+        <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-mono text-text-3 tabular-nums flex-shrink-0">
+          {meta}
+        </span>
+      )}
+
+      <button
+        onClick={e => { e.stopPropagation(); onDelete() }}
+        className={cn(
+          'w-[16px] h-[16px] rounded-[4px] flex items-center justify-center flex-shrink-0 transition-all opacity-0 group-hover:opacity-100',
+          isSelected
+            ? 'text-white/50 hover:text-white hover:bg-white/10'
+            : 'text-text-3 hover:text-brand-red hover:bg-[#FEF2F2]'
+        )}
+      >
+        <Trash2 size={9} strokeWidth={2} />
+      </button>
+    </div>
   )
 }
