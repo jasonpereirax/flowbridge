@@ -19,39 +19,32 @@ interface FigmaChild {
   type:      string
   children?: FigmaChild[]
 }
-
 interface FigmaPage {
   id:        string
   name:      string
   type:      string
   children?: FigmaChild[]
 }
+interface FigmaFileResponse {
+  name:     string
+  document: { children: FigmaPage[] }
+  err?:     string   // Figma sometimes returns { err: "message" }
+}
 
-// ── Frame collector ────────────────────────────────────────────────────────
-// Recurses through PAGE → SECTION* → FRAME
-// Handles arbitrary nesting depth (Figma files can have sections inside sections)
-// Stops recursing into FRAMEs (their children are components, not screens)
+// ── Recursive frame collector ──────────────────────────────────────────────
+// Handles: PAGE → SECTION* → FRAME  (any nesting depth)
 function collectFrames(
   nodes:       FigmaChild[],
-  sectionPath: string[] = [],   // breadcrumb of section names
+  sectionPath: string[] = [],
 ): Array<{ frame: FigmaChild; sectionPath: string[] }> {
   const result: Array<{ frame: FigmaChild; sectionPath: string[] }> = []
-
   for (const node of nodes) {
     if (node.type === 'FRAME' || node.type === 'COMPONENT') {
-      // This is a screen — collect it
       result.push({ frame: node, sectionPath })
-    } else if (
-      node.type === 'SECTION' ||
-      node.type === 'GROUP'   ||
-      node.type === 'CANVAS'
-    ) {
-      // Container — recurse, adding this node's name to the path
+    } else if (['SECTION', 'GROUP', 'CANVAS'].includes(node.type)) {
       result.push(...collectFrames(node.children ?? [], [...sectionPath, node.name]))
     }
-    // Everything else (text, rectangles, etc.) is ignored
   }
-
   return result
 }
 
@@ -60,6 +53,60 @@ function slugRoute(pageName: string, frameName: string): string {
     s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
   const isRoot = /^(home|index|landing|main|root|capa)$/i.test(pageName)
   return isRoot ? `/${slug(frameName)}` : `/${slug(pageName)}/${slug(frameName)}`
+}
+
+// ── Fetch Figma file with fallback depths ──────────────────────────────────
+async function fetchFigmaFile(fileKey: string): Promise<{ data: FigmaFileResponse; depth: number }> {
+  // Try depths from most detailed to least — stop at first success with frames
+  for (const depth of [4, 3, 2]) {
+    const url = `${FIGMA_BASE}/files/${fileKey}?depth=${depth}&branch_data=false`
+    
+    let res: Response
+    try {
+      res = await fetch(url, {
+        headers: figmaHeaders(),
+        signal:  AbortSignal.timeout(40000),
+      })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      throw new Error(`Timeout ao conectar com o Figma (depth=${depth}): ${msg}`)
+    }
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      if (res.status === 403) throw new Error('Sem acesso ao arquivo — verifique o FIGMA_ACCESS_TOKEN')
+      if (res.status === 404) throw new Error('Arquivo não encontrado — verifique a URL do Figma')
+      // For other errors (413, 500), try shallower depth
+      console.warn(`[figma-import] depth=${depth} failed with ${res.status}: ${body.slice(0, 100)}`)
+      continue
+    }
+
+    // Figma sometimes returns 200 with a text error body
+    const contentType = res.headers.get('content-type') ?? ''
+    if (!contentType.includes('application/json')) {
+      const body = await res.text().catch(() => '')
+      console.warn(`[figma-import] depth=${depth} non-JSON response: ${body.slice(0, 100)}`)
+      continue
+    }
+
+    let data: FigmaFileResponse
+    try {
+      data = await res.json()
+    } catch (e) {
+      console.warn(`[figma-import] depth=${depth} JSON parse failed`)
+      continue
+    }
+
+    // Figma API returns { err: "..." } for certain errors
+    if (data.err) {
+      console.warn(`[figma-import] depth=${depth} Figma err: ${data.err}`)
+      continue
+    }
+
+    return { data, depth }
+  }
+
+  throw new Error('Não foi possível obter dados do arquivo Figma. O arquivo pode ser muito grande — tente importar uma página específica.')
 }
 
 export async function POST(req: NextRequest) {
@@ -72,46 +119,28 @@ export async function POST(req: NextRequest) {
     if (!fileKey) {
       return Response.json({ error: 'fileKey é obrigatório' }, { status: 400 })
     }
-
     if (!process.env.FIGMA_ACCESS_TOKEN) {
       return Response.json({ error: 'FIGMA_ACCESS_TOKEN não configurado no servidor' }, { status: 500 })
     }
 
-    // ── 1. Fetch with depth=4 ─────────────────────────────────────────────
-    // Structure: PAGE → SECTION → SECTION → FRAME  (real-world Figma files)
-    // depth=4 is needed to see frames nested inside sub-sections
-    // We ignore node content below FRAME level so payload stays manageable
-    const fileUrl = `${FIGMA_BASE}/files/${fileKey}?depth=4&branch_data=false`
-
-    let fileRes: Response
+    // ── 1. Fetch file ──────────────────────────────────────────────────────
+    let fileData: FigmaFileResponse
+    let usedDepth: number
     try {
-      fileRes = await fetch(fileUrl, {
-        headers: figmaHeaders(),
-        signal:  AbortSignal.timeout(45000),
-      })
-    } catch (fetchErr) {
-      const msg = fetchErr instanceof Error ? fetchErr.message : 'timeout'
-      return Response.json({ error: `Não foi possível conectar ao Figma: ${msg}` }, { status: 503 })
+      const result = await fetchFigmaFile(fileKey)
+      fileData  = result.data
+      usedDepth = result.depth
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      return Response.json({ error: msg }, { status: 503 })
     }
 
-    if (!fileRes.ok) {
-      const text = await fileRes.text().catch(() => '')
-      if (fileRes.status === 403) return Response.json({ error: 'Sem acesso ao arquivo — verifique o FIGMA_ACCESS_TOKEN' }, { status: 403 })
-      if (fileRes.status === 404) return Response.json({ error: 'Arquivo não encontrado — verifique a URL do Figma' }, { status: 404 })
-      return Response.json({ error: `Figma API ${fileRes.status}: ${text.slice(0, 200)}` }, { status: fileRes.status })
-    }
-
-    let fileData: { name: string; document: { children: FigmaPage[] } }
-    try {
-      fileData = await fileRes.json()
-    } catch {
-      return Response.json({ error: 'Resposta inválida da API do Figma' }, { status: 502 })
-    }
+    console.log(`[figma-import] fetched "${fileData.name}" at depth=${usedDepth}`)
 
     const fileName = fileData.name ?? 'Figma File'
     const rawPages = fileData.document?.children ?? []
 
-    // ── 2. Extract pages + frames recursively ─────────────────────────────
+    // ── 2. Extract pages + frames ──────────────────────────────────────────
     const pages: ImportedPage[] = []
     const allFrameIds: string[] = []
 
@@ -119,7 +148,6 @@ export async function POST(req: NextRequest) {
       if (page.type !== 'CANVAS') continue
 
       const collected = collectFrames(page.children ?? [])
-
       if (collected.length === 0) continue
 
       const frames = collected.map(({ frame, sectionPath }, frameIdx) => {
@@ -129,7 +157,6 @@ export async function POST(req: NextRequest) {
           name:        frame.name,
           pageId:      page.id,
           pageName:    page.name,
-          // Use innermost section name as grouping label
           sectionName: sectionPath.length > 0 ? sectionPath[sectionPath.length - 1] : undefined,
           order:       frameIdx,
         }
@@ -142,14 +169,12 @@ export async function POST(req: NextRequest) {
 
     if (totalFrames === 0) {
       return Response.json({
-        error: 'Nenhum frame encontrado. O arquivo pode estar vazio ou usar uma estrutura não reconhecida (ex: frames dentro de componentes).'
+        error: `Nenhum frame encontrado (depth usado: ${usedDepth}). O arquivo pode ter frames muito aninhados ou usar componentes no lugar de frames.`
       }, { status: 422 })
     }
 
-    // ── 3. Batch thumbnails ────────────────────────────────────────────────
+    // ── 3. Batch thumbnails (max 200 frames) ──────────────────────────────
     const thumbnails: Record<string, string> = {}
-
-    // Limit thumbnails to first 200 frames to avoid very long API calls
     const thumbIds = allFrameIds.slice(0, 200)
 
     for (let i = 0; i < thumbIds.length; i += 50) {
@@ -170,10 +195,9 @@ export async function POST(req: NextRequest) {
       } catch { /* thumbnails optional */ }
     }
 
-    // ── 4. AI analysis (batch, single call) ───────────────────────────────
+    // ── 4. AI analysis ────────────────────────────────────────────────────
     const aiContext: Record<string, FrameAIContext> = {}
 
-    // Only analyze if file isn't huge
     if (analyzeWithAI && allFrameIds.length <= 150) {
       try {
         const apiKey = process.env.ANTHROPIC_API_KEY
@@ -182,32 +206,32 @@ export async function POST(req: NextRequest) {
 
           const frameList = pages.flatMap(p =>
             p.frames.map(f => {
-              const section = f.sectionName ? ` (${f.sectionName})` : ''
-              return `Page "${p.name}" > Frame "${f.name}"${section} [${f.nodeId}]`
+              const sec = f.sectionName ? ` (${f.sectionName})` : ''
+              return `Page "${p.name}" > "${f.name}"${sec} [${f.nodeId}]`
             })
           ).join('\n')
 
           const msg = await client.messages.create({
             model:      process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
-            max_tokens: 4000,
+            max_tokens: 4096,
             messages: [{
               role:    'user',
-              content: `Analyze this Figma file structure. Return semantic context for each screen.
+              content: `Analyze this Figma file and return semantic context for each screen.
 
 File: "${fileName}"
-Frames:
+Screens:
 ${frameList}
 
-Return ONLY a JSON object. Keys = nodeIds in brackets. Values:
+Return ONLY a valid JSON object. Keys = the nodeIds in brackets []. Values:
 {
   "purpose": "one sentence what this screen does",
   "userIntent": "one sentence why user is here",
   "route": "Next.js route like /dashboard or /auth/login",
   "layoutPattern": "hero|form|list|dashboard|detail|landing|auth|settings|checkout|empty-state|onboarding",
-  "notes": "one sentence architecture note or empty string"
+  "notes": "brief architecture note or empty string"
 }
 
-Infer from page and frame names. Return ONLY the JSON object, no markdown.`,
+Infer from page and frame names. No markdown. Return ONLY the JSON object.`,
             }],
           })
 
@@ -227,7 +251,7 @@ Infer from page and frame names. Return ONLY the JSON object, no markdown.`,
       }
     }
 
-    // ── 5. Fill missing AI context with local inference ────────────────────
+    // ── 5. Fill missing context with local inference ───────────────────────
     for (const page of pages) {
       for (const frame of page.frames) {
         if (!aiContext[frame.nodeId]) {
