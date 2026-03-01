@@ -271,31 +271,6 @@ export function useCanvasInteraction(
   }, [])
 
 
-  // ── Double-click — open journey ────────────────────────────────────────────
-  const onDblClick = useCallback((e: MouseEvent) => {
-    // Walk up from the click target to find a node with data-macro-id
-    let el = e.target as HTMLElement | null
-    let journeyId: string | null = null
-    while (el && el !== canvasRef.current) {
-      if (el.dataset?.macroId) {
-        journeyId = el.dataset.macroId
-        break
-      }
-      el = el.parentElement
-    }
-    if (!journeyId) return
-
-    const state = useStore.getState()
-    const canvas = state.canvasData[state.curProjectId!]
-    if (!canvas) return
-
-    const node = canvas.nodes.find(n => n.id === journeyId)
-    if (!node || node.type !== 'journey') return
-
-    state.openJourney(journeyId)
-    const flows = canvas.flows[journeyId] ?? []
-    if (flows[0]) state.setActiveFlow(journeyId, flows[0].id)
-  }, [canvasRef])
 
   // ── Register on canvas element (not window) ────────────────────────────────
   // All pointer events are captured on the canvas element via setPointerCapture,
@@ -307,7 +282,6 @@ export function useCanvasInteraction(
     el.addEventListener('pointerdown', onPointerDown)
     el.addEventListener('pointermove', onPointerMove)
     el.addEventListener('pointerup',   onPointerUp)
-    el.addEventListener('dblclick',    onDblClick, true)  // capture phase — fires before React handlers
     el.addEventListener('wheel',       onWheel, { passive: false })
     window.addEventListener('keydown', onKeyDown)
 
@@ -315,11 +289,10 @@ export function useCanvasInteraction(
       el.removeEventListener('pointerdown', onPointerDown)
       el.removeEventListener('pointermove', onPointerMove)
       el.removeEventListener('pointerup',   onPointerUp)
-      el.removeEventListener('dblclick',    onDblClick, true)
       el.removeEventListener('wheel',       onWheel)
       window.removeEventListener('keydown', onKeyDown)
     }
-  }, [onPointerDown, onPointerMove, onPointerUp, onDblClick, onWheel, onKeyDown, canvasRef])
+  }, [onPointerDown, onPointerMove, onPointerUp, onWheel, onKeyDown, canvasRef])
 
   return {
     startReconnect: useCallback(
