@@ -16,17 +16,19 @@ export async function GET(req: NextRequest) {
   const nodeIds = searchParams.get('nodeIds')
   const type    = searchParams.get('type') ?? 'nodes'  // 'nodes' | 'images'
 
-  if (!fileKey || !nodeIds) {
-    return Response.json({ error: 'fileKey and nodeIds are required' }, { status: 400 })
+  if (!fileKey) {
+    return Response.json({ error: 'fileKey is required' }, { status: 400 })
   }
 
   try {
     let url: string
 
-    if (type === 'images') {
+    if (type === 'images' && nodeIds) {
       url = `${FIGMA_BASE}/images/${fileKey}?ids=${nodeIds}&format=png&scale=1`
-    } else {
+    } else if (nodeIds) {
       url = `${FIGMA_BASE}/files/${fileKey}/nodes?ids=${nodeIds}`
+    } else {
+      url = `${FIGMA_BASE}/files/${fileKey}?depth=1`
     }
 
     const resp = await fetch(url, { headers: figmaHeaders() })
