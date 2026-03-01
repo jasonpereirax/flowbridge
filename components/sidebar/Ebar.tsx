@@ -239,10 +239,14 @@ export function Ebar() {
                                     'flex items-center gap-[7px] px-[8px] py-[5px] cursor-pointer transition-colors group/frow',
                                     isActiveFl ? 'bg-[#EFF6FF]' : 'hover:bg-surface',
                                   )}
-                                  onClick={() => { openFlow(node.id, flow.id); toggleF(flow.id) }}
-                                  onDoubleClick={e => { e.stopPropagation(); openFlow(node.id, flow.id) }}
+                                  onClick={() => openFlow(node.id, flow.id)}
                                 >
-                                  <Chevron open={isFOpen} active={isActiveFl} />
+                                  <button
+                                    onClick={e => { e.stopPropagation(); toggleF(flow.id) }}
+                                    className="flex-shrink-0 p-[1px] rounded-[3px] hover:bg-border transition-colors"
+                                  >
+                                    <Chevron open={isFOpen} active={isActiveFl} />
+                                  </button>
                                   <div className={cn('w-[7px] h-[7px] rounded-full border-[1.5px] flex-shrink-0 transition-all', isActiveFl ? 'bg-brand-blue border-brand-blue' : 'bg-white border-border-strong')} />
                                   <InlineEdit
                                     value={flow.name}
