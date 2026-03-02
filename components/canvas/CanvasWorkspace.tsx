@@ -11,7 +11,9 @@ import type { MacroNode as MacroNodeType, Flow } from '@/types'
 import { ConnectorLayer }  from '@/components/canvas/ConnectorLayer'
 import { MacroNodeCard }   from '@/components/nodes/MacroNode'
 import { ScreenNodeCard }  from '@/components/nodes/ScreenNode'
+import { Ibar }            from '@/components/sidebar/Ibar'
 import { Ebar }            from '@/components/sidebar/Ebar'
+import { ContextHeader }   from '@/components/canvas/ContextHeader'
 import { ImportWizard }    from '@/components/canvas/ImportWizard'
 import { RightPanel }      from '@/components/panels/RightPanel'
 import { FAB }             from '@/components/ui/FAB'
@@ -111,7 +113,9 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-bg">
+    <div className="flex flex-col h-screen overflow-hidden bg-bg">
+      <ProductHeader />
+      <div className="flex flex-1 min-h-0 overflow-hidden">
       <Ebar />
 
       <div className="flex flex-col flex-1 min-w-0">
@@ -276,6 +280,9 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
       )}
 
       <FAB />
-    </div>
+      </div>   {/* flex flex-col flex-1 wrapper 2 */}
+      </div>   {/* flex flex-col flex-1 wrapper 1 */}
+      </div>   {/* main canvas area div */}
+    </div>     {/* flex h-screen root */}
   )
 }
