@@ -46,7 +46,10 @@ export function RightPanel() {
 
   const selectedItem = screen ?? node
 
-  // DS nodes connected to this journey (for component suggestions)
+  // All flows of the current journey (for analyzers)
+  const allFlows: Flow[] = curJourneyId
+    ? (canvas?.flows[curJourneyId] ?? [])
+    : []
   const connectedDsTags: string[] = (() => {
     if (!canvas || !curJourneyId) return []
     const dsNodeIds = canvas.conns
@@ -134,6 +137,7 @@ export function RightPanel() {
             node={node}
             journeyNode={journeyNode}
             activeFlowObj={activeFlowObj}
+            allFlows={allFlows}
             curJourneyId={curJourneyId}
             activeFlow={activeFlowId}
             connectedDsTags={connectedDsTags}
@@ -277,11 +281,12 @@ function PropertiesTab({ node, screen, curJourneyId, activeFlow }: {
 // ContextTab — multi-level context (Journey → Flow → Screen)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ContextTab({ screen, node, journeyNode, activeFlowObj, curJourneyId, activeFlow, connectedDsTags }: {
+function ContextTab({ screen, node, journeyNode, activeFlowObj, allFlows, curJourneyId, activeFlow, connectedDsTags }: {
   screen:           Screen | undefined
   node:             MacroNode | undefined
   journeyNode:      MacroNode | undefined
   activeFlowObj:    Flow | undefined
+  allFlows:         Flow[]
   curJourneyId:     string | null
   activeFlow:       string | null
   connectedDsTags:  string[]
@@ -290,9 +295,11 @@ function ContextTab({ screen, node, journeyNode, activeFlowObj, curJourneyId, ac
 
   // ── JOURNEY selected (macro view) → show Journey context form ──────────────
   if (node?.type === 'journey') {
+    const journeyFlows = allFlows  // already filtered to this journey in root
     return (
       <JourneyContextForm
         node={node}
+        flows={journeyFlows}
         onUpdate={(ctx) => store.updateJourneyContext(node.id, ctx)}
       />
     )
@@ -341,6 +348,7 @@ function ContextTab({ screen, node, journeyNode, activeFlowObj, curJourneyId, ac
           {activeFlowObj && (
             <FlowContextForm
               flow={activeFlowObj}
+              curJourneyId={curJourneyId!}
               onUpdate={(ctx) => store.updateFlowContext(curJourneyId!, activeFlowObj.id, ctx)}
             />
           )}
@@ -600,8 +608,9 @@ function ContextLevelBlock({
 // JourneyContextForm — editable, shown when Journey node is selected
 // ─────────────────────────────────────────────────────────────────────────────
 
-function JourneyContextForm({ node, onUpdate }: {
+function JourneyContextForm({ node, flows, onUpdate }: {
   node:     MacroNode
+  flows:    Flow[]
   onUpdate: (ctx: Partial<JourneyContext>) => void
 }) {
   const ctx = node.journeyCtx ?? {
@@ -620,6 +629,13 @@ function JourneyContextForm({ node, onUpdate }: {
         <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700">Journey Context</span>
         <span className="text-[11px] text-gray-400 truncate flex-1">{node.name}</span>
       </div>
+
+      {/* AI Journey Analyzer — topo, antes dos campos */}
+      <AIJourneyAnalyzer
+        node={node}
+        flows={flows}
+        onApply={onUpdate}
+      />
 
       <div className="p-4 space-y-4">
         <p className="text-[11px] text-gray-400 leading-relaxed bg-indigo-50 rounded p-2.5 border border-indigo-100">
@@ -695,9 +711,9 @@ function JourneyContextForm({ node, onUpdate }: {
         <div className="flex items-center gap-1.5 text-[10px] font-mono text-gray-400 bg-gray-50 rounded p-2">
           <span className="text-indigo-500 font-semibold">Journey</span>
           <ArrowRight size={8} className="text-gray-300" />
-          <span className="text-violet-400">N flows</span>
+          <span className="text-violet-400">{flows.length} flow{flows.length !== 1 ? 's' : ''}</span>
           <ArrowRight size={8} className="text-gray-300" />
-          <span className="text-blue-400">M screens cada</span>
+          <span className="text-blue-400">{flows.reduce((a, f) => a + f.screens.length, 0)} screens</span>
         </div>
       </div>
     </div>
@@ -746,66 +762,613 @@ function JourneyContextReadonly({ ctx }: { ctx?: JourneyContext }) {
 // FlowContextForm — editable, shown inside the Level 2 block
 // ─────────────────────────────────────────────────────────────────────────────
 
-function FlowContextForm({ flow, onUpdate }: {
-  flow:     Flow
-  onUpdate: (ctx: Partial<FlowContext>) => void
+function FlowContextForm({ flow, curJourneyId, onUpdate }: {
+  flow:         Flow
+  curJourneyId: string
+  onUpdate:     (ctx: Partial<FlowContext>) => void
 }) {
   const ctx = flow.flowCtx ?? {
     general: '', specific: '', entryPoint: '', exitPoints: '', stateNotes: '',
   }
 
   return (
-    <div className="p-4 space-y-4">
-      <FormGroup label="Descrição geral do flow">
-        <textarea
-          value={ctx.general}
-          onChange={e => onUpdate({ general: e.target.value })}
-          rows={2}
-          className={cn(inputCls, 'resize-none')}
-          placeholder="Happy path for the sign-up funnel — 3 steps"
-        />
-      </FormGroup>
+    <div className="divide-y divide-gray-100">
+      {/* AI Flow Analyzer — aparece sempre no topo do form */}
+      <AIFlowAnalyzer
+        flow={flow}
+        curJourneyId={curJourneyId}
+        onApply={onUpdate}
+      />
 
-      <FormGroup label="Notas específicas">
-        <textarea
-          value={ctx.specific}
-          onChange={e => onUpdate({ specific: e.target.value })}
-          rows={2}
-          className={cn(inputCls, 'resize-none')}
-          placeholder="Shares auth state with /login via cookie. Handles email verification."
-        />
-      </FormGroup>
+      <div className="p-4 space-y-4">
+        <FormGroup label="Descrição geral do flow">
+          <textarea
+            value={ctx.general}
+            onChange={e => onUpdate({ general: e.target.value })}
+            rows={2}
+            className={cn(inputCls, 'resize-none')}
+            placeholder="Happy path for the sign-up funnel — 3 steps"
+          />
+        </FormGroup>
 
-      <FormGroup label="Entry point">
-        <input
-          type="text"
-          value={ctx.entryPoint}
-          onChange={e => onUpdate({ entryPoint: e.target.value })}
-          className={inputCls}
-          placeholder="User arrives from landing page via CTA button"
-        />
-      </FormGroup>
+        <FormGroup label="Notas específicas">
+          <textarea
+            value={ctx.specific}
+            onChange={e => onUpdate({ specific: e.target.value })}
+            rows={2}
+            className={cn(inputCls, 'resize-none')}
+            placeholder="Shares auth state with /login via cookie. Handles email verification."
+          />
+        </FormGroup>
 
-      <FormGroup label="Exit points">
-        <input
-          type="text"
-          value={ctx.exitPoints}
-          onChange={e => onUpdate({ exitPoints: e.target.value })}
-          className={inputCls}
-          placeholder="Success → /dashboard, Error → retry screen"
-        />
-      </FormGroup>
+        <FormGroup label="Entry point">
+          <input
+            type="text"
+            value={ctx.entryPoint}
+            onChange={e => onUpdate({ entryPoint: e.target.value })}
+            className={inputCls}
+            placeholder="User arrives from landing page via CTA button"
+          />
+        </FormGroup>
 
-      <FormGroup label="Estado compartilhado">
-        <textarea
-          value={ctx.stateNotes}
-          onChange={e => onUpdate({ stateNotes: e.target.value })}
-          rows={2}
-          className={cn(inputCls, 'resize-none')}
-          placeholder="Form state managed locally via react-hook-form. No global state."
-        />
-      </FormGroup>
+        <FormGroup label="Exit points">
+          <input
+            type="text"
+            value={ctx.exitPoints}
+            onChange={e => onUpdate({ exitPoints: e.target.value })}
+            className={inputCls}
+            placeholder="Success → /dashboard, Error → retry screen"
+          />
+        </FormGroup>
+
+        <FormGroup label="Estado compartilhado">
+          <textarea
+            value={ctx.stateNotes}
+            onChange={e => onUpdate({ stateNotes: e.target.value })}
+            rows={2}
+            className={cn(inputCls, 'resize-none')}
+            placeholder="Form state managed locally via react-hook-form. No global state."
+          />
+        </FormGroup>
+      </div>
     </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AIFlowAnalyzer — analisa todas as screens do flow e sugere FlowContext
+// Aparece no topo do FlowContextForm (Level 2 block)
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface AIFlowAnalysis {
+  general:    string
+  specific:   string
+  entryPoint: string
+  exitPoints: string
+  stateNotes: string
+}
+
+function AIFlowAnalyzer({ flow, curJourneyId: _curJourneyId, onApply }: {
+  flow:         Flow
+  curJourneyId: string
+  onApply:      (ctx: Partial<FlowContext>) => void
+}) {
+  const [loading,  setLoading]  = useState(false)
+  const [analysis, setAnalysis] = useState<AIFlowAnalysis | null>(null)
+  const [error,    setError]    = useState<string | null>(null)
+  const [applied,  setApplied]  = useState(false)
+
+  const screens    = flow.screens
+  const hasScreens = screens.length > 0
+  // Screens with meaningful context (purpose filled)
+  const analyzedCount = screens.filter(s => s.context.purpose.length > 5).length
+
+  async function analyze() {
+    setLoading(true)
+    setError(null)
+    setAnalysis(null)
+    setApplied(false)
+
+    try {
+      // Build a rich summary of all screens for the AI
+      const screenSummaries = screens.map((s, i) => ({
+        index:       i + 1,
+        name:        s.name,
+        route:       s.context.route,
+        purpose:     s.context.purpose,
+        userIntent:  s.context.userIntent,
+        components:  s.context.components.slice(0, 8),
+        endpoints:   s.context.apiEndpoints.map(e => `${e.method} ${e.path}`),
+        isEntry:     s.isEntry,
+        isError:     s.isError,
+        requiresAuth: s.context.requiresAuth,
+      }))
+
+      const prompt = `You are analyzing a user flow in a web application called "${flow.name}".
+
+This flow has ${screens.length} screen(s). Here is the context of each screen:
+
+${screenSummaries.map(s => `
+Screen ${s.index}: "${s.name}"
+- Route: ${s.route || '(not set)'}
+- Purpose: ${s.purpose || '(not set)'}
+- User Intent: ${s.userIntent || '(not set)'}
+- Components: ${s.components.length > 0 ? s.components.join(', ') : '(none)'}
+- API Endpoints: ${s.endpoints.length > 0 ? s.endpoints.join(', ') : '(none)'}
+- Markers: ${[s.isEntry && 'entry', s.isError && 'error'].filter(Boolean).join(', ') || 'none'}
+- Auth: ${s.requiresAuth ? 'required' : 'public'}
+`).join('\n')}
+
+Based on all these screens, synthesize a FlowContext object. Respond ONLY with a JSON object (no markdown, no explanation):
+{
+  "general": "one sentence describing what this entire flow accomplishes",
+  "specific": "2-3 sentences with specific technical notes about this flow — auth patterns, state sharing, redirects, edge cases",
+  "entryPoint": "where/how users arrive at this flow",
+  "exitPoints": "where users go after completing or failing this flow",
+  "stateNotes": "notes about state management needs across this flow's screens"
+}`
+
+      const res = await fetch('/api/generate', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ prompt, maxTokens: 600, _previewMode: true }),
+      })
+
+      let rawText = ''
+      if (res.ok && res.body) {
+        const reader  = res.body.getReader()
+        const decoder = new TextDecoder()
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          const chunk = decoder.decode(value, { stream: true })
+          for (const line of chunk.split('\n')) {
+            if (line.startsWith('data: ')) {
+              try {
+                const d = JSON.parse(line.slice(6)) as Record<string, unknown>
+                if (typeof d.text  === 'string') rawText += d.text
+                if (typeof d.delta === 'string') rawText += d.delta
+              } catch { rawText += line.slice(6) }
+            }
+          }
+        }
+      }
+
+      // Parse JSON from response
+      let parsed: AIFlowAnalysis | null = null
+      try {
+        const clean = rawText.replace(/```json|```/g, '').trim()
+        const jsonMatch = clean.match(/\{[\s\S]+\}/)
+        if (jsonMatch) parsed = JSON.parse(jsonMatch[0]) as AIFlowAnalysis
+      } catch { /* fallback below */ }
+
+      // Local heuristic fallback
+      if (!parsed || !parsed.general) {
+        const routes      = screens.map(s => s.context.route).filter(Boolean)
+        const purposes    = screens.map(s => s.context.purpose).filter(Boolean)
+        const hasAuth     = screens.some(s => s.context.requiresAuth || /login|auth|sign/i.test(s.name))
+        const hasForm     = screens.some(s => /form|input|submit/i.test(s.context.components.join(' ')))
+        const entryScreen = screens.find(s => s.isEntry) ?? screens[0]
+        const errorScreen = screens.find(s => s.isError)
+
+        parsed = {
+          general:    purposes.length > 0
+            ? `Flow covering: ${purposes.slice(0, 2).join('; ')}`
+            : `${flow.name} — ${screens.length} screen${screens.length !== 1 ? 's' : ''}`,
+          specific:   hasAuth
+            ? 'Requires authentication. Handles protected routes.'
+            : hasForm
+            ? 'Contains form submission. Validates user input.'
+            : 'Standard navigation flow.',
+          entryPoint: entryScreen
+            ? `Starts at "${entryScreen.name}"${entryScreen.context.route ? ` (${entryScreen.context.route})` : ''}`
+            : 'Entry point not defined',
+          exitPoints: errorScreen
+            ? `Error state: "${errorScreen.name}". Success redirects to next flow.`
+            : routes.length > 0
+            ? `Routes: ${routes.join(' → ')}`
+            : 'Exit points not defined',
+          stateNotes: hasForm
+            ? 'Form state managed locally. Consider react-hook-form.'
+            : 'No complex state identified.',
+        }
+      }
+
+      setAnalysis(parsed)
+    } catch (e) {
+      setError('Falha na análise — tente novamente')
+      console.error('[AIFlowAnalyzer]', e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function applyAll() {
+    if (!analysis) return
+    const current = flow.flowCtx
+    const patch: Partial<FlowContext> = {}
+    if (analysis.general    && !current?.general)    patch.general    = analysis.general
+    if (analysis.specific   && !current?.specific)   patch.specific   = analysis.specific
+    if (analysis.entryPoint && !current?.entryPoint) patch.entryPoint = analysis.entryPoint
+    if (analysis.exitPoints && !current?.exitPoints) patch.exitPoints = analysis.exitPoints
+    if (analysis.stateNotes && !current?.stateNotes) patch.stateNotes = analysis.stateNotes
+    onApply(patch)
+    setApplied(true)
+  }
+
+  if (!hasScreens) return (
+    <div className="px-4 py-3">
+      <p className="text-[11px] text-gray-400">Adicione screens a este flow para usar o AI Analyzer.</p>
+    </div>
+  )
+
+  return (
+    <div className="p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Wand2 size={13} className="text-violet-500" />
+          <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">AI Flow Analyzer</span>
+          <span className="text-[10px] text-gray-400">
+            {analyzedCount}/{screens.length} screens
+          </span>
+        </div>
+        {!analysis && !loading && (
+          <button
+            onClick={analyze}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded bg-violet-600 text-white hover:bg-violet-700 transition-colors"
+          >
+            <Sparkles size={11} /> Analisar flow
+          </button>
+        )}
+      </div>
+
+      {/* Progress bar showing how many screens have context */}
+      {analyzedCount < screens.length && (
+        <div className="mb-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] text-gray-400">
+              {analyzedCount === 0
+                ? 'Nenhuma screen com contexto — análise será heurística'
+                : `${analyzedCount} screens com contexto`}
+            </span>
+          </div>
+          <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className={cn('h-full rounded-full transition-all', analyzedCount === 0 ? 'bg-gray-300' : 'bg-violet-400')}
+              style={{ width: `${Math.max(4, (analyzedCount / screens.length) * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {loading && (
+        <div className="flex items-center gap-2 text-xs text-violet-600 bg-violet-50 rounded p-3 border border-violet-100">
+          <Loader2 size={13} className="animate-spin flex-shrink-0" />
+          <span>Sintetizando {screens.length} screens…</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 rounded p-2 border border-red-100">
+          <AlertCircle size={12} className="flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {analysis && !applied && (
+        <div className="space-y-2">
+          <div className="bg-violet-50 border border-violet-100 rounded-lg p-3 space-y-2">
+            <p className="text-[11px] font-semibold text-violet-700 uppercase tracking-wide mb-1.5">
+              Sugestões do AI
+            </p>
+            {analysis.general    && <PreviewRow label="Geral"   value={analysis.general} />}
+            {analysis.specific   && <PreviewRow label="Notas"   value={analysis.specific} />}
+            {analysis.entryPoint && <PreviewRow label="Entry"   value={analysis.entryPoint} />}
+            {analysis.exitPoints && <PreviewRow label="Exits"   value={analysis.exitPoints} />}
+            {analysis.stateNotes && <PreviewRow label="Estado"  value={analysis.stateNotes} />}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={applyAll}
+              className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 rounded bg-violet-600 text-white hover:bg-violet-700 transition-colors"
+            >
+              <Check size={11} /> Aplicar
+            </button>
+            <button onClick={() => setAnalysis(null)} className="text-xs text-gray-400 hover:text-gray-600 px-2">
+              Ignorar
+            </button>
+            <button onClick={analyze} className="text-xs text-gray-400 hover:text-gray-600 px-2">
+              Reanalisar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {applied && (
+        <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 rounded p-2 border border-green-100">
+          <CheckCircle2 size={12} className="flex-shrink-0" />
+          <span>Contexto do flow preenchido — edite os campos abaixo</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AIJourneyAnalyzer — sintetiza todos os FlowContexts e gera JourneyContext
+// Aparece no JourneyContextForm quando Journey node está selecionado
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface AIJourneyAnalysis {
+  goal:         string
+  targetUser:   string
+  platform:     string
+  techNotes:    string
+  designTokens: string
+  globalRules:  string
+}
+
+function AIJourneyAnalyzer({ node, flows, onApply }: {
+  node:    MacroNode
+  flows:   Flow[]
+  onApply: (ctx: Partial<JourneyContext>) => void
+}) {
+  const [loading,  setLoading]  = useState(false)
+  const [analysis, setAnalysis] = useState<AIJourneyAnalysis | null>(null)
+  const [error,    setError]    = useState<string | null>(null)
+  const [applied,  setApplied]  = useState(false)
+
+  const analyzedFlows  = flows.filter(f => f.flowCtx?.general)
+  const totalScreens   = flows.reduce((acc, f) => acc + f.screens.length, 0)
+
+  // Journey analyzer is most useful when flows have context, but allow always
+  const hasAnyContext  = analyzedFlows.length > 0 || totalScreens > 0
+
+  async function analyze() {
+    setLoading(true)
+    setError(null)
+    setAnalysis(null)
+    setApplied(false)
+
+    try {
+      // Build rich context from all flows
+      const flowSummaries = flows.map((f, i) => {
+        const ctx = f.flowCtx
+        const screens = f.screens
+        const allPurposes = screens.map(s => s.context.purpose).filter(Boolean)
+        const allRoutes   = screens.map(s => s.context.route).filter(Boolean)
+        const allComponents = [...new Set(screens.flatMap(s => s.context.components))].slice(0, 10)
+        const usesAuth    = screens.some(s => s.context.requiresAuth)
+
+        return `
+Flow ${i + 1}: "${f.name}" (${screens.length} screens)
+${ctx?.general    ? `- General: ${ctx.general}` : ''}
+${ctx?.entryPoint ? `- Entry: ${ctx.entryPoint}` : ''}
+${ctx?.exitPoints ? `- Exits: ${ctx.exitPoints}` : ''}
+${ctx?.stateNotes ? `- State: ${ctx.stateNotes}` : ''}
+${allPurposes.length > 0 ? `- Screen purposes: ${allPurposes.slice(0, 3).join('; ')}` : ''}
+${allRoutes.length   > 0 ? `- Routes: ${allRoutes.join(', ')}` : ''}
+${allComponents.length > 0 ? `- Components used: ${allComponents.join(', ')}` : ''}
+${usesAuth ? '- Requires authentication' : '- Public flow'}`
+      }).join('\n')
+
+      const prompt = `You are analyzing a complete user journey called "${node.name}" in a web application.
+
+This journey has ${flows.length} flow(s) and ${totalScreens} total screens:
+
+${flowSummaries}
+
+Based on this complete journey, synthesize a JourneyContext. Respond ONLY with a JSON object (no markdown, no explanation):
+{
+  "goal": "one clear sentence — what is the overarching goal of this entire journey?",
+  "targetUser": "who is the target user going through this journey?",
+  "platform": "what platform/device is this primarily designed for?",
+  "techNotes": "key technical patterns observed across all flows (auth, state management, API patterns)",
+  "designTokens": "design system / component library patterns observed",
+  "globalRules": "generation rules that apply to ALL screens in this journey"
+}`
+
+      const res = await fetch('/api/generate', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ prompt, maxTokens: 700, _previewMode: true }),
+      })
+
+      let rawText = ''
+      if (res.ok && res.body) {
+        const reader  = res.body.getReader()
+        const decoder = new TextDecoder()
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          const chunk = decoder.decode(value, { stream: true })
+          for (const line of chunk.split('\n')) {
+            if (line.startsWith('data: ')) {
+              try {
+                const d = JSON.parse(line.slice(6)) as Record<string, unknown>
+                if (typeof d.text  === 'string') rawText += d.text
+                if (typeof d.delta === 'string') rawText += d.delta
+              } catch { rawText += line.slice(6) }
+            }
+          }
+        }
+      }
+
+      let parsed: AIJourneyAnalysis | null = null
+      try {
+        const clean = rawText.replace(/```json|```/g, '').trim()
+        const jsonMatch = clean.match(/\{[\s\S]+\}/)
+        if (jsonMatch) parsed = JSON.parse(jsonMatch[0]) as AIJourneyAnalysis
+      } catch { /* fallback below */ }
+
+      // Local heuristic fallback
+      if (!parsed || !parsed.goal) {
+        const allScreens    = flows.flatMap(f => f.screens)
+        const usesAuth      = allScreens.some(s => s.context.requiresAuth)
+        const allComponents = [...new Set(allScreens.flatMap(s => s.context.components))].slice(0, 8)
+        const allPurposes   = allScreens.map(s => s.context.purpose).filter(Boolean).slice(0, 3)
+
+        parsed = {
+          goal:         allPurposes.length > 0
+            ? allPurposes[0]
+            : `${node.name} — ${flows.length} flows, ${totalScreens} screens`,
+          targetUser:   usesAuth ? 'Authenticated user' : 'General user',
+          platform:     'Web application',
+          techNotes:    usesAuth
+            ? 'Requires authentication. Protected routes present.'
+            : 'Public journey. No auth required.',
+          designTokens: allComponents.length > 0
+            ? `Components: ${allComponents.join(', ')}`
+            : 'No component data available.',
+          globalRules:  'Use Next.js App Router. TypeScript strict. Tailwind CSS.',
+        }
+      }
+
+      setAnalysis(parsed)
+    } catch (e) {
+      setError('Falha na análise — tente novamente')
+      console.error('[AIJourneyAnalyzer]', e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function applyAll() {
+    if (!analysis) return
+    const current = node.journeyCtx
+    const patch: Partial<JourneyContext> = {}
+    if (analysis.goal         && !current?.goal)         patch.goal         = analysis.goal
+    if (analysis.targetUser   && !current?.targetUser)   patch.targetUser   = analysis.targetUser
+    if (analysis.platform     && !current?.platform)     patch.platform     = analysis.platform
+    if (analysis.techNotes    && !current?.techNotes)    patch.techNotes    = analysis.techNotes
+    if (analysis.designTokens && !current?.designTokens) patch.designTokens = analysis.designTokens
+    if (analysis.globalRules  && !current?.globalRules)  patch.globalRules  = analysis.globalRules
+    onApply(patch)
+    setApplied(true)
+  }
+
+  if (!hasAnyContext) return (
+    <div className="px-4 py-3 bg-indigo-50 border-b border-indigo-100">
+      <p className="text-[11px] text-gray-400">
+        Adicione flows e screens à journey para usar o AI Analyzer.
+      </p>
+    </div>
+  )
+
+  return (
+    <div className="p-4 border-b border-indigo-100 bg-indigo-50/50">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Wand2 size={13} className="text-indigo-500" />
+          <span className="text-xs font-bold text-indigo-800 uppercase tracking-wide">AI Journey Analyzer</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Status badges */}
+          <span className="text-[10px] text-indigo-400">
+            {flows.length} flow{flows.length !== 1 ? 's' : ''} · {totalScreens} screens
+          </span>
+          {!analysis && !loading && (
+            <button
+              onClick={analyze}
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+            >
+              <Sparkles size={11} /> Analisar journey
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Flow coverage bar */}
+      {analyzedFlows.length < flows.length && flows.length > 0 && (
+        <div className="mb-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] text-indigo-400">
+              {analyzedFlows.length === 0
+                ? 'Flows sem contexto — análise usará dados das screens'
+                : `${analyzedFlows.length}/${flows.length} flows com contexto`}
+            </span>
+          </div>
+          <div className="h-1 w-full bg-indigo-100 rounded-full overflow-hidden">
+            <div
+              className={cn('h-full rounded-full transition-all', analyzedFlows.length === 0 ? 'bg-indigo-200' : 'bg-indigo-500')}
+              style={{ width: `${flows.length > 0 ? Math.max(4, (analyzedFlows.length / flows.length) * 100) : 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {loading && (
+        <div className="flex items-center gap-2 text-xs text-indigo-600 bg-indigo-100 rounded p-3 border border-indigo-200">
+          <Loader2 size={13} className="animate-spin flex-shrink-0" />
+          <span>Sintetizando {flows.length} flows e {totalScreens} screens…</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 rounded p-2 border border-red-100">
+          <AlertCircle size={12} className="flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {analysis && !applied && (
+        <div className="space-y-2">
+          <div className="bg-indigo-100 border border-indigo-200 rounded-lg p-3 space-y-2">
+            <p className="text-[11px] font-semibold text-indigo-800 uppercase tracking-wide mb-1.5">
+              Síntese da Journey
+            </p>
+            {analysis.goal         && <PreviewRow label="Objetivo"  value={analysis.goal} color="indigo" />}
+            {analysis.targetUser   && <PreviewRow label="Usuário"   value={analysis.targetUser} color="indigo" />}
+            {analysis.platform     && <PreviewRow label="Plataforma" value={analysis.platform} color="indigo" />}
+            {analysis.techNotes    && <PreviewRow label="Técnico"   value={analysis.techNotes} color="indigo" />}
+            {analysis.designTokens && <PreviewRow label="Design"    value={analysis.designTokens} color="indigo" />}
+            {analysis.globalRules  && <PreviewRow label="Regras"    value={analysis.globalRules} color="indigo" />}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={applyAll}
+              className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 rounded bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+            >
+              <Check size={11} /> Aplicar
+            </button>
+            <button onClick={() => setAnalysis(null)} className="text-xs text-gray-400 hover:text-gray-600 px-2">
+              Ignorar
+            </button>
+            <button onClick={analyze} className="text-xs text-gray-400 hover:text-gray-600 px-2">
+              Reanalisar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {applied && (
+        <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 rounded p-2 border border-green-100">
+          <CheckCircle2 size={12} className="flex-shrink-0" />
+          <span>Journey context preenchido — edite os campos abaixo</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PreviewRow — shared primitive for analyzer preview cards
+// ─────────────────────────────────────────────────────────────────────────────
+
+function PreviewRow({ label, value, color = 'violet' }: {
+  label:  string
+  value:  string
+  color?: 'violet' | 'indigo'
+}) {
+  const labelCls = color === 'indigo'
+    ? 'text-indigo-500'
+    : 'text-violet-500'
+
+  return (
+    <p className="text-xs text-gray-700">
+      <span className={cn('font-semibold', labelCls)}>{label}: </span>
+      {value}
+    </p>
   )
 }
 
