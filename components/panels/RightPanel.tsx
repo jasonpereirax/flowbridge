@@ -3,12 +3,15 @@
 import { useCallback, useState, useRef } from 'react'
 import {
   X, Plus, Trash2, Link, Loader2, AlertCircle, CheckCircle2, Sparkles,
-  ChevronDown, Eye, Zap, GitBranch, Copy, Check,
-  ArrowRight, LayoutGrid, Wand2,
+  ChevronDown, ChevronRight, Eye, Zap, GitBranch, Copy, Check,
+  ArrowRight, LayoutGrid, Wand2, Map, Layers, Monitor,
 } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { cn, screenCompleteness } from '@/utils'
-import type { MacroNode, Screen, ApiEndpoint, ScreenFigma, ScreenContext } from '@/types'
+import type {
+  MacroNode, Screen, ApiEndpoint, ScreenFigma, ScreenContext,
+  JourneyContext, FlowContext, Flow,
+} from '@/types'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RightPanel (root)
@@ -25,11 +28,19 @@ export function RightPanel() {
 
   const canvas     = curProjectId ? store.canvasData[curProjectId] : null
   const node       = canvas?.nodes.find(n => n.id === selNodeId)
-  const activeFlow = (curJourneyId ? canvas?.curFlow[curJourneyId] : null) ?? null
+  const activeFlowId = (curJourneyId ? canvas?.curFlow[curJourneyId] : null) ?? null
 
-  const screen = (activeFlow && curJourneyId)
+  // Journey node (for context inheritance)
+  const journeyNode = curJourneyId ? canvas?.nodes.find(n => n.id === curJourneyId) : undefined
+
+  // Active Flow object (for context inheritance)
+  const activeFlowObj: Flow | undefined = (activeFlowId && curJourneyId)
+    ? (canvas?.flows[curJourneyId] ?? []).find(f => f.id === activeFlowId)
+    : undefined
+
+  const screen = (activeFlowId && curJourneyId)
     ? (canvas?.flows[curJourneyId] ?? [])
-        .find(f => f.id === activeFlow)
+        .find(f => f.id === activeFlowId)
         ?.screens.find(s => s.id === selScreenId)
     : undefined
 
@@ -49,19 +60,40 @@ export function RightPanel() {
 
   if (!rpanelOpen) return null
 
+  // Determine panel title
+  let panelTitle = 'No selection'
+  if (screen)           panelTitle = screen.name
+  else if (node?.type === 'journey') panelTitle = node.name
+  else if (node)        panelTitle = node.name
+
+  // Determine context mode badge
+  const contextMode = screen ? 'screen' : node?.type === 'journey' ? 'journey' : null
+
   return (
     <div className={cn(
       'w-80 bg-white border-l border-gray-200',
       'flex flex-col flex-shrink-0 overflow-hidden shadow-lg',
     )}>
       {/* Header */}
-      <div className="px-5 py-3 border-b border-gray-200 flex items-center justify-between flex-shrink-0 bg-gray-50">
-        <h3 className="text-sm font-bold text-gray-900 truncate">
-          {selectedItem?.name ?? 'No selection'}
-        </h3>
+      <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between flex-shrink-0 bg-gray-50">
+        <div className="flex items-center gap-2 min-w-0">
+          {contextMode === 'journey' && (
+            <div className="w-5 h-5 rounded flex items-center justify-center bg-indigo-100 flex-shrink-0">
+              <Map size={11} className="text-indigo-600" />
+            </div>
+          )}
+          {contextMode === 'screen' && (
+            <div className="w-5 h-5 rounded flex items-center justify-center bg-blue-100 flex-shrink-0">
+              <Monitor size={11} className="text-blue-600" />
+            </div>
+          )}
+          <h3 className="text-sm font-bold text-gray-900 truncate">
+            {panelTitle}
+          </h3>
+        </div>
         <button
           onClick={() => store.closeRpanel()}
-          className="text-gray-400 hover:text-gray-600 hover:bg-gray-200 p-1 rounded transition-colors"
+          className="text-gray-400 hover:text-gray-600 hover:bg-gray-200 p-1 rounded transition-colors flex-shrink-0"
           aria-label="Close"
         >
           <X size={16} />
@@ -99,19 +131,22 @@ export function RightPanel() {
         ) : rpanelTab === 'context' ? (
           <ContextTab
             screen={screen}
+            node={node}
+            journeyNode={journeyNode}
+            activeFlowObj={activeFlowObj}
             curJourneyId={curJourneyId}
-            activeFlow={activeFlow}
+            activeFlow={activeFlowId}
             connectedDsTags={connectedDsTags}
           />
         ) : rpanelTab === 'components' ? (
           <ComponentsTab
             screen={screen}
             curJourneyId={curJourneyId}
-            activeFlow={activeFlow}
+            activeFlow={activeFlowId}
             connectedDsTags={connectedDsTags}
           />
         ) : rpanelTab === 'properties' ? (
-          <PropertiesTab node={node} screen={screen} curJourneyId={curJourneyId} activeFlow={activeFlow} />
+          <PropertiesTab node={node} screen={screen} curJourneyId={curJourneyId} activeFlow={activeFlowId} />
         ) : (
           <InfoTab item={selectedItem} />
         )}
@@ -239,155 +274,537 @@ function PropertiesTab({ node, screen, curJourneyId, activeFlow }: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Context Tab — Phase 3, todos os 7 pontos implementados
+// ContextTab — multi-level context (Journey → Flow → Screen)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ContextTab({ screen, curJourneyId, activeFlow, connectedDsTags }: {
+function ContextTab({ screen, node, journeyNode, activeFlowObj, curJourneyId, activeFlow, connectedDsTags }: {
   screen:           Screen | undefined
+  node:             MacroNode | undefined
+  journeyNode:      MacroNode | undefined
+  activeFlowObj:    Flow | undefined
   curJourneyId:     string | null
   activeFlow:       string | null
   connectedDsTags:  string[]
 }) {
   const store = useStore()
-  if (!screen || !curJourneyId || !activeFlow) {
+
+  // ── JOURNEY selected (macro view) → show Journey context form ──────────────
+  if (node?.type === 'journey') {
     return (
-      <div className="p-5">
-        <p className="text-sm text-gray-400">Context is available for screens only.</p>
+      <JourneyContextForm
+        node={node}
+        onUpdate={(ctx) => store.updateJourneyContext(node.id, ctx)}
+      />
+    )
+  }
+
+  // ── SCREEN selected (micro view) → show 3-level hierarchy ─────────────────
+  if (screen && curJourneyId && activeFlow) {
+    const ctx = screen.context
+    const score = screenCompleteness(screen)
+
+    function updateCtx(patch: Partial<ScreenContext>) {
+      store.updateScreenContext(curJourneyId!, activeFlow!, screen!.id, patch)
+    }
+
+    return (
+      <div className="divide-y divide-gray-100">
+
+        {/* ── Completeness ring ── */}
+        <CompletenessRing screen={screen} score={score} />
+
+        {/* ── LEVEL 1: Journey context (inherited, collapsible) ── */}
+        <ContextLevelBlock
+          level={1}
+          label="Journey"
+          sublabel={journeyNode?.name ?? 'Journey'}
+          icon={<Map size={11} />}
+          color="indigo"
+          defaultOpen={false}
+          empty={!journeyNode?.journeyCtx?.goal && !journeyNode?.journeyCtx?.targetUser}
+          emptyHint="No journey context defined — click the Journey node to add it"
+        >
+          <JourneyContextReadonly ctx={journeyNode?.journeyCtx} />
+        </ContextLevelBlock>
+
+        {/* ── LEVEL 2: Flow context (editable) ── */}
+        <ContextLevelBlock
+          level={2}
+          label="Flow"
+          sublabel={activeFlowObj?.name ?? 'Flow'}
+          icon={<Layers size={11} />}
+          color="violet"
+          defaultOpen={false}
+          empty={!activeFlowObj?.flowCtx?.general && !activeFlowObj?.flowCtx?.specific}
+          emptyHint="Add flow context to help the AI understand this flow's scope"
+        >
+          {activeFlowObj && (
+            <FlowContextForm
+              flow={activeFlowObj}
+              onUpdate={(ctx) => store.updateFlowContext(curJourneyId!, activeFlowObj.id, ctx)}
+            />
+          )}
+        </ContextLevelBlock>
+
+        {/* ── LEVEL 3: Screen context (full form, editable) ── */}
+        <ContextLevelBlock
+          level={3}
+          label="Screen"
+          sublabel={screen.name}
+          icon={<Monitor size={11} />}
+          color="blue"
+          defaultOpen={true}
+          empty={false}
+        >
+          <div className="divide-y divide-gray-100">
+            {/* Figma URL binding */}
+            <FigmaSection screen={screen} curJourneyId={curJourneyId} activeFlow={activeFlow} />
+
+            {/* AI Context Analyzer */}
+            {screen.figma?.nodeId && (
+              <AIContextAnalyzer
+                screen={screen}
+                curJourneyId={curJourneyId}
+                activeFlow={activeFlow}
+                onApply={updateCtx}
+              />
+            )}
+
+            {/* Core fields */}
+            <div className="p-4 space-y-4">
+              <FormGroup label="Route">
+                <input
+                  type="text"
+                  value={ctx.route}
+                  onChange={e => updateCtx({ route: e.target.value })}
+                  className={inputCls}
+                  placeholder="/auth/login"
+                />
+              </FormGroup>
+
+              <FormGroup label="Purpose">
+                <textarea
+                  value={ctx.purpose}
+                  onChange={e => updateCtx({ purpose: e.target.value })}
+                  rows={2}
+                  className={cn(inputCls, 'resize-none')}
+                  placeholder="Allow user to sign in with email and password"
+                />
+              </FormGroup>
+
+              <FormGroup label="User Intent">
+                <textarea
+                  value={ctx.userIntent}
+                  onChange={e => updateCtx({ userIntent: e.target.value })}
+                  rows={2}
+                  className={cn(inputCls, 'resize-none')}
+                  placeholder="User wants to access their account"
+                />
+              </FormGroup>
+
+              <FormGroup label="Requires Auth">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <div
+                    onClick={() => updateCtx({ requiresAuth: !ctx.requiresAuth })}
+                    className={cn(
+                      'w-9 h-5 rounded-full transition-colors cursor-pointer relative flex-shrink-0',
+                      ctx.requiresAuth ? 'bg-blue-500' : 'bg-gray-200',
+                    )}
+                  >
+                    <div className={cn(
+                      'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
+                      ctx.requiresAuth ? 'translate-x-4' : 'translate-x-0.5',
+                    )} />
+                  </div>
+                  <span className="text-xs text-gray-600">
+                    {ctx.requiresAuth ? 'Protected route' : 'Public route'}
+                  </span>
+                </label>
+              </FormGroup>
+            </div>
+
+            {/* Component Map Editor */}
+            <div className="p-4">
+              <ComponentMapEditor
+                selected={ctx.components}
+                options={connectedDsTags}
+                figmaComponentMap={screen.figma?.componentMap ?? []}
+                onChange={components => updateCtx({ components })}
+              />
+            </div>
+
+            {/* API Endpoint Builder */}
+            <div className="p-4">
+              <ApiEndpointBuilderAI
+                endpoints={ctx.apiEndpoints}
+                screen={screen}
+                onChange={apiEndpoints => updateCtx({ apiEndpoints })}
+              />
+            </div>
+
+            {/* Notes + Gen Rules */}
+            <div className="p-4 space-y-4">
+              <FormGroup label="Architecture Notes">
+                <textarea
+                  value={ctx.notes}
+                  onChange={e => updateCtx({ notes: e.target.value })}
+                  rows={2}
+                  className={cn(inputCls, 'resize-none')}
+                  placeholder="e.g., Shares state with /auth/register via URL params"
+                />
+              </FormGroup>
+
+              <FormGroup label="Gen Rules">
+                <textarea
+                  value={ctx.genRules}
+                  onChange={e => updateCtx({ genRules: e.target.value })}
+                  rows={2}
+                  className={cn(inputCls, 'resize-none')}
+                  placeholder="e.g., Use Server Action for form. Redirect to /dashboard on success."
+                />
+              </FormGroup>
+            </div>
+
+            {/* Context Preview */}
+            <ContextPreview screen={screen} journeyCtx={journeyNode?.journeyCtx} flowCtx={activeFlowObj?.flowCtx} />
+
+            {/* Context Inheritance */}
+            <ContextInheritancePanel screen={screen} connectedDsTags={connectedDsTags} />
+
+            {/* Generation Preview */}
+            <GenerationPreview screen={screen} curJourneyId={curJourneyId} activeFlow={activeFlow} />
+          </div>
+        </ContextLevelBlock>
+
       </div>
     )
   }
 
-  const ctx   = screen.context
-  const score = screenCompleteness(screen)
+  // ── DS node or nothing useful selected ────────────────────────────────────
+  return (
+    <div className="p-5">
+      <p className="text-sm text-gray-400">
+        {node?.type === 'ds'
+          ? 'Context is available for Journey nodes and Screens.'
+          : 'Select a Journey node or screen to edit context.'}
+      </p>
+    </div>
+  )
+}
 
-  function updateCtx(patch: Partial<typeof ctx>) {
-    store.updateScreenContext(curJourneyId!, activeFlow!, screen!.id, patch)
+// ─────────────────────────────────────────────────────────────────────────────
+// ContextLevelBlock — collapsible section with level indicator
+// ─────────────────────────────────────────────────────────────────────────────
+
+type LevelColor = 'indigo' | 'violet' | 'blue'
+
+const levelColorMap: Record<LevelColor, {
+  bg: string; border: string; text: string; dot: string; badge: string
+}> = {
+  indigo: {
+    bg:     'bg-indigo-50',
+    border: 'border-indigo-200',
+    text:   'text-indigo-700',
+    dot:    'bg-indigo-400',
+    badge:  'bg-indigo-100 text-indigo-600 border-indigo-200',
+  },
+  violet: {
+    bg:     'bg-violet-50',
+    border: 'border-violet-200',
+    text:   'text-violet-700',
+    dot:    'bg-violet-400',
+    badge:  'bg-violet-100 text-violet-600 border-violet-200',
+  },
+  blue: {
+    bg:     'bg-blue-50',
+    border: 'border-blue-200',
+    text:   'text-blue-700',
+    dot:    'bg-blue-500',
+    badge:  'bg-blue-100 text-blue-600 border-blue-200',
+  },
+}
+
+function ContextLevelBlock({
+  level, label, sublabel, icon, color, defaultOpen, empty, emptyHint, children,
+}: {
+  level:       number
+  label:       string
+  sublabel:    string
+  icon:        React.ReactNode
+  color:       LevelColor
+  defaultOpen: boolean
+  empty:       boolean
+  emptyHint?:  string
+  children:    React.ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  const c = levelColorMap[color]
+
+  return (
+    <div className="border-b border-gray-100 last:border-b-0">
+      {/* Header */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={cn(
+          'w-full flex items-center gap-2.5 px-4 py-3 text-left transition-colors',
+          open ? c.bg : 'hover:bg-gray-50',
+        )}
+      >
+        {/* Level badge */}
+        <div className={cn(
+          'w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 border',
+          c.badge,
+        )}>
+          {level}
+        </div>
+
+        {/* Icon + label */}
+        <div className={cn('flex items-center gap-1.5 flex-shrink-0', c.text)}>
+          {icon}
+          <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+        </div>
+
+        {/* Sublabel */}
+        <span className="text-[11px] text-gray-400 truncate flex-1 min-w-0">{sublabel}</span>
+
+        {/* Status dot */}
+        {empty ? (
+          <span className="text-[9px] font-semibold text-gray-300 uppercase tracking-wide flex-shrink-0">
+            empty
+          </span>
+        ) : (
+          <div className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', c.dot)} />
+        )}
+
+        <ChevronDown size={12} className={cn('text-gray-400 transition-transform flex-shrink-0', open && 'rotate-180')} />
+      </button>
+
+      {/* Body */}
+      {open && (
+        <div className={cn('border-t', c.border)}>
+          {empty && emptyHint ? (
+            <div className="px-4 py-3">
+              <p className="text-[11px] text-gray-400 leading-relaxed">{emptyHint}</p>
+              <div className="mt-2">{children}</div>
+            </div>
+          ) : (
+            children
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// JourneyContextForm — editable, shown when Journey node is selected
+// ─────────────────────────────────────────────────────────────────────────────
+
+function JourneyContextForm({ node, onUpdate }: {
+  node:     MacroNode
+  onUpdate: (ctx: Partial<JourneyContext>) => void
+}) {
+  const ctx = node.journeyCtx ?? {
+    goal: '', targetUser: '', platform: '',
+    techNotes: '', designTokens: '', globalRules: '',
   }
 
   return (
     <div className="divide-y divide-gray-100">
+      {/* Level header */}
+      <div className="px-4 py-3 bg-indigo-50 flex items-center gap-2.5">
+        <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold bg-indigo-100 text-indigo-600 border border-indigo-200 flex-shrink-0">
+          1
+        </div>
+        <Map size={12} className="text-indigo-600 flex-shrink-0" />
+        <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700">Journey Context</span>
+        <span className="text-[11px] text-gray-400 truncate flex-1">{node.name}</span>
+      </div>
 
-      {/* ── [FEATURE 2] Completeness Ring expandida — topo ── */}
-      <CompletenessRing screen={screen} score={score} />
+      <div className="p-4 space-y-4">
+        <p className="text-[11px] text-gray-400 leading-relaxed bg-indigo-50 rounded p-2.5 border border-indigo-100">
+          Este contexto é herdado por todos os flows e screens desta journey. Define o objetivo macro, usuário-alvo e regras globais de geração.
+        </p>
 
-      {/* ── Figma URL binding ── */}
-      <FigmaSection screen={screen} curJourneyId={curJourneyId} activeFlow={activeFlow} />
+        <FormGroup label="Objetivo da Journey">
+          <textarea
+            value={ctx.goal}
+            onChange={e => onUpdate({ goal: e.target.value })}
+            rows={2}
+            className={cn(inputCls, 'resize-none')}
+            placeholder="Allow new users to complete onboarding and verify their identity"
+          />
+        </FormGroup>
 
-      {/* ── [FEATURE 1] AI Context Analyzer ── */}
-      {screen.figma?.nodeId && (
-        <AIContextAnalyzer
-          screen={screen}
-          curJourneyId={curJourneyId}
-          activeFlow={activeFlow}
-          onApply={updateCtx}
-        />
-      )}
-
-      {/* ── Core fields ── */}
-      <div className="p-5 space-y-4">
-
-        <FormGroup label="Route">
+        <FormGroup label="Usuário-alvo">
           <input
             type="text"
-            value={ctx.route}
-            onChange={e => updateCtx({ route: e.target.value })}
+            value={ctx.targetUser}
+            onChange={e => onUpdate({ targetUser: e.target.value })}
             className={inputCls}
-            placeholder="/auth/login"
+            placeholder="New user who just created an account"
           />
         </FormGroup>
 
-        <FormGroup label="Purpose">
+        <FormGroup label="Plataforma">
+          <input
+            type="text"
+            value={ctx.platform}
+            onChange={e => onUpdate({ platform: e.target.value })}
+            className={inputCls}
+            placeholder="Web (desktop-first), responsive mobile"
+          />
+        </FormGroup>
+
+        <FormGroup label="Notas técnicas">
           <textarea
-            value={ctx.purpose}
-            onChange={e => updateCtx({ purpose: e.target.value })}
+            value={ctx.techNotes}
+            onChange={e => onUpdate({ techNotes: e.target.value })}
             rows={2}
             className={cn(inputCls, 'resize-none')}
-            placeholder="Allow user to sign in with email and password"
+            placeholder="Uses Server Actions throughout. Auth via Supabase. Next.js App Router."
           />
         </FormGroup>
 
-        <FormGroup label="User Intent">
+        <FormGroup label="Design tokens / sistema">
+          <input
+            type="text"
+            value={ctx.designTokens}
+            onChange={e => onUpdate({ designTokens: e.target.value })}
+            className={inputCls}
+            placeholder="Design System v2 — Tailwind custom tokens, Geist font"
+          />
+        </FormGroup>
+
+        <FormGroup label="Regras globais de geração">
           <textarea
-            value={ctx.userIntent}
-            onChange={e => updateCtx({ userIntent: e.target.value })}
+            value={ctx.globalRules}
+            onChange={e => onUpdate({ globalRules: e.target.value })}
             rows={2}
             className={cn(inputCls, 'resize-none')}
-            placeholder="User wants to access their account"
+            placeholder="All forms use react-hook-form. Zod validation. shadcn/ui components."
           />
-        </FormGroup>
-
-        <FormGroup label="Requires Auth">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <div
-              onClick={() => updateCtx({ requiresAuth: !ctx.requiresAuth })}
-              className={cn(
-                'w-9 h-5 rounded-full transition-colors cursor-pointer relative flex-shrink-0',
-                ctx.requiresAuth ? 'bg-blue-500' : 'bg-gray-200',
-              )}
-            >
-              <div className={cn(
-                'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
-                ctx.requiresAuth ? 'translate-x-4' : 'translate-x-0.5',
-              )} />
-            </div>
-            <span className="text-xs text-gray-600">
-              {ctx.requiresAuth ? 'Protected route' : 'Public route'}
-            </span>
-          </label>
         </FormGroup>
       </div>
 
-      {/* ── [FEATURE 3] Component Map Editor ── */}
-      <div className="p-5">
-        <ComponentMapEditor
-          selected={ctx.components}
-          options={connectedDsTags}
-          figmaComponentMap={screen.figma?.componentMap ?? []}
-          onChange={components => updateCtx({ components })}
+      {/* Inherited preview */}
+      <div className="p-4">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">
+          Herdado por todos os screens
+        </p>
+        <div className="flex items-center gap-1.5 text-[10px] font-mono text-gray-400 bg-gray-50 rounded p-2">
+          <span className="text-indigo-500 font-semibold">Journey</span>
+          <ArrowRight size={8} className="text-gray-300" />
+          <span className="text-violet-400">N flows</span>
+          <ArrowRight size={8} className="text-gray-300" />
+          <span className="text-blue-400">M screens cada</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// JourneyContextReadonly — displayed inside the Screen level block
+// ─────────────────────────────────────────────────────────────────────────────
+
+function JourneyContextReadonly({ ctx }: { ctx?: JourneyContext }) {
+  if (!ctx) return (
+    <div className="px-4 py-3">
+      <p className="text-[11px] text-gray-400">Selecione o Journey node para adicionar contexto global.</p>
+    </div>
+  )
+
+  const entries = [
+    { label: 'Objetivo',    value: ctx.goal },
+    { label: 'Usuário',     value: ctx.targetUser },
+    { label: 'Plataforma',  value: ctx.platform },
+    { label: 'Técnico',     value: ctx.techNotes },
+    { label: 'Tokens',      value: ctx.designTokens },
+    { label: 'Regras',      value: ctx.globalRules },
+  ].filter(e => e.value)
+
+  if (entries.length === 0) return (
+    <div className="px-4 py-3">
+      <p className="text-[11px] text-gray-400">Journey context está vazio.</p>
+    </div>
+  )
+
+  return (
+    <div className="px-4 py-3 space-y-2">
+      {entries.map(e => (
+        <div key={e.label}>
+          <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-400">{e.label}</span>
+          <p className="text-[11px] text-gray-600 leading-relaxed mt-0.5">{e.value}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FlowContextForm — editable, shown inside the Level 2 block
+// ─────────────────────────────────────────────────────────────────────────────
+
+function FlowContextForm({ flow, onUpdate }: {
+  flow:     Flow
+  onUpdate: (ctx: Partial<FlowContext>) => void
+}) {
+  const ctx = flow.flowCtx ?? {
+    general: '', specific: '', entryPoint: '', exitPoints: '', stateNotes: '',
+  }
+
+  return (
+    <div className="p-4 space-y-4">
+      <FormGroup label="Descrição geral do flow">
+        <textarea
+          value={ctx.general}
+          onChange={e => onUpdate({ general: e.target.value })}
+          rows={2}
+          className={cn(inputCls, 'resize-none')}
+          placeholder="Happy path for the sign-up funnel — 3 steps"
         />
-      </div>
+      </FormGroup>
 
-      {/* ── [FEATURE 4] API Endpoint Builder com AI ── */}
-      <div className="p-5">
-        <ApiEndpointBuilderAI
-          endpoints={ctx.apiEndpoints}
-          screen={screen}
-          onChange={apiEndpoints => updateCtx({ apiEndpoints })}
+      <FormGroup label="Notas específicas">
+        <textarea
+          value={ctx.specific}
+          onChange={e => onUpdate({ specific: e.target.value })}
+          rows={2}
+          className={cn(inputCls, 'resize-none')}
+          placeholder="Shares auth state with /login via cookie. Handles email verification."
         />
-      </div>
+      </FormGroup>
 
-      {/* ── Notes + Gen Rules ── */}
-      <div className="p-5 space-y-4">
-        <FormGroup label="Architecture Notes">
-          <textarea
-            value={ctx.notes}
-            onChange={e => updateCtx({ notes: e.target.value })}
-            rows={2}
-            className={cn(inputCls, 'resize-none')}
-            placeholder="e.g., Shares state with /auth/register via URL params"
-          />
-        </FormGroup>
+      <FormGroup label="Entry point">
+        <input
+          type="text"
+          value={ctx.entryPoint}
+          onChange={e => onUpdate({ entryPoint: e.target.value })}
+          className={inputCls}
+          placeholder="User arrives from landing page via CTA button"
+        />
+      </FormGroup>
 
-        <FormGroup label="Gen Rules">
-          <textarea
-            value={ctx.genRules}
-            onChange={e => updateCtx({ genRules: e.target.value })}
-            rows={2}
-            className={cn(inputCls, 'resize-none')}
-            placeholder="e.g., Use Server Action for form. Redirect to /dashboard on success."
-          />
-        </FormGroup>
-      </div>
+      <FormGroup label="Exit points">
+        <input
+          type="text"
+          value={ctx.exitPoints}
+          onChange={e => onUpdate({ exitPoints: e.target.value })}
+          className={inputCls}
+          placeholder="Success → /dashboard, Error → retry screen"
+        />
+      </FormGroup>
 
-      {/* ── [FEATURE 5] Context Preview ── */}
-      <ContextPreview screen={screen} />
-
-      {/* ── [FEATURE 6] Context Inheritance indicator ── */}
-      <ContextInheritancePanel screen={screen} connectedDsTags={connectedDsTags} />
-
-      {/* ── [FEATURE 7] Generation Preview por Screen ── */}
-      <GenerationPreview screen={screen} curJourneyId={curJourneyId} activeFlow={activeFlow} />
-
+      <FormGroup label="Estado compartilhado">
+        <textarea
+          value={ctx.stateNotes}
+          onChange={e => onUpdate({ stateNotes: e.target.value })}
+          rows={2}
+          className={cn(inputCls, 'resize-none')}
+          placeholder="Form state managed locally via react-hook-form. No global state."
+        />
+      </FormGroup>
     </div>
   )
 }
@@ -954,31 +1371,46 @@ function ApiEndpointBuilderAI({ endpoints, screen, onChange }: {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FEATURE 5 — Context Preview
-// Mostra o prompt context que o Claude vai receber, em tempo real
+// Mostra o prompt context que o Claude vai receber, em tempo real (3 níveis)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ContextPreview({ screen }: { screen: Screen }) {
+function ContextPreview({ screen, journeyCtx, flowCtx }: {
+  screen:     Screen
+  journeyCtx?: JourneyContext
+  flowCtx?:    FlowContext
+}) {
   const [open, setOpen]     = useState(false)
   const [copied, setCopied] = useState(false)
   const ctx = screen.context
 
   const preview = [
-    `screen: ${screen.name}`,
-    ctx.route        ? `route: ${ctx.route}` : null,
-    ctx.purpose      ? `purpose: ${ctx.purpose}` : '⚠ purpose: (vazio)',
-    ctx.userIntent   ? `intent: ${ctx.userIntent}` : null,
-    ctx.requiresAuth ? `auth: required` : `auth: public`,
+    // Level 1 — Journey
+    journeyCtx?.goal        ? `[journey] goal: ${journeyCtx.goal}` : null,
+    journeyCtx?.targetUser  ? `[journey] target_user: ${journeyCtx.targetUser}` : null,
+    journeyCtx?.globalRules ? `[journey] global_rules: ${journeyCtx.globalRules}` : null,
+    journeyCtx?.techNotes   ? `[journey] tech_notes: ${journeyCtx.techNotes}` : null,
+    // Level 2 — Flow
+    flowCtx?.general    ? `[flow] general: ${flowCtx.general}` : null,
+    flowCtx?.entryPoint ? `[flow] entry: ${flowCtx.entryPoint}` : null,
+    flowCtx?.exitPoints ? `[flow] exits: ${flowCtx.exitPoints}` : null,
+    flowCtx?.stateNotes ? `[flow] state: ${flowCtx.stateNotes}` : null,
+    // Level 3 — Screen
+    `[screen] name: ${screen.name}`,
+    ctx.route        ? `[screen] route: ${ctx.route}` : null,
+    ctx.purpose      ? `[screen] purpose: ${ctx.purpose}` : '⚠ [screen] purpose: (vazio)',
+    ctx.userIntent   ? `[screen] intent: ${ctx.userIntent}` : null,
+    ctx.requiresAuth ? `[screen] auth: required` : `[screen] auth: public`,
     ctx.components.length > 0
-      ? `components (${ctx.components.length}): ${ctx.components.slice(0,5).join(', ')}${ctx.components.length > 5 ? '…' : ''}`
-      : '⚠ components: (vazio)',
+      ? `[screen] components (${ctx.components.length}): ${ctx.components.slice(0,5).join(', ')}${ctx.components.length > 5 ? '…' : ''}`
+      : '⚠ [screen] components: (vazio)',
     screen.figma?.componentMap.length
-      ? `figma_components: ${screen.figma.componentMap.length} extraídos`
-      : '⚠ figma: não vinculado',
+      ? `[screen] figma_components: ${screen.figma.componentMap.length} extraídos`
+      : '⚠ [screen] figma: não vinculado',
     ctx.apiEndpoints.length > 0
-      ? `endpoints: ${ctx.apiEndpoints.map(e => `${e.method} ${e.path}`).join(', ')}`
-      : '⚠ endpoints: (vazio — impacta data fetching)',
-    ctx.notes    ? `notes: ${ctx.notes}` : null,
-    ctx.genRules ? `gen_rules: ${ctx.genRules}` : null,
+      ? `[screen] endpoints: ${ctx.apiEndpoints.map(e => `${e.method} ${e.path}`).join(', ')}`
+      : '⚠ [screen] endpoints: (vazio)',
+    ctx.notes    ? `[screen] notes: ${ctx.notes}` : null,
+    ctx.genRules ? `[screen] gen_rules: ${ctx.genRules}` : null,
   ].filter(Boolean).join('\n')
 
   function copy() {
@@ -988,8 +1420,16 @@ function ContextPreview({ screen }: { screen: Screen }) {
     })
   }
 
+  // color by prefix
+  function lineColor(line: string) {
+    if (line.startsWith('⚠'))        return 'text-amber-400'
+    if (line.startsWith('[journey]')) return 'text-indigo-400'
+    if (line.startsWith('[flow]'))    return 'text-violet-400'
+    return 'text-gray-300'
+  }
+
   return (
-    <div className="p-5">
+    <div className="p-4">
       <button
         onClick={() => setOpen(o => !o)}
         className="flex items-center gap-2 w-full text-left"
@@ -1003,7 +1443,13 @@ function ContextPreview({ screen }: { screen: Screen }) {
         <div className="mt-3">
           <div className="relative bg-gray-900 rounded-lg overflow-hidden">
             <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700">
-              <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wide">prompt context</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-mono text-indigo-400 uppercase tracking-wide">journey</span>
+                <span className="text-gray-600">·</span>
+                <span className="text-[9px] font-mono text-violet-400 uppercase tracking-wide">flow</span>
+                <span className="text-gray-600">·</span>
+                <span className="text-[9px] font-mono text-blue-400 uppercase tracking-wide">screen</span>
+              </div>
               <button
                 onClick={copy}
                 className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-200 transition-colors"
@@ -1012,12 +1458,9 @@ function ContextPreview({ screen }: { screen: Screen }) {
                 {copied ? 'copiado' : 'copiar'}
               </button>
             </div>
-            <pre className="p-3 text-[11px] font-mono text-gray-300 leading-relaxed overflow-x-auto whitespace-pre-wrap">
+            <pre className="p-3 text-[11px] font-mono leading-relaxed overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto">
               {preview.split('\n').map((line, i) => (
-                <span key={i} className={cn(
-                  'block',
-                  line.startsWith('⚠') ? 'text-amber-400' : 'text-gray-300'
-                )}>
+                <span key={i} className={cn('block', lineColor(line))}>
                   {line}
                 </span>
               ))}
