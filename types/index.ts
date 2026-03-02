@@ -41,6 +41,27 @@ export type CSSFramework     = 'tailwind' | 'css-modules' | 'styled-components' 
 
 export type MacroNodeType = 'ds' | 'journey'
 
+// ── JOURNEY CONTEXT ───────────────────────────────────────────────────────────
+// Nível 1 — contexto global da jornada. Herdado por todos os flows e screens.
+
+export interface JourneyContext {
+  goal:         string   // "Allow users to complete onboarding and verify their identity"
+  targetUser:   string   // "New user who just created an account"
+  platform:     string   // "Web (desktop-first), PWA"
+  techNotes:    string   // "Uses server actions throughout. Auth via Supabase."
+  designTokens: string   // "Colors, spacing from design system v2"
+  globalRules:  string   // "All forms use react-hook-form. Zod for validation."
+}
+
+export const EMPTY_JOURNEY_CONTEXT: JourneyContext = {
+  goal:         '',
+  targetUser:   '',
+  platform:     '',
+  techNotes:    '',
+  designTokens: '',
+  globalRules:  '',
+}
+
 export interface MacroNode {
   id:          NodeId
   projectId:   ProjectId
@@ -54,7 +75,8 @@ export interface MacroNode {
   figmaFileKey?: string
   figmaFileUrl?: string
   // Journey-specific
-  status?:     JourneyStatus
+  status?:       JourneyStatus
+  journeyCtx?:   JourneyContext   // contexto semântico da journey (nível 1)
 }
 
 export type JourneyStatus = 'draft' | 'in-progress' | 'ready' | 'generated'
@@ -71,6 +93,27 @@ export interface Connection {
 
 // ── FLOWS ─────────────────────────────────────────────────────────────────────
 
+// ── FLOW CONTEXT ──────────────────────────────────────────────────────────────
+// Nível 2 — contexto do flow. Herdado por todos os screens do flow.
+// flowCtx.general: texto livre descrevendo o flow como um todo.
+// flowCtx.specific: notas específicas deste flow (estado compartilhado, condições, etc.)
+
+export interface FlowContext {
+  general:    string   // "Happy path for the sign-up funnel"
+  specific:   string   // "Shares auth state with /login via cookie. Redirects to /dashboard on success."
+  entryPoint: string   // "User arrives from marketing landing page via CTA button"
+  exitPoints: string   // "Success → /dashboard, Error → stays on screen with error message"
+  stateNotes: string   // "Form state managed locally. No global state needed."
+}
+
+export const EMPTY_FLOW_CONTEXT: FlowContext = {
+  general:    '',
+  specific:   '',
+  entryPoint: '',
+  exitPoints: '',
+  stateNotes: '',
+}
+
 export interface Flow {
   id:        FlowId
   journeyId: NodeId
@@ -79,6 +122,7 @@ export interface Flow {
   order:     number
   screens:   Screen[]
   createdAt: string
+  flowCtx?:  FlowContext   // contexto semântico do flow (nível 2)
 }
 
 // ── SCREENS ───────────────────────────────────────────────────────────────────
