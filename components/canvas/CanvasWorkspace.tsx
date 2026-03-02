@@ -113,12 +113,12 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-bg">
-      <ProductHeader />
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-bg">
+      <Ibar />
       <Ebar />
-
-      <div className="flex flex-col flex-1 min-w-0">
+      <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
+        <ContextHeader />
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
 
         {/* \u2500\u2500 Header \u2500\u2500 */}
         <header className="h-[46px] bg-surface border-b border-border flex items-center justify-between z-30 flex-shrink-0 px-[16px] gap-[8px]">
@@ -280,9 +280,11 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
       )}
 
       <FAB />
-      </div>   {/* flex flex-col flex-1 wrapper 2 */}
-      </div>   {/* flex flex-col flex-1 wrapper 1 */}
-      </div>   {/* main canvas area div */}
-    </div>     {/* flex h-screen root */}
+      </div>
+      </div>
+      </div>
+      </div>
+      </div>
+    </div>
   )
 }
