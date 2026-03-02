@@ -7,7 +7,8 @@ import type {
   Project, MacroNode, Connection, Flow, Screen,
   XY, CanvasTransform, CanvasView,
   ProjectId, NodeId, ConnId, FlowId, ScreenId,
-  EbarSection, RpanelTab, ProjectSettings, ScreenContext,
+  EbarSection, RpanelTab, ProjectSettings,
+  ScreenContext, JourneyContext, FlowContext,
 } from '@/types'
 
 // ── Canvas data per project ───────────────────────────────────────────────────
@@ -64,10 +65,11 @@ interface Store {
   updateSettings: (id: ProjectId, s: Partial<ProjectSettings>) => void
 
   // ── Node actions
-  addNode:    (n: MacroNode) => void
-  updateNode: (id: NodeId, patch: Partial<MacroNode>) => void
-  moveNode:   (id: NodeId, pos: XY) => void
-  deleteNode: (id: NodeId) => void
+  addNode:              (n: MacroNode) => void
+  updateNode:           (id: NodeId, patch: Partial<MacroNode>) => void
+  updateJourneyContext: (id: NodeId, ctx: Partial<JourneyContext>) => void
+  moveNode:             (id: NodeId, pos: XY) => void
+  deleteNode:           (id: NodeId) => void
 
   // ── Connection actions
   addConn:    (c: Connection) => void
@@ -75,10 +77,11 @@ interface Store {
   connExists: (fromId: NodeId, toId: NodeId) => boolean
 
   // ── Flow actions
-  addFlow:      (journeyId: NodeId, f: Flow) => void
-  updateFlow:   (journeyId: NodeId, flowId: FlowId, patch: Partial<Flow>) => void
-  deleteFlow:   (journeyId: NodeId, flowId: FlowId) => void
-  setActiveFlow:(journeyId: NodeId, flowId: FlowId) => void
+  addFlow:             (journeyId: NodeId, f: Flow) => void
+  updateFlow:          (journeyId: NodeId, flowId: FlowId, patch: Partial<Flow>) => void
+  updateFlowContext:   (journeyId: NodeId, flowId: FlowId, ctx: Partial<FlowContext>) => void
+  deleteFlow:          (journeyId: NodeId, flowId: FlowId) => void
+  setActiveFlow:       (journeyId: NodeId, flowId: FlowId) => void
 
   // ── Screen actions
   addScreen:           (journeyId: NodeId, flowId: FlowId, s: Screen) => void
@@ -212,6 +215,17 @@ export const useStore = create<Store>()(
           if (n) Object.assign(n, patch)
         }),
 
+        updateJourneyContext: (id, ctx) => set(s => {
+          const c = getCanvas(s); if (!c) return
+          const n = c.nodes.find(n => n.id === id)
+          if (n && n.type === 'journey') {
+            n.journeyCtx = { ...(n.journeyCtx ?? {
+              goal: '', targetUser: '', platform: '',
+              techNotes: '', designTokens: '', globalRules: '',
+            }), ...ctx }
+          }
+        }),
+
         moveNode: (id, pos) => set(s => {
           const c = getCanvas(s); if (!c) return
           const n = c.nodes.find(n => n.id === id)
@@ -259,6 +273,16 @@ export const useStore = create<Store>()(
           const c = getCanvas(s); if (!c) return
           const f = c.flows[journeyId]?.find(f => f.id === flowId)
           if (f) Object.assign(f, patch)
+        }),
+
+        updateFlowContext: (journeyId, flowId, ctx) => set(s => {
+          const c = getCanvas(s); if (!c) return
+          const f = c.flows[journeyId]?.find(f => f.id === flowId)
+          if (f) {
+            f.flowCtx = { ...(f.flowCtx ?? {
+              general: '', specific: '', entryPoint: '', exitPoints: '', stateNotes: '',
+            }), ...ctx }
+          }
         }),
 
         deleteFlow: (journeyId, flowId) => set(s => {
