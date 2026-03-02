@@ -139,12 +139,8 @@ export function Ebar() {
       style={{ width: ebarWidth }}>
       <div onMouseDown={onResizeStart} className="absolute right-0 top-0 bottom-0 w-[4px] cursor-col-resize z-10 group hover:bg-brand-blue/20 transition-colors"><div className="absolute right-[1px] top-1/2 -translate-y-1/2 w-[2px] h-8 rounded-full bg-border group-hover:bg-brand-blue/60 transition-colors" /></div>
 
-      {/* ── Logo + project header ── */}
+      {/* ── Project header ── */}
       <div className="flex items-center gap-[10px] px-[12px] h-[46px] border-b border-border flex-shrink-0">
-        <button onClick={() => router.push('/')} title="Flowbridge"
-          className="w-[26px] h-[26px] bg-text-1 rounded-[6px] flex items-center justify-center flex-shrink-0 hover:bg-neutral-700 active:scale-95 transition-all">
-          <span className="text-white font-serif italic text-[13px] leading-none">F</span>
-        </button>
         <div className="flex flex-col gap-[1px] flex-1 min-w-0">
           <span className="text-[13px] font-semibold text-text-1 leading-tight truncate">{project?.name ?? '—'}</span>
           <span className="text-[10px] font-mono text-text-3">{totalNodes} nodes · {journeyNodes.length}j · {dsNodes.length} libs</span>
