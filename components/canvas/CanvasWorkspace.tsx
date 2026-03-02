@@ -116,11 +116,12 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
     <div className="flex h-screen overflow-hidden bg-bg">
       <Ibar />
       <Ebar />
+
+      {/* ── Main canvas area ── */}
       <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
         <ContextHeader />
-        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
 
-        {/* \u2500\u2500 Header \u2500\u2500 */}
+        {/* ── Breadcrumb / page header ── */}
         <header className="h-[46px] bg-surface border-b border-border flex items-center justify-between z-30 flex-shrink-0 px-[16px] gap-[8px]">
           <nav className="flex items-center gap-[2px] min-w-0">
             <button
@@ -166,107 +167,103 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
           )}
         </header>
 
-        {/* \u2500\u2500 Canvas \u2500\u2500 */}
-        <div className="flex-1 relative">
-          <div
-            ref={canvasRef}
-            data-canvas
-            className="canvas-root canvas-dots absolute inset-0 overflow-hidden cursor-grab active:cursor-grabbing"
-          >
+        {/* ── Canvas ── */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 relative">
             <div
-              className="absolute top-0 left-0 origin-top-left"
-              style={{
-                transform: `translate(${transform.x}px,${transform.y}px) scale(${transform.scale})`,
-                width: 8000, height: 8000,
-              }}
+              ref={canvasRef}
+              data-canvas
+              className="canvas-root canvas-dots absolute inset-0 overflow-hidden cursor-grab active:cursor-grabbing"
             >
-              <ConnectorLayer
-                nodes={macroNodes}
-                conns={view === 'macro' ? (canvas?.conns ?? []) : []}
-                pendingConn={view === 'macro' ? pendingConn : null}
-                selectedConnId={selConnId}
-                onConnSelect={id => store.selectConn(id)}
-                onConnDelete={id => store.deleteConn(id)}
-              />
-
-              {view === 'macro' && macroNodes.map(node => (
-                <MacroNodeCard
-                  key={node.id}
-                  node={node}
-                  isSelected={selNodeId === node.id}
+              <div
+                className="absolute top-0 left-0 origin-top-left"
+                style={{
+                  transform: `translate(${transform.x}px,${transform.y}px) scale(${transform.scale})`,
+                  width: 8000, height: 8000,
+                }}
+              >
+                <ConnectorLayer
+                  nodes={macroNodes}
+                  conns={view === 'macro' ? (canvas?.conns ?? []) : []}
+                  pendingConn={view === 'macro' ? pendingConn : null}
+                  selectedConnId={selConnId}
+                  onConnSelect={id => store.selectConn(id)}
+                  onConnDelete={id => store.deleteConn(id)}
                 />
-              ))}
 
-              {/* ── Micro view: all flows rendered; screens use store positions (set by openJourney auto-layout) ── */}
-              {view === 'micro' && journeyFlows.map((flow) => {
-                // Flow label: positioned above the first screen in this flow
-                const firstScreen = flow.screens[0]
-                const labelX = firstScreen ? firstScreen.position.x : 0
-                const labelY = firstScreen ? firstScreen.position.y - 36 : 24
+                {view === 'macro' && macroNodes.map(node => (
+                  <MacroNodeCard
+                    key={node.id}
+                    node={node}
+                    isSelected={selNodeId === node.id}
+                  />
+                ))}
 
-                return (
-                  <div key={flow.id}>
-                    {/* Flow column label */}
-                    <div
-                      className={`absolute flex items-center gap-[6px] px-[10px] py-[4px] rounded-[7px] border cursor-pointer select-none transition-colors ${
-                        activeFlow?.id === flow.id
-                          ? 'bg-[#EFF6FF] border-[#BFDBFE] text-brand-blue'
-                          : 'bg-surface border-border text-text-2 hover:bg-bg hover:text-text-1'
-                      }`}
-                      style={{ left: labelX, top: labelY }}
-                      onClick={() => store.setActiveFlow(journey!.id, flow.id)}
-                    >
-                      <div className={`w-[6px] h-[6px] rounded-full flex-shrink-0 ${activeFlow?.id === flow.id ? 'bg-brand-blue' : 'bg-text-3'}`} />
-                      <span className="text-[11.5px] font-semibold whitespace-nowrap">{flow.name}</span>
-                      <span className="text-[10px] font-mono opacity-50">{flow.screens.length}s</span>
-                    </div>
+                {view === 'micro' && journeyFlows.map((flow) => {
+                  const firstScreen = flow.screens[0]
+                  const labelX = firstScreen ? firstScreen.position.x : 0
+                  const labelY = firstScreen ? firstScreen.position.y - 36 : 24
 
-                    {/* Screens — ScreenNodeCard self-positions via screen.position.x/y */}
-                    {flow.screens.map((screen) => (
-                      <ScreenNodeCard
-                        key={screen.id}
-                        screen={screen}
-                        isSelected={selScreenId === screen.id}
-                      />
-                    ))}
-
-                    {/* Empty flow placeholder */}
-                    {flow.screens.length === 0 && (
+                  return (
+                    <div key={flow.id}>
                       <div
-                        className="absolute rounded-[10px] border border-dashed border-border flex items-center justify-center"
-                        style={{ left: labelX, top: labelY + 36, width: 180, height: 80 }}
+                        className={`absolute flex items-center gap-[6px] px-[10px] py-[4px] rounded-[7px] border cursor-pointer select-none transition-colors ${
+                          activeFlow?.id === flow.id
+                            ? 'bg-[#EFF6FF] border-[#BFDBFE] text-brand-blue'
+                            : 'bg-surface border-border text-text-2 hover:bg-bg hover:text-text-1'
+                        }`}
+                        style={{ left: labelX, top: labelY }}
+                        onClick={() => store.setActiveFlow(journey!.id, flow.id)}
                       >
-                        <span className="text-[11px] text-text-3 font-mono">no screens</span>
+                        <div className={`w-[6px] h-[6px] rounded-full flex-shrink-0 ${activeFlow?.id === flow.id ? 'bg-brand-blue' : 'bg-text-3'}`} />
+                        <span className="text-[11.5px] font-semibold whitespace-nowrap">{flow.name}</span>
+                        <span className="text-[10px] font-mono opacity-50">{flow.screens.length}s</span>
                       </div>
-                    )}
-                  </div>
-                )
-              })}
-              {view === 'micro' && journeyFlows.length === 0 && (
-                <div className="absolute flex flex-col items-center gap-[8px] text-center select-none" style={{ left: '50%', top: '42%', transform: 'translate(-50%,-50%)' }}>
-                  <div className="text-[13px] text-text-3">No flows in this journey</div>
-                  <div className="text-[11px] font-mono text-text-3 bg-surface border border-border px-[10px] py-[4px] rounded-[6px]">use the + button</div>
-                </div>
-              )}
 
-              {view === 'macro' && macroNodes.length === 0 && (
-                <div className="absolute flex flex-col items-center gap-[8px] text-center select-none" style={{ left: '50%', top: '42%', transform: 'translate(-50%,-50%)' }}>
-                  <div className="text-[13px] text-text-3">Add a DS and a Journey to start</div>
-                  <div className="text-[11px] font-mono text-text-3 bg-surface border border-border px-[10px] py-[4px] rounded-[6px]">use the + button</div>
-                </div>
-              )}
+                      {flow.screens.map((screen) => (
+                        <ScreenNodeCard
+                          key={screen.id}
+                          screen={screen}
+                          isSelected={selScreenId === screen.id}
+                        />
+                      ))}
+
+                      {flow.screens.length === 0 && (
+                        <div
+                          className="absolute rounded-[10px] border border-dashed border-border flex items-center justify-center"
+                          style={{ left: labelX, top: labelY + 36, width: 180, height: 80 }}
+                        >
+                          <span className="text-[11px] text-text-3 font-mono">no screens</span>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+
+                {view === 'micro' && journeyFlows.length === 0 && (
+                  <div className="absolute flex flex-col items-center gap-[8px] text-center select-none" style={{ left: '50%', top: '42%', transform: 'translate(-50%,-50%)' }}>
+                    <div className="text-[13px] text-text-3">No flows in this journey</div>
+                    <div className="text-[11px] font-mono text-text-3 bg-surface border border-border px-[10px] py-[4px] rounded-[6px]">use the + button</div>
+                  </div>
+                )}
+
+                {view === 'macro' && macroNodes.length === 0 && (
+                  <div className="absolute flex flex-col items-center gap-[8px] text-center select-none" style={{ left: '50%', top: '42%', transform: 'translate(-50%,-50%)' }}>
+                    <div className="text-[13px] text-text-3">Add a DS and a Journey to start</div>
+                    <div className="text-[11px] font-mono text-text-3 bg-surface border border-border px-[10px] py-[4px] rounded-[6px]">use the + button</div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+
+          <RightPanel />
         </div>
-
-
       </div>
-
-      <RightPanel />
 
       {/* Zoom bar */}
       <div className="fixed bottom-4 right-4 bg-surface border border-border rounded-[9px] shadow-md flex items-center overflow-hidden z-40">
-        <button onClick={() => store.setTransform({ scale: Math.max(0.15, transform.scale - 0.15) })} className="w-8 h-8 flex items-center justify-center text-text-2 hover:bg-bg hover:text-text-1 transition-colors text-[16px] leading-none select-none">\u2212</button>
+        <button onClick={() => store.setTransform({ scale: Math.max(0.15, transform.scale - 0.15) })} className="w-8 h-8 flex items-center justify-center text-text-2 hover:bg-bg hover:text-text-1 transition-colors text-[16px] leading-none select-none">−</button>
         <button onClick={() => store.setTransform({ scale: 1 })} className="text-[11px] font-mono text-text-2 hover:text-text-1 px-2 hover:bg-bg transition-colors h-8 min-w-[44px] text-center tabular-nums">{Math.round(transform.scale * 100)}%</button>
         <button onClick={() => store.setTransform({ scale: Math.min(2.5, transform.scale + 0.15) })} className="w-8 h-8 flex items-center justify-center text-text-2 hover:bg-bg hover:text-text-1 transition-colors text-[16px] leading-none select-none">+</button>
         <div className="w-px h-4 bg-border mx-[1px]" />
@@ -280,11 +277,6 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
       )}
 
       <FAB />
-      </div>
-      </div>
-      </div>
-      </div>
-      </div>
     </div>
   )
 }
