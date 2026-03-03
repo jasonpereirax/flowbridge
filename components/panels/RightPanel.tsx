@@ -1058,6 +1058,7 @@ function AIFlowAnalyzer({ flow, curJourneyId, onApply }: {
 
   // State for single-screen analysis
   const [singleLoading, setSingleLoading] = useState<string | null>(null)
+  const [singleDone,    setSingleDone]    = useState<string | null>(null)
 
   // Screen classification
   const allScreens     = flow.screens
@@ -1224,6 +1225,8 @@ function AIFlowAnalyzer({ flow, curJourneyId, onApply }: {
       if (screen.status === 'empty') {
         store.updateScreen(curJourneyId, flow.id, screen.id, { status: 'partial' })
       }
+      setSingleDone(screen.id)
+      setTimeout(() => setSingleDone(prev => prev === screen.id ? null : prev), 2500)
     } catch {
       // silent fail for single screen
     } finally {
@@ -1394,37 +1397,58 @@ Synthesize a FlowContext. Respond ONLY with JSON (no markdown):
               </div>
             </div>
 
-            {/* Per-screen analyze list + batch button */}
+            {/* Per-screen individual analyze buttons */}
             {!batchLoading && !batchDone && (
-              <div className="space-y-1.5">
-                {/* Individual screen buttons */}
-                {pendingScreens.map(s => (
-                  <div key={s.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-amber-50 text-[11px]">
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
-                    <span className="truncate flex-1">{s.name}</span>
-                    {singleLoading === s.id ? (
-                      <Loader2 size={11} className="animate-spin text-violet-500 flex-shrink-0" />
-                    ) : (
-                      <button
-                        onClick={() => analyzeSingle(s)}
-                        disabled={!!singleLoading}
-                        className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-200 transition-colors disabled:opacity-40"
-                      >
-                        <Sparkles size={9} /> Analisar
-                      </button>
-                    )}
-                  </div>
-                ))}
+              <div className="space-y-3">
+                {/* Individual screen list */}
+                <div className="space-y-1.5">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-violet-500">Analisar individualmente</span>
+                  {pendingScreens.map(s => (
+                    <div key={s.id} className={cn(
+                      'flex items-center gap-2 px-2.5 py-2 rounded-lg border transition-colors',
+                      singleDone === s.id
+                        ? 'bg-green-50 border-green-200'
+                        : 'bg-amber-50 border-amber-100',
+                    )}>
+                      <div className={cn(
+                        'w-2 h-2 rounded-full flex-shrink-0',
+                        singleDone === s.id ? 'bg-green-500' : 'bg-amber-400',
+                      )} />
+                      <span className="truncate flex-1 text-[11px] font-medium text-gray-700">{s.name}</span>
+                      {singleLoading === s.id ? (
+                        <div className="flex items-center gap-1.5 text-[10px] text-violet-500">
+                          <Loader2 size={12} className="animate-spin" />
+                          <span>Analisando…</span>
+                        </div>
+                      ) : singleDone === s.id ? (
+                        <div className="flex items-center gap-1 text-[10px] text-green-600 font-semibold">
+                          <CheckCircle2 size={11} />
+                          <span>Pronto</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); analyzeSingle(s) }}
+                          disabled={!!singleLoading}
+                          className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1 rounded-md bg-violet-600 text-white hover:bg-violet-700 border border-violet-700 transition-colors disabled:opacity-40 flex-shrink-0"
+                        >
+                          <Sparkles size={10} /> Analisar
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
 
-                {/* Batch all button */}
+                {/* Batch all button — secondary, visually separated */}
                 {pendingScreens.length > 1 && !singleLoading && (
-                  <button
-                    onClick={analyzeBatch}
-                    className="w-full flex items-center justify-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-200 transition-colors mt-1"
-                  >
-                    <Sparkles size={12} />
-                    Analisar todas ({pendingScreens.length})
-                  </button>
+                  <div className="pt-2 border-t border-gray-100">
+                    <button
+                      onClick={analyzeBatch}
+                      className="w-full flex items-center justify-center gap-2 text-[11px] font-medium px-3 py-1.5 rounded-md bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-200 transition-colors"
+                    >
+                      <Zap size={10} />
+                      Analisar todas de uma vez ({pendingScreens.length})
+                    </button>
+                  </div>
                 )}
               </div>
             )}
