@@ -185,4 +185,4 @@ export interface CanvasData {
 
 // ── Generation Status ─────────────────────────────────────────────────────────
 
-export type GenerationStatus = 'idle' | 'loading' | 'streaming' | 'done' | 'error'
+export type GenerationStatus = 'idle' | 'pending' | 'loading' | 'streaming' | 'done' | 'error'
