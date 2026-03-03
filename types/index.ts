@@ -182,3 +182,7 @@ export interface CanvasData {
   flows:   Record<NodeId, Flow[]>
   curFlow: Record<NodeId, FlowId>
 }
+
+// ── Generation Status ─────────────────────────────────────────────────────────
+
+export type GenerationStatus = 'idle' | 'loading' | 'streaming' | 'done' | 'error'
