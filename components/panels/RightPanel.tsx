@@ -298,7 +298,7 @@ function PropertiesTab({ node, screen, curJourneyId, activeFlow }: {
                 onClick={() => {
                   if (curJourneyId && activeFlow)
                     store.updateScreen(curJourneyId, activeFlow, screen.id, {
-                      status: ((screen.status as string) === 'draft' ? 'empty' : 'draft') as ScreenStatus,
+                      status: ((screen.status as string) === 'draft' ? 'empty' : 'draft') as Screen['status'],
                     })
                 }}
               />
