@@ -293,7 +293,7 @@ function PropertiesTab({ node, screen, curJourneyId, activeFlow }: {
               />
               <MarkerToggle
                 label="Draft"
-                active={screen.status === 'draft'}
+                active={(screen.status as string) === 'draft'}
                 color="slate"
                 onClick={() => {
                   if (curJourneyId && activeFlow)
