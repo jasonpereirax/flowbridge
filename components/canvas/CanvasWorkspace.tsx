@@ -151,20 +151,22 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
             )}
           </nav>
 
-          <button className="flex items-center gap-[5px] px-[12px] h-[30px] bg-text-1 text-white text-[12px] font-medium rounded-[7px] hover:bg-neutral-800 active:scale-[.97] transition-all shadow-sm flex-shrink-0 group">
-            <Zap size={11} className="group-hover:text-yellow-300 transition-colors" />
-            Generate
-          </button>
-          {view === 'macro' && (
-            <button
-              onClick={() => setShowImportWizard(true)}
-              className="flex items-center gap-[5px] px-[10px] h-[30px] border border-border text-text-2 text-[12px] font-medium rounded-[7px] hover:bg-bg hover:text-text-1 active:scale-[.97] transition-all flex-shrink-0"
-              title="Importar arquivo Figma"
-            >
-              <FolderInput size={11} />
-              Importar
-            </button>
-          )}
+         <div className="flex items-center gap-[6px] flex-shrink-0 ml-auto">
+  <button className="flex items-center gap-[5px] px-[12px] h-[30px] bg-text-1 text-white text-[12px] font-medium rounded-[7px] hover:bg-neutral-800 active:scale-[.97] transition-all shadow-sm group">
+    <Zap size={11} className="group-hover:text-yellow-300 transition-colors" />
+    Generate
+  </button>
+  {view === 'macro' && (
+    <button
+      onClick={() => setShowImportWizard(true)}
+      className="flex items-center gap-[5px] px-[10px] h-[30px] border border-border text-text-2 text-[12px] font-medium rounded-[7px] hover:bg-bg hover:text-text-1 active:scale-[.97] transition-all"
+      title="Importar arquivo Figma"
+    >
+      <FolderInput size={11} />
+      Importar
+    </button>
+  )}
+</div>
         </header>
 
         {/* ── Canvas ── */}
