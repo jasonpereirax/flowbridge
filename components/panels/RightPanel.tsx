@@ -628,10 +628,19 @@ function FlowContextPanel({ flow, journeyNode, curJourneyId }: {
               const isDraft    = s.status === 'draft'
               const isAnalyzed = s.context.purpose.trim().length > 5
               return (
-                <div key={s.id} className={cn(
-                  'flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[11px]',
-                  isDraft ? 'opacity-40' : isAnalyzed ? 'bg-green-50' : 'bg-amber-50',
-                )}>
+                <button
+                  key={s.id}
+                  onClick={() => { if (!isDraft) store.selectScreen(s.id) }}
+                  disabled={isDraft}
+                  className={cn(
+                    'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[11px] text-left transition-colors',
+                    isDraft
+                      ? 'opacity-40 cursor-default'
+                      : isAnalyzed
+                        ? 'bg-green-50 hover:bg-green-100 cursor-pointer'
+                        : 'bg-amber-50 hover:bg-amber-100 cursor-pointer',
+                  )}
+                >
                   <div className={cn(
                     'w-1.5 h-1.5 rounded-full flex-shrink-0',
                     isDraft ? 'bg-slate-300' : isAnalyzed ? 'bg-green-500' : 'bg-amber-400',
@@ -642,7 +651,7 @@ function FlowContextPanel({ flow, journeyNode, curJourneyId }: {
                   {isDraft    && <span className="text-[9px] text-slate-300 uppercase font-bold flex-shrink-0">draft</span>}
                   {!isDraft && isAnalyzed  && <CheckCircle2 size={10} className="text-green-500 flex-shrink-0" />}
                   {!isDraft && !isAnalyzed && <AlertCircle  size={10} className="text-amber-400 flex-shrink-0" />}
-                </div>
+                </button>
               )
             })}
           </div>
@@ -1047,6 +1056,9 @@ function AIFlowAnalyzer({ flow, curJourneyId, onApply }: {
   const [batchError,     setBatchError]     = useState<string | null>(null)
   const [batchDone,      setBatchDone]      = useState(false)
 
+  // State for single-screen analysis
+  const [singleLoading, setSingleLoading] = useState<string | null>(null)
+
   // Screen classification
   const allScreens     = flow.screens
   const activeScreens  = allScreens.filter(s => s.status !== 'draft')
@@ -1153,9 +1165,75 @@ function AIFlowAnalyzer({ flow, curJourneyId, onApply }: {
     }
   }
 
-  // ── Flow analysis — só roda quando todas as screens estão prontas ───────────
+  // ── Single: analisar UMA screen individual ─────────────────────────────────
+  async function analyzeSingle(screen: Screen) {
+    setSingleLoading(screen.id)
+    try {
+      const components   = screen.figma?.componentMap.map(c => c.figmaName) ?? []
+      const thumbnailUrl = screen.figma?.thumbnailUrl
+
+      let analysis: { purpose: string; userIntent: string; notes: string; genRules: string } | null = null
+
+      try {
+        const res = await fetch('/api/analyze-screen', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            screenName:    screen.name,
+            nodeId:        screen.figma?.nodeId ?? '',
+            thumbnailUrl,
+            components,
+            existingRoute: screen.context.route,
+          }),
+        })
+        if (res.ok) {
+          const data = await res.json() as { analysis: { purpose: string; userIntent: string; notes: string; genRules: string } | null }
+          analysis = data.analysis
+        }
+      } catch { /* fallback below */ }
+
+      if (!analysis || !analysis.purpose) {
+        const hasForm = components.some(c => /input|form|field|login|register|search/i.test(c))
+        const hasList = components.some(c => /list|table|grid|card|item/i.test(c))
+        const hasAuth = components.some(c => /auth|login|signup|password/i.test(c))
+        analysis = {
+          purpose:    hasAuth ? 'Allow user to authenticate and access their account'
+                    : hasForm ? 'Allow user to submit information via form'
+                    : hasList ? 'Display and manage a list of items'
+                    : `${screen.name} — inferred from ${components.length} component(s)`,
+          userIntent: hasAuth ? 'User wants to sign in or create an account'
+                    : hasForm ? 'User wants to complete and submit a form'
+                    : hasList ? 'User wants to view or manage items'
+                    : `User wants to interact with ${screen.name}`,
+          notes:      components.length > 0
+                    ? `Detected: ${[...new Set(components.slice(0,5).map(c => c.split('/')[0]))].join(', ')}`
+                    : 'No component data available',
+          genRules:   hasForm ? 'Use Server Action for form submission. Validate on server.' : '',
+        }
+      }
+
+      const patch: Partial<typeof screen.context> = {}
+      if (analysis.purpose    && !screen.context.purpose)    patch.purpose    = analysis.purpose
+      if (analysis.userIntent && !screen.context.userIntent) patch.userIntent = analysis.userIntent
+      if (analysis.notes      && !screen.context.notes)      patch.notes      = analysis.notes
+      if (analysis.genRules   && !screen.context.genRules)   patch.genRules   = analysis.genRules
+
+      if (Object.keys(patch).length > 0) {
+        store.updateScreenContext(curJourneyId, flow.id, screen.id, patch)
+      }
+      if (screen.status === 'empty') {
+        store.updateScreen(curJourneyId, flow.id, screen.id, { status: 'partial' })
+      }
+    } catch {
+      // silent fail for single screen
+    } finally {
+      setSingleLoading(null)
+    }
+  }
+
+  // ── Flow analysis — roda com pelo menos 1 screen pronta ─────────────────────
   async function analyzeFlow() {
-    if (!allScreensReady) return
+    if (readyScreens.length === 0) return
     setFlowLoading(true)
     setFlowError(null)
     setFlowAnalysis(null)
@@ -1175,7 +1253,7 @@ function AIFlowAnalyzer({ flow, curJourneyId, onApply }: {
         requiresAuth: s.context.requiresAuth,
       }))
 
-      const prompt = `You are analyzing a user flow called "${flow.name}" with ${activeScreens.length} screen(s).
+      const prompt = `You are analyzing a user flow called "${flow.name}" with ${activeScreens.length} screen(s)${pendingScreens.length > 0 ? ` (${readyScreens.length} analyzed, ${pendingScreens.length} pending)` : ''}.
 
 ${screenSummaries.map(s => `
 Screen ${s.index}: "${s.name}"
@@ -1187,7 +1265,7 @@ Screen ${s.index}: "${s.name}"
 - Auth: ${s.requiresAuth ? 'required' : 'public'}
 - Markers: ${[s.isEntry && 'entry', s.isError && 'error'].filter(Boolean).join(', ') || 'none'}
 `).join('\n')}
-
+${pendingScreens.length > 0 ? `\nNote: ${pendingScreens.length} screen(s) have not been analyzed yet (${pendingScreens.map(s => `"${s.name}"`).join(', ')}). Synthesize based on available data.\n` : ''}
 Synthesize a FlowContext. Respond ONLY with JSON (no markdown):
 {
   "general": "one sentence — what this flow accomplishes",
@@ -1316,15 +1394,39 @@ Synthesize a FlowContext. Respond ONLY with JSON (no markdown):
               </div>
             </div>
 
-            {/* Batch analyze button */}
+            {/* Per-screen analyze list + batch button */}
             {!batchLoading && !batchDone && (
-              <button
-                onClick={analyzeBatch}
-                className="w-full flex items-center justify-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-200 transition-colors"
-              >
-                <Sparkles size={12} />
-                {pendingScreens.length} screen{pendingScreens.length > 1 ? 's' : ''} não analisada{pendingScreens.length > 1 ? 's' : ''} — Analisar tudo
-              </button>
+              <div className="space-y-1.5">
+                {/* Individual screen buttons */}
+                {pendingScreens.map(s => (
+                  <div key={s.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-amber-50 text-[11px]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+                    <span className="truncate flex-1">{s.name}</span>
+                    {singleLoading === s.id ? (
+                      <Loader2 size={11} className="animate-spin text-violet-500 flex-shrink-0" />
+                    ) : (
+                      <button
+                        onClick={() => analyzeSingle(s)}
+                        disabled={!!singleLoading}
+                        className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-200 transition-colors disabled:opacity-40"
+                      >
+                        <Sparkles size={9} /> Analisar
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                {/* Batch all button */}
+                {pendingScreens.length > 1 && !singleLoading && (
+                  <button
+                    onClick={analyzeBatch}
+                    className="w-full flex items-center justify-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-200 transition-colors mt-1"
+                  >
+                    <Sparkles size={12} />
+                    Analisar todas ({pendingScreens.length})
+                  </button>
+                )}
+              </div>
             )}
 
             {/* Batch progress */}
@@ -1361,23 +1463,34 @@ Synthesize a FlowContext. Respond ONLY with JSON (no markdown):
           </div>
         )}
 
-        {/* ── STEP 2: Analisar flow completo — só habilitado quando tudo pronto ── */}
+        {/* ── STEP 2: Analisar flow completo — habilitado com >=1 screen pronta ── */}
         <div className="space-y-2">
           {!flowAnalysis && !flowLoading && (
-            <button
-              onClick={analyzeFlow}
-              disabled={!allScreensReady}
-              className={cn(
-                'w-full flex items-center justify-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg border transition-colors',
-                allScreensReady
-                  ? 'bg-violet-600 text-white hover:bg-violet-700 border-violet-600'
-                  : 'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed',
+            <>
+              {pendingScreens.length > 0 && readyScreens.length > 0 && (
+                <p className="text-[10px] text-amber-600 bg-amber-50 rounded px-2.5 py-1.5 border border-amber-100">
+                  {pendingScreens.length} screen{pendingScreens.length > 1 ? 's' : ''} sem contexto — a análise usará os dados disponíveis
+                </p>
               )}
-              title={!allScreensReady ? `Analise as ${pendingScreens.length} screen(s) pendentes primeiro` : 'Analisar flow completo'}
-            >
-              <Wand2 size={12} />
-              {allScreensReady ? 'Analisar Flow Completo' : `Aguardando ${pendingScreens.length} screen${pendingScreens.length > 1 ? 's' : ''}…`}
-            </button>
+              <button
+                onClick={analyzeFlow}
+                disabled={readyScreens.length === 0}
+                className={cn(
+                  'w-full flex items-center justify-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg border transition-colors',
+                  readyScreens.length > 0
+                    ? 'bg-violet-600 text-white hover:bg-violet-700 border-violet-600'
+                    : 'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed',
+                )}
+                title={readyScreens.length === 0 ? 'Analise pelo menos 1 screen primeiro' : `Analisar flow com ${readyScreens.length}/${activeScreens.length} screens`}
+              >
+                <Wand2 size={12} />
+                {readyScreens.length === 0
+                  ? 'Analise pelo menos 1 screen'
+                  : allScreensReady
+                    ? 'Analisar Flow Completo'
+                    : `Analisar Flow (${readyScreens.length}/${activeScreens.length} screens)`}
+              </button>
+            </>
           )}
 
           {flowLoading && (
@@ -1418,9 +1531,17 @@ Synthesize a FlowContext. Respond ONLY with JSON (no markdown):
           )}
 
           {flowApplied && (
-            <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 rounded p-2 border border-green-100">
-              <CheckCircle2 size={12} className="flex-shrink-0" />
-              <span>Flow context preenchido — edite os campos abaixo se necessário</span>
+            <div className="flex items-center justify-between text-xs text-green-700 bg-green-50 rounded p-2 border border-green-100">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={12} className="flex-shrink-0" />
+                <span>Flow context preenchido</span>
+              </div>
+              <button
+                onClick={() => { setFlowApplied(false); setFlowAnalysis(null); analyzeFlow() }}
+                className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-200 transition-colors"
+              >
+                <Sparkles size={9} /> Reanalisar
+              </button>
             </div>
           )}
         </div>
@@ -1678,9 +1799,17 @@ Based on this complete journey, synthesize a JourneyContext. Respond ONLY with a
       )}
 
       {applied && (
-        <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 rounded p-2 border border-green-100">
-          <CheckCircle2 size={12} className="flex-shrink-0" />
-          <span>Journey context preenchido — edite os campos abaixo</span>
+        <div className="flex items-center justify-between text-xs text-green-700 bg-green-50 rounded p-2 border border-green-100">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={12} className="flex-shrink-0" />
+            <span>Journey context preenchido</span>
+          </div>
+          <button
+            onClick={() => { setApplied(false); setAnalysis(null); analyze() }}
+            className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-200 transition-colors"
+          >
+            <Sparkles size={9} /> Reanalisar
+          </button>
         </div>
       )}
     </div>
