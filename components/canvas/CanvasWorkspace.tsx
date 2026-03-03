@@ -213,11 +213,14 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
                             : 'bg-surface border-border text-text-2 hover:bg-bg hover:text-text-1'
                         }`}
                         style={{ left: labelX, top: labelY }}
-                        onClick={() => store.setActiveFlow(journey!.id, flow.id)}
+                        onClick={() => { store.setActiveFlow(journey!.id, flow.id); store.selectFlow(flow.id) }}
                       >
                         <div className={`w-[6px] h-[6px] rounded-full flex-shrink-0 ${activeFlow?.id === flow.id ? 'bg-brand-blue' : 'bg-text-3'}`} />
                         <span className="text-[11.5px] font-semibold whitespace-nowrap">{flow.name}</span>
                         <span className="text-[10px] font-mono opacity-50">{flow.screens.length}s</span>
+                        {flow.flowCtx?.general && (
+                          <span className="w-[5px] h-[5px] rounded-full bg-violet-400 flex-shrink-0" title="Flow tem contexto" />
+                        )}
                       </div>
 
                       {flow.screens.map((screen) => (
