@@ -11,98 +11,69 @@ import type {
   ScreenContext, JourneyContext, FlowContext,
 } from '@/types'
 
-// ── Canvas data per project ───────────────────────────────────────────────────
-
 interface CanvasData {
   nodes:    MacroNode[]
   conns:    Connection[]
-  flows:    Record<NodeId, Flow[]>     // journeyId → flows[]
-  curFlow:  Record<NodeId, FlowId>     // journeyId → active flowId
+  flows:    Record<NodeId, Flow[]>
+  curFlow:  Record<NodeId, FlowId>
 }
 
 function emptyCanvas(): CanvasData {
   return { nodes: [], conns: [], flows: {}, curFlow: {} }
 }
 
-// ── Store shape ───────────────────────────────────────────────────────────────
-
 interface Store {
-  // Auth
   userId: string | null
   setUserId: (id: string | null) => void
-
-  // Projects
   projects:     Project[]
   curProjectId: ProjectId | null
-
-  // Canvas data — isolated per project
   canvasData: Record<ProjectId, CanvasData>
-
-  // View state
   view:         CanvasView
   curJourneyId: NodeId | null
-  microMode:    'all' | 'single'   // all = show all flows; single = show only activeFlow
+  microMode:    'all' | 'single'
   transform:    CanvasTransform
-
-  // Selection
   selNodeId:   NodeId   | null
   selConnId:   ConnId   | null
   selScreenId: ScreenId | null
-
-  // Panels
+  selFlowId:   FlowId   | null
   ibarOpen:    boolean
   ebarOpen:    boolean
   ebarSection: EbarSection
   rpanelOpen:  boolean
   rpanelTab:   RpanelTab
   fabOpen:     boolean
-
-  // ── Project actions
   createProject:  (p: Project) => void
   updateProject:  (id: ProjectId, patch: Partial<Project>) => void
   deleteProject:  (id: ProjectId) => void
   openProject:    (id: ProjectId) => void
   updateSettings: (id: ProjectId, s: Partial<ProjectSettings>) => void
-
-  // ── Node actions
   addNode:              (n: MacroNode) => void
   updateNode:           (id: NodeId, patch: Partial<MacroNode>) => void
   updateJourneyContext: (id: NodeId, ctx: Partial<JourneyContext>) => void
   moveNode:             (id: NodeId, pos: XY) => void
   deleteNode:           (id: NodeId) => void
-
-  // ── Connection actions
   addConn:    (c: Connection) => void
   deleteConn: (id: ConnId) => void
   connExists: (fromId: NodeId, toId: NodeId) => boolean
-
-  // ── Flow actions
-  addFlow:             (journeyId: NodeId, f: Flow) => void
-  updateFlow:          (journeyId: NodeId, flowId: FlowId, patch: Partial<Flow>) => void
-  updateFlowContext:   (journeyId: NodeId, flowId: FlowId, ctx: Partial<FlowContext>) => void
-  deleteFlow:          (journeyId: NodeId, flowId: FlowId) => void
-  setActiveFlow:       (journeyId: NodeId, flowId: FlowId) => void
-
-  // ── Screen actions
+  addFlow:           (journeyId: NodeId, f: Flow) => void
+  updateFlow:        (journeyId: NodeId, flowId: FlowId, patch: Partial<Flow>) => void
+  updateFlowContext: (journeyId: NodeId, flowId: FlowId, ctx: Partial<FlowContext>) => void
+  deleteFlow:        (journeyId: NodeId, flowId: FlowId) => void
+  setActiveFlow:     (journeyId: NodeId, flowId: FlowId) => void
   addScreen:           (journeyId: NodeId, flowId: FlowId, s: Screen) => void
   updateScreen:        (journeyId: NodeId, flowId: FlowId, id: ScreenId, patch: Partial<Screen>) => void
   updateScreenContext: (journeyId: NodeId, flowId: FlowId, id: ScreenId, ctx: Partial<ScreenContext>) => void
   moveScreen:          (journeyId: NodeId, flowId: FlowId, id: ScreenId, pos: XY) => void
   deleteScreen:        (journeyId: NodeId, flowId: FlowId, id: ScreenId) => void
-
-  // ── Navigation
   goMacro:      () => void
   openJourney:  (id: NodeId) => void
   setTransform: (t: Partial<CanvasTransform>) => void
   fitView:      () => void
-
-  // ── Selection
   selectNode:   (id: NodeId   | null) => void
   selectConn:   (id: ConnId   | null) => void
   selectScreen: (id: ScreenId | null) => void
+  selectFlow:   (id: FlowId   | null) => void
   clearSel:     () => void
-
-  // ── Panel actions
   toggleIbar:   () => void
   toggleEbar:   (section?: EbarSection) => void
   closeEbar:    () => void
@@ -110,25 +81,20 @@ interface Store {
   closeRpanel:  () => void
   toggleFab:    () => void
   closeFab:     () => void
-
-  // ── Derived selectors
-  canvas:      () => CanvasData | null
-  journey:     () => MacroNode | null
-  activeFlow:  () => Flow | null
-  nodeById:    (id: NodeId) => MacroNode | undefined
+  canvas:     () => CanvasData | null
+  journey:    () => MacroNode | null
+  activeFlow: () => Flow | null
+  nodeById:   (id: NodeId) => MacroNode | undefined
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getCanvas(s: Store): CanvasData | null {
   if (!s.curProjectId) return null
   return s.canvasData[s.curProjectId] ?? null
 }
 
-// Auto-layout: distribute all screens of a journey into per-flow columns
 function layoutFlowScreens(c: CanvasData, journeyId: string) {
   const SCREEN_W = 180, SCREEN_H = 160, SCREEN_VGAP = 28
-  const COL_GAP  = 80, START_X = 60, START_Y = 60
+  const COL_GAP  = 80,  START_X  = 60,  START_Y     = 60
   ;(c.flows[journeyId] ?? []).forEach((flow, fi) => {
     const colX = START_X + fi * (SCREEN_W + COL_GAP)
     flow.screens.forEach((screen, si) => {
@@ -136,8 +102,6 @@ function layoutFlowScreens(c: CanvasData, journeyId: string) {
     })
   })
 }
-
-// ── Store ─────────────────────────────────────────────────────────────────────
 
 export const useStore = create<Store>()(
   devtools(
@@ -154,6 +118,7 @@ export const useStore = create<Store>()(
         selNodeId:    null,
         selConnId:    null,
         selScreenId:  null,
+        selFlowId:    null,
         ibarOpen:     true,
         ebarOpen:     true,
         ebarSection:  'macro',
@@ -162,8 +127,6 @@ export const useStore = create<Store>()(
         fabOpen:      false,
 
         setUserId: (id) => set(s => { s.userId = id }),
-
-        // ── Projects ──────────────────────────────────────────────────────────
 
         createProject: (p) => set(s => {
           s.projects.unshift(p)
@@ -184,13 +147,13 @@ export const useStore = create<Store>()(
         openProject: (id) => set(s => {
           s.curProjectId = id
           if (!s.canvasData[id]) s.canvasData[id] = emptyCanvas()
-          // Reset view state
-          s.view = 'macro'
+          s.view         = 'macro'
           s.curJourneyId = null
           s.transform    = { x: 0, y: 0, scale: 1 }
           s.selNodeId    = null
           s.selConnId    = null
           s.selScreenId  = null
+          s.selFlowId    = null
           s.rpanelOpen   = false
           s.fabOpen      = false
         }),
@@ -199,8 +162,6 @@ export const useStore = create<Store>()(
           const p = s.projects.find(p => p.id === id)
           if (p) p.settings = { ...p.settings, ...settings }
         }),
-
-        // ── Nodes ─────────────────────────────────────────────────────────────
 
         addNode: (n) => set(s => {
           const c = s.canvasData[n.projectId]
@@ -238,10 +199,9 @@ export const useStore = create<Store>()(
           c.conns = c.conns.filter(c => c.fromId !== id && c.toId !== id)
           delete c.flows[id]
           delete c.curFlow[id]
-          if (s.selNodeId === id) { s.selNodeId = null; s.rpanelOpen = false }
+          if (s.selNodeId === id)  { s.selNodeId  = null; s.rpanelOpen = false }
+          if (s.selFlowId !== null) s.selFlowId = null
         }),
-
-        // ── Connections ───────────────────────────────────────────────────────
 
         addConn: (conn) => set(s => {
           const c = getCanvas(s); if (!c) return
@@ -259,8 +219,6 @@ export const useStore = create<Store>()(
           const c = getCanvas(get()); if (!c) return false
           return c.conns.some(c => c.fromId === fromId && c.toId === toId)
         },
-
-        // ── Flows ─────────────────────────────────────────────────────────────
 
         addFlow: (journeyId, flow) => set(s => {
           const c = getCanvas(s); if (!c) return
@@ -291,12 +249,12 @@ export const useStore = create<Store>()(
           if (c.curFlow[journeyId] === flowId) {
             c.curFlow[journeyId] = c.flows[journeyId][0]?.id ?? ''
           }
+          if (s.selFlowId === flowId) { s.selFlowId = null; s.rpanelOpen = false }
         }),
 
         setActiveFlow: (journeyId, flowId) => set(s => {
           const c = getCanvas(s); if (!c) return
           c.curFlow[journeyId] = flowId
-          // Selecting a specific flow = single mode; also enter micro view
           s.curJourneyId = journeyId
           s.view         = 'micro'
           s.microMode    = 'single'
@@ -305,8 +263,6 @@ export const useStore = create<Store>()(
           s.selScreenId  = null
           layoutFlowScreens(c, journeyId)
         }),
-
-        // ── Screens ───────────────────────────────────────────────────────────
 
         addScreen: (journeyId, flowId, screen) => set(s => {
           const c = getCanvas(s); if (!c) return
@@ -339,15 +295,14 @@ export const useStore = create<Store>()(
           if (s.selScreenId === id) { s.selScreenId = null; s.rpanelOpen = false }
         }),
 
-        // ── Navigation ────────────────────────────────────────────────────────
-
         goMacro: () => set(s => {
-          s.view = 'macro'
+          s.view         = 'macro'
           s.curJourneyId = null
           s.transform    = { x: 0, y: 0, scale: 1 }
           s.selNodeId    = null
           s.selConnId    = null
           s.selScreenId  = null
+          s.selFlowId    = null
           s.rpanelOpen   = false
         }),
 
@@ -358,18 +313,15 @@ export const useStore = create<Store>()(
           s.selNodeId    = null
           s.selConnId    = null
           s.selScreenId  = null
+          s.selFlowId    = null
           s.rpanelOpen   = false
           s.microMode    = 'all'
-
           const c = getCanvas(s)
           if (!c) return
-
-          // Auto-select first flow
           if (!c.curFlow[id]) {
             const firstFlow = c.flows[id]?.[0]
             if (firstFlow) c.curFlow[id] = firstFlow.id
           }
-
           layoutFlowScreens(c, id)
         }),
 
@@ -377,12 +329,11 @@ export const useStore = create<Store>()(
 
         fitView: () => set(s => { s.transform = { x: 60, y: 60, scale: 0.85 } }),
 
-        // ── Selection ─────────────────────────────────────────────────────────
-
         selectNode: (id) => set(s => {
           s.selNodeId   = id
           s.selConnId   = null
           s.selScreenId = null
+          s.selFlowId   = null
           s.rpanelOpen  = id !== null
           if (id) s.rpanelTab = 'context'
         }),
@@ -391,22 +342,34 @@ export const useStore = create<Store>()(
           s.selConnId   = id
           s.selNodeId   = null
           s.selScreenId = null
-          s.rpanelOpen  = false  // connectors use inline delete, no panel
+          s.selFlowId   = null
+          s.rpanelOpen  = false
         }),
 
         selectScreen: (id) => set(s => {
           s.selScreenId = id
           s.selNodeId   = null
           s.selConnId   = null
+          s.selFlowId   = null
+          s.rpanelOpen  = id !== null
+          if (id) s.rpanelTab = 'context'
+        }),
+
+        selectFlow: (id) => set(s => {
+          s.selFlowId   = id
+          s.selNodeId   = null
+          s.selConnId   = null
+          s.selScreenId = null
           s.rpanelOpen  = id !== null
           if (id) s.rpanelTab = 'context'
         }),
 
         clearSel: () => set(s => {
-          s.selNodeId = null; s.selConnId = null; s.selScreenId = null
+          s.selNodeId   = null
+          s.selConnId   = null
+          s.selScreenId = null
+          s.selFlowId   = null
         }),
-
-        // ── Panels ────────────────────────────────────────────────────────────
 
         toggleIbar: () => set(s => { s.ibarOpen = !s.ibarOpen }),
 
@@ -422,11 +385,10 @@ export const useStore = create<Store>()(
           s.rpanelOpen  = false
           s.selNodeId   = null
           s.selScreenId = null
+          s.selFlowId   = null
         }),
         toggleFab: () => set(s => { s.fabOpen = !s.fabOpen }),
         closeFab:  () => set(s => { s.fabOpen = false }),
-
-        // ── Derived ───────────────────────────────────────────────────────────
 
         canvas: () => getCanvas(get()),
 
@@ -448,7 +410,6 @@ export const useStore = create<Store>()(
       })),
       {
         name: 'flowbridge-v1',
-        // Only persist data — not ephemeral UI state
         partialize: (s) => ({
           projects:     s.projects,
           canvasData:   s.canvasData,
@@ -460,8 +421,6 @@ export const useStore = create<Store>()(
   )
 )
 
-// ── Convenience selector hooks ─────────────────────────────────────────────────
-
 export const useProject    = () => useStore(s => s.projects.find(p => p.id === s.curProjectId))
 export const useCanvas     = () => useStore(s => s.canvas())
 export const useTransform  = () => useStore(s => s.transform)
@@ -470,6 +429,7 @@ export const useSelection  = () => useStore(s => ({
   nodeId:   s.selNodeId,
   connId:   s.selConnId,
   screenId: s.selScreenId,
+  flowId:   s.selFlowId,
 }))
 export const useActiveFlow = () => useStore(s => s.activeFlow())
 export const useJourney    = () => useStore(s => s.journey())
