@@ -100,8 +100,8 @@ export function Ebar() {
 
   // ── Open flow (enter micro view) ───────────────────────────────────────────
   const openFlow = useCallback((journeyId: string, flowId: string) => {
-    // setActiveFlow now handles view='micro', microMode='single', layout — no need for openJourney
     store.setActiveFlow(journeyId, flowId)
+    store.selectFlow(flowId)
     setJExp(p => { const n = new Set(p); n.add(journeyId); return n })
     setFExp(p => { const n = new Set(p); n.add(flowId);    return n })
   }, [store])
