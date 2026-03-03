@@ -23,17 +23,23 @@ export function RightPanel() {
   const rpanelTab    = useStore(s => s.rpanelTab)
   const selNodeId    = useStore(s => s.selNodeId)
   const selScreenId  = useStore(s => s.selScreenId)
+  const selFlowId    = useStore(s => s.selFlowId)
   const curProjectId = store.curProjectId
   const curJourneyId = store.curJourneyId
 
-  const canvas     = curProjectId ? store.canvasData[curProjectId] : null
-  const node       = canvas?.nodes.find(n => n.id === selNodeId)
+  const canvas       = curProjectId ? store.canvasData[curProjectId] : null
+  const node         = canvas?.nodes.find(n => n.id === selNodeId)
   const activeFlowId = (curJourneyId ? canvas?.curFlow[curJourneyId] : null) ?? null
 
   // Journey node (for context inheritance)
   const journeyNode = curJourneyId ? canvas?.nodes.find(n => n.id === curJourneyId) : undefined
 
-  // Active Flow object (for context inheritance)
+  // Selected Flow object (when a flow label is clicked)
+  const selectedFlow: Flow | undefined = (selFlowId && curJourneyId)
+    ? (canvas?.flows[curJourneyId] ?? []).find(f => f.id === selFlowId)
+    : undefined
+
+  // Active Flow object (for context inheritance in screen view)
   const activeFlowObj: Flow | undefined = (activeFlowId && curJourneyId)
     ? (canvas?.flows[curJourneyId] ?? []).find(f => f.id === activeFlowId)
     : undefined
@@ -44,12 +50,12 @@ export function RightPanel() {
         ?.screens.find(s => s.id === selScreenId)
     : undefined
 
-  const selectedItem = screen ?? node
-
   // All flows of the current journey (for analyzers)
   const allFlows: Flow[] = curJourneyId
     ? (canvas?.flows[curJourneyId] ?? [])
     : []
+
+  // DS nodes connected to this journey (for component suggestions)
   const connectedDsTags: string[] = (() => {
     if (!canvas || !curJourneyId) return []
     const dsNodeIds = canvas.conns
@@ -58,19 +64,84 @@ export function RightPanel() {
     return canvas.nodes
       .filter(n => dsNodeIds.includes(n.id) && n.type === 'ds')
       .flatMap(n => n.tags ?? [])
-      .filter((t, i, a) => a.indexOf(t) === i) // dedupe
+      .filter((t, i, a) => a.indexOf(t) === i)
   })()
 
   if (!rpanelOpen) return null
 
-  // Determine panel title
-  let panelTitle = 'No selection'
-  if (screen)           panelTitle = screen.name
-  else if (node?.type === 'journey') panelTitle = node.name
-  else if (node)        panelTitle = node.name
+  // ── FLOW selected → dedicated Flow panel ──────────────────────────────────
+  if (selectedFlow && curJourneyId) {
+    return (
+      <div className={cn(
+        'w-80 bg-white border-l border-gray-200',
+        'flex flex-col flex-shrink-0 overflow-hidden shadow-lg',
+      )}>
+        {/* Header */}
+        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between flex-shrink-0 bg-gray-50">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-5 h-5 rounded flex items-center justify-center bg-violet-100 flex-shrink-0">
+              <Layers size={11} className="text-violet-600" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-bold text-gray-900 truncate">{selectedFlow.name}</h3>
+              <p className="text-[10px] text-gray-400">{selectedFlow.screens.length} screens</p>
+            </div>
+          </div>
+          <button
+            onClick={() => store.closeRpanel()}
+            className="text-gray-400 hover:text-gray-600 hover:bg-gray-200 p-1 rounded transition-colors flex-shrink-0"
+          >
+            <X size={16} />
+          </button>
+        </div>
 
-  // Determine context mode badge
-  const contextMode = screen ? 'screen' : node?.type === 'journey' ? 'journey' : null
+        {/* Flow tabs — só context e info */}
+        <div className="flex border-b border-gray-200 flex-shrink-0 bg-white">
+          {(['context', 'info'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => store.setRpTab(tab)}
+              className={cn(
+                'flex-1 py-2.5 px-3 text-xs font-semibold uppercase tracking-wide transition-all',
+                rpanelTab === tab
+                  ? 'border-b-2 border-violet-500 text-violet-600 bg-violet-50/50'
+                  : 'text-gray-400 border-b-2 border-transparent hover:text-gray-600',
+              )}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {rpanelTab === 'context' ? (
+            <FlowContextPanel
+              flow={selectedFlow}
+              journeyNode={journeyNode}
+              curJourneyId={curJourneyId}
+            />
+          ) : (
+            <div className="p-5 space-y-3 text-sm">
+              <InfoRow label="Flow ID"   value={selectedFlow.id.slice(0, 8) + '…'} mono />
+              <InfoRow label="Screens"   value={String(selectedFlow.screens.length)} />
+              <InfoRow label="Order"     value={String(selectedFlow.order)} />
+              <InfoRow label="Created"   value={new Date(selectedFlow.createdAt).toLocaleDateString()} />
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── NODE / SCREEN selected → existing panel ────────────────────────────────
+  const selectedItem = screen ?? node
+
+  // Panel title + icon
+  let panelTitle = 'No selection'
+  let contextMode: 'journey' | 'screen' | null = null
+  if (screen)                  { panelTitle = screen.name;  contextMode = 'screen' }
+  else if (node?.type === 'journey') { panelTitle = node.name; contextMode = 'journey' }
+  else if (node)               { panelTitle = node.name }
 
   return (
     <div className={cn(
@@ -90,14 +161,11 @@ export function RightPanel() {
               <Monitor size={11} className="text-blue-600" />
             </div>
           )}
-          <h3 className="text-sm font-bold text-gray-900 truncate">
-            {panelTitle}
-          </h3>
+          <h3 className="text-sm font-bold text-gray-900 truncate">{panelTitle}</h3>
         </div>
         <button
           onClick={() => store.closeRpanel()}
           className="text-gray-400 hover:text-gray-600 hover:bg-gray-200 p-1 rounded transition-colors flex-shrink-0"
-          aria-label="Close"
         >
           <X size={16} />
         </button>
@@ -127,9 +195,7 @@ export function RightPanel() {
       <div className="flex-1 overflow-y-auto">
         {!selectedItem ? (
           <div className="flex items-center justify-center h-full p-6">
-            <p className="text-sm text-gray-400 text-center">
-              Select a node or screen to edit
-            </p>
+            <p className="text-sm text-gray-400 text-center">Select a node or screen to edit</p>
           </div>
         ) : rpanelTab === 'context' ? (
           <ContextTab
@@ -206,7 +272,7 @@ function PropertiesTab({ node, screen, curJourneyId, activeFlow }: {
           )}
 
           <FormGroup label="Markers">
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <MarkerToggle
                 label="Entry"
                 active={!!screen.isEntry}
@@ -223,6 +289,17 @@ function PropertiesTab({ node, screen, curJourneyId, activeFlow }: {
                 onClick={() => {
                   if (curJourneyId && activeFlow)
                     store.updateScreen(curJourneyId, activeFlow, screen.id, { isError: !screen.isError })
+                }}
+              />
+              <MarkerToggle
+                label="Draft"
+                active={screen.status === 'draft'}
+                color="slate"
+                onClick={() => {
+                  if (curJourneyId && activeFlow)
+                    store.updateScreen(curJourneyId, activeFlow, screen.id, {
+                      status: screen.status === 'draft' ? 'empty' : 'draft',
+                    })
                 }}
               />
             </div>
@@ -501,8 +578,110 @@ function ContextTab({ screen, node, journeyNode, activeFlowObj, allFlows, curJou
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ContextLevelBlock — collapsible section with level indicator
+// FlowContextPanel — rendered when a Flow label is clicked (selFlowId set)
+// Contains: batch screen analyzer + flow unlock logic + FlowContextForm
 // ─────────────────────────────────────────────────────────────────────────────
+
+function FlowContextPanel({ flow, journeyNode, curJourneyId }: {
+  flow:         Flow
+  journeyNode:  MacroNode | undefined
+  curJourneyId: string
+}) {
+  const store = useStore()
+
+  const screens         = flow.screens
+  const activeScreens   = screens.filter(s => s.status !== 'draft')
+  const draftCount      = screens.length - activeScreens.length
+  const analyzedScreens = activeScreens.filter(s => s.context.purpose.trim().length > 5)
+  const hasFlowCtx      = !!(flow.flowCtx?.general)
+
+  return (
+    <div className="divide-y divide-gray-100">
+
+      {/* ── Screen status overview ── */}
+      <div className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Screens</span>
+          <span className="text-[11px] text-gray-400">
+            {analyzedScreens.length}/{activeScreens.length} analisadas
+            {draftCount > 0 && <span className="text-slate-300 ml-1">· {draftCount} draft</span>}
+          </span>
+        </div>
+
+        {/* Progress bar */}
+        <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className={cn(
+              'h-full rounded-full transition-all duration-500',
+              analyzedScreens.length === activeScreens.length && activeScreens.length > 0
+                ? 'bg-green-500'
+                : analyzedScreens.length > 0 ? 'bg-violet-400' : 'bg-gray-200'
+            )}
+            style={{ width: activeScreens.length > 0 ? `${(analyzedScreens.length / activeScreens.length) * 100}%` : '0%' }}
+          />
+        </div>
+
+        {/* Screen list */}
+        {screens.length > 0 && (
+          <div className="space-y-1">
+            {screens.map(s => {
+              const isDraft    = s.status === 'draft'
+              const isAnalyzed = s.context.purpose.trim().length > 5
+              return (
+                <div key={s.id} className={cn(
+                  'flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[11px]',
+                  isDraft ? 'opacity-40' : isAnalyzed ? 'bg-green-50' : 'bg-amber-50',
+                )}>
+                  <div className={cn(
+                    'w-1.5 h-1.5 rounded-full flex-shrink-0',
+                    isDraft ? 'bg-slate-300' : isAnalyzed ? 'bg-green-500' : 'bg-amber-400',
+                  )} />
+                  <span className={cn('truncate flex-1', isDraft && 'line-through text-gray-300')}>
+                    {s.name}
+                  </span>
+                  {isDraft    && <span className="text-[9px] text-slate-300 uppercase font-bold flex-shrink-0">draft</span>}
+                  {!isDraft && isAnalyzed  && <CheckCircle2 size={10} className="text-green-500 flex-shrink-0" />}
+                  {!isDraft && !isAnalyzed && <AlertCircle  size={10} className="text-amber-400 flex-shrink-0" />}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {screens.length === 0 && (
+          <p className="text-[11px] text-gray-400">Nenhuma screen neste flow.</p>
+        )}
+      </div>
+
+      {/* ── Flow Context header ── */}
+      <div className="px-4 py-3 bg-violet-50 flex items-center gap-2">
+        <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold bg-violet-100 text-violet-600 border border-violet-200 flex-shrink-0">
+          2
+        </div>
+        <Layers size={11} className="text-violet-600 flex-shrink-0" />
+        <span className="text-[10px] font-bold uppercase tracking-wider text-violet-700">Flow Context</span>
+        {hasFlowCtx && <div className="w-1.5 h-1.5 rounded-full bg-violet-400 ml-auto flex-shrink-0" />}
+      </div>
+
+      {/* ── AIFlowAnalyzer + FlowContextForm — handles all batch/unlock logic ── */}
+      <FlowContextForm
+        flow={flow}
+        curJourneyId={curJourneyId}
+        onUpdate={(ctx) => store.updateFlowContext(curJourneyId, flow.id, ctx)}
+      />
+
+      {/* ── Journey context — inherited, readonly ── */}
+      {journeyNode?.journeyCtx?.goal && (
+        <div className="p-4 bg-indigo-50/50">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 mb-1.5">
+            Herdado da Journey
+          </p>
+          <p className="text-[11px] text-gray-500 leading-relaxed">{journeyNode.journeyCtx.goal}</p>
+        </div>
+      )}
+    </div>
+  )
+}
 
 type LevelColor = 'indigo' | 'violet' | 'blue'
 
@@ -836,8 +1015,9 @@ function FlowContextForm({ flow, curJourneyId, onUpdate }: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AIFlowAnalyzer — analisa todas as screens do flow e sugere FlowContext
-// Aparece no topo do FlowContextForm (Level 2 block)
+// AIFlowAnalyzer — lógica completa de desbloqueio
+// 1) Screens sem contexto → botão "X screens pendentes — Analisar tudo"
+// 2) Todas as non-draft screens com contexto → botão "Analisar Flow Completo"
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface AIFlowAnalysis {
@@ -848,30 +1028,141 @@ interface AIFlowAnalysis {
   stateNotes: string
 }
 
-function AIFlowAnalyzer({ flow, curJourneyId: _curJourneyId, onApply }: {
+function AIFlowAnalyzer({ flow, curJourneyId, onApply }: {
   flow:         Flow
   curJourneyId: string
   onApply:      (ctx: Partial<FlowContext>) => void
 }) {
-  const [loading,  setLoading]  = useState(false)
-  const [analysis, setAnalysis] = useState<AIFlowAnalysis | null>(null)
-  const [error,    setError]    = useState<string | null>(null)
-  const [applied,  setApplied]  = useState(false)
+  const store = useStore()
 
-  const screens    = flow.screens
-  const hasScreens = screens.length > 0
-  // Screens with meaningful context (purpose filled)
-  const analyzedCount = screens.filter(s => s.context.purpose.length > 5).length
+  // State for flow-level analysis
+  const [flowLoading,  setFlowLoading]  = useState(false)
+  const [flowAnalysis, setFlowAnalysis] = useState<AIFlowAnalysis | null>(null)
+  const [flowError,    setFlowError]    = useState<string | null>(null)
+  const [flowApplied,  setFlowApplied]  = useState(false)
 
-  async function analyze() {
-    setLoading(true)
-    setError(null)
-    setAnalysis(null)
-    setApplied(false)
+  // State for batch screen analysis
+  const [batchLoading,   setBatchLoading]   = useState(false)
+  const [batchProgress,  setBatchProgress]  = useState<{ done: number; total: number } | null>(null)
+  const [batchError,     setBatchError]     = useState<string | null>(null)
+  const [batchDone,      setBatchDone]      = useState(false)
+
+  // Screen classification
+  const allScreens     = flow.screens
+  const activeScreens  = allScreens.filter(s => s.status !== 'draft')
+  const draftScreens   = allScreens.filter(s => s.status === 'draft')
+  const pendingScreens = activeScreens.filter(s => s.context.purpose.trim().length < 5)
+  const readyScreens   = activeScreens.filter(s => s.context.purpose.trim().length >= 5)
+
+  const allScreensReady = pendingScreens.length === 0 && activeScreens.length > 0
+  const hasAnyScreens   = activeScreens.length > 0
+
+  // ── Batch: analisar todas as screens pendentes em sequência ─────────────────
+  async function analyzeBatch() {
+    if (pendingScreens.length === 0) return
+    setBatchLoading(true)
+    setBatchError(null)
+    setBatchDone(false)
+    setBatchProgress({ done: 0, total: pendingScreens.length })
+
+    let successCount = 0
+
+    for (let i = 0; i < pendingScreens.length; i++) {
+      const screen = pendingScreens[i]
+      setBatchProgress({ done: i, total: pendingScreens.length })
+
+      try {
+        const components   = screen.figma?.componentMap.map(c => c.figmaName) ?? []
+        const thumbnailUrl = screen.figma?.thumbnailUrl
+
+        let analysis: { purpose: string; userIntent: string; notes: string; genRules: string } | null = null
+
+        // Try API first
+        try {
+          const res = await fetch('/api/analyze-screen', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              screenName:    screen.name,
+              nodeId:        screen.figma?.nodeId ?? '',
+              thumbnailUrl,
+              components,
+              existingRoute: screen.context.route,
+            }),
+          })
+          if (res.ok) {
+            const data = await res.json() as { analysis: { purpose: string; userIntent: string; notes: string; genRules: string } | null }
+            analysis = data.analysis
+          }
+        } catch { /* fallback below */ }
+
+        // Local heuristic fallback
+        if (!analysis || !analysis.purpose) {
+          const hasForm = components.some(c => /input|form|field|login|register|search/i.test(c))
+          const hasList = components.some(c => /list|table|grid|card|item/i.test(c))
+          const hasAuth = components.some(c => /auth|login|signup|password/i.test(c))
+          analysis = {
+            purpose:    hasAuth ? 'Allow user to authenticate and access their account'
+                      : hasForm ? 'Allow user to submit information via form'
+                      : hasList ? 'Display and manage a list of items'
+                      : `${screen.name} — inferred from ${components.length} component(s)`,
+            userIntent: hasAuth ? 'User wants to sign in or create an account'
+                      : hasForm ? 'User wants to complete and submit a form'
+                      : hasList ? 'User wants to view or manage items'
+                      : `User wants to interact with ${screen.name}`,
+            notes:      components.length > 0
+                      ? `Detected: ${[...new Set(components.slice(0,5).map(c => c.split('/')[0]))].join(', ')}`
+                      : 'No component data available',
+            genRules:   hasForm ? 'Use Server Action for form submission. Validate on server.' : '',
+          }
+        }
+
+        // Apply to screen — only fill empty fields
+        const patch: Partial<typeof screen.context> = {}
+        if (analysis.purpose    && !screen.context.purpose)    patch.purpose    = analysis.purpose
+        if (analysis.userIntent && !screen.context.userIntent) patch.userIntent = analysis.userIntent
+        if (analysis.notes      && !screen.context.notes)      patch.notes      = analysis.notes
+        if (analysis.genRules   && !screen.context.genRules)   patch.genRules   = analysis.genRules
+
+        if (Object.keys(patch).length > 0) {
+          store.updateScreenContext(curJourneyId, flow.id, screen.id, patch)
+        }
+
+        // Mark as partial if was empty
+        if (screen.status === 'empty') {
+          store.updateScreen(curJourneyId, flow.id, screen.id, { status: 'partial' })
+        }
+
+        successCount++
+
+        // Small delay between calls to avoid rate limiting
+        if (i < pendingScreens.length - 1) {
+          await new Promise(r => setTimeout(r, 300))
+        }
+      } catch {
+        // continue with next screen even if one fails
+      }
+    }
+
+    setBatchProgress({ done: pendingScreens.length, total: pendingScreens.length })
+    setBatchLoading(false)
+    setBatchDone(true)
+
+    if (successCount < pendingScreens.length) {
+      setBatchError(`${pendingScreens.length - successCount} screen(s) falharam — verifique e tente novamente`)
+    }
+  }
+
+  // ── Flow analysis — só roda quando todas as screens estão prontas ───────────
+  async function analyzeFlow() {
+    if (!allScreensReady) return
+    setFlowLoading(true)
+    setFlowError(null)
+    setFlowAnalysis(null)
+    setFlowApplied(false)
 
     try {
-      // Build a rich summary of all screens for the AI
-      const screenSummaries = screens.map((s, i) => ({
+      const screenSummaries = activeScreens.map((s, i) => ({
         index:       i + 1,
         name:        s.name,
         route:       s.context.route,
@@ -884,28 +1175,26 @@ function AIFlowAnalyzer({ flow, curJourneyId: _curJourneyId, onApply }: {
         requiresAuth: s.context.requiresAuth,
       }))
 
-      const prompt = `You are analyzing a user flow in a web application called "${flow.name}".
-
-This flow has ${screens.length} screen(s). Here is the context of each screen:
+      const prompt = `You are analyzing a user flow called "${flow.name}" with ${activeScreens.length} screen(s).
 
 ${screenSummaries.map(s => `
 Screen ${s.index}: "${s.name}"
 - Route: ${s.route || '(not set)'}
 - Purpose: ${s.purpose || '(not set)'}
-- User Intent: ${s.userIntent || '(not set)'}
-- Components: ${s.components.length > 0 ? s.components.join(', ') : '(none)'}
-- API Endpoints: ${s.endpoints.length > 0 ? s.endpoints.join(', ') : '(none)'}
-- Markers: ${[s.isEntry && 'entry', s.isError && 'error'].filter(Boolean).join(', ') || 'none'}
+- Intent: ${s.userIntent || '(not set)'}
+- Components: ${s.components.join(', ') || '(none)'}
+- Endpoints: ${s.endpoints.join(', ') || '(none)'}
 - Auth: ${s.requiresAuth ? 'required' : 'public'}
+- Markers: ${[s.isEntry && 'entry', s.isError && 'error'].filter(Boolean).join(', ') || 'none'}
 `).join('\n')}
 
-Based on all these screens, synthesize a FlowContext object. Respond ONLY with a JSON object (no markdown, no explanation):
+Synthesize a FlowContext. Respond ONLY with JSON (no markdown):
 {
-  "general": "one sentence describing what this entire flow accomplishes",
-  "specific": "2-3 sentences with specific technical notes about this flow — auth patterns, state sharing, redirects, edge cases",
-  "entryPoint": "where/how users arrive at this flow",
-  "exitPoints": "where users go after completing or failing this flow",
-  "stateNotes": "notes about state management needs across this flow's screens"
+  "general": "one sentence — what this flow accomplishes",
+  "specific": "2-3 sentences — technical patterns, auth, state sharing, edge cases",
+  "entryPoint": "where users arrive at this flow",
+  "exitPoints": "where users go after completing or failing",
+  "stateNotes": "state management notes across screens"
 }`
 
       const res = await fetch('/api/generate', {
@@ -934,162 +1223,209 @@ Based on all these screens, synthesize a FlowContext object. Respond ONLY with a
         }
       }
 
-      // Parse JSON from response
       let parsed: AIFlowAnalysis | null = null
       try {
         const clean = rawText.replace(/```json|```/g, '').trim()
-        const jsonMatch = clean.match(/\{[\s\S]+\}/)
-        if (jsonMatch) parsed = JSON.parse(jsonMatch[0]) as AIFlowAnalysis
-      } catch { /* fallback below */ }
+        const match = clean.match(/\{[\s\S]+\}/)
+        if (match) parsed = JSON.parse(match[0]) as AIFlowAnalysis
+      } catch { /* fallback */ }
 
-      // Local heuristic fallback
       if (!parsed || !parsed.general) {
-        const routes      = screens.map(s => s.context.route).filter(Boolean)
-        const purposes    = screens.map(s => s.context.purpose).filter(Boolean)
-        const hasAuth     = screens.some(s => s.context.requiresAuth || /login|auth|sign/i.test(s.name))
-        const hasForm     = screens.some(s => /form|input|submit/i.test(s.context.components.join(' ')))
-        const entryScreen = screens.find(s => s.isEntry) ?? screens[0]
-        const errorScreen = screens.find(s => s.isError)
-
+        const routes   = activeScreens.map(s => s.context.route).filter(Boolean)
+        const hasAuth  = activeScreens.some(s => s.context.requiresAuth)
+        const entry    = activeScreens.find(s => s.isEntry) ?? activeScreens[0]
+        const errorScr = activeScreens.find(s => s.isError)
         parsed = {
-          general:    purposes.length > 0
-            ? `Flow covering: ${purposes.slice(0, 2).join('; ')}`
-            : `${flow.name} — ${screens.length} screen${screens.length !== 1 ? 's' : ''}`,
-          specific:   hasAuth
-            ? 'Requires authentication. Handles protected routes.'
-            : hasForm
-            ? 'Contains form submission. Validates user input.'
-            : 'Standard navigation flow.',
-          entryPoint: entryScreen
-            ? `Starts at "${entryScreen.name}"${entryScreen.context.route ? ` (${entryScreen.context.route})` : ''}`
-            : 'Entry point not defined',
-          exitPoints: errorScreen
-            ? `Error state: "${errorScreen.name}". Success redirects to next flow.`
-            : routes.length > 0
-            ? `Routes: ${routes.join(' → ')}`
-            : 'Exit points not defined',
-          stateNotes: hasForm
-            ? 'Form state managed locally. Consider react-hook-form.'
-            : 'No complex state identified.',
+          general:    activeScreens[0]?.context.purpose || `${flow.name} — ${activeScreens.length} screens`,
+          specific:   hasAuth ? 'Requires authentication throughout.' : 'Public flow.',
+          entryPoint: entry ? `"${entry.name}"${entry.context.route ? ` (${entry.context.route})` : ''}` : '(not defined)',
+          exitPoints: errorScr ? `Error: "${errorScr.name}"` : routes.length > 0 ? routes.join(' → ') : '(not defined)',
+          stateNotes: 'No complex state identified.',
         }
       }
 
-      setAnalysis(parsed)
-    } catch (e) {
-      setError('Falha na análise — tente novamente')
-      console.error('[AIFlowAnalyzer]', e)
+      setFlowAnalysis(parsed)
+    } catch {
+      setFlowError('Falha na análise — tente novamente')
     } finally {
-      setLoading(false)
+      setFlowLoading(false)
     }
   }
 
-  function applyAll() {
-    if (!analysis) return
+  function applyFlow() {
+    if (!flowAnalysis) return
     const current = flow.flowCtx
     const patch: Partial<FlowContext> = {}
-    if (analysis.general    && !current?.general)    patch.general    = analysis.general
-    if (analysis.specific   && !current?.specific)   patch.specific   = analysis.specific
-    if (analysis.entryPoint && !current?.entryPoint) patch.entryPoint = analysis.entryPoint
-    if (analysis.exitPoints && !current?.exitPoints) patch.exitPoints = analysis.exitPoints
-    if (analysis.stateNotes && !current?.stateNotes) patch.stateNotes = analysis.stateNotes
+    if (flowAnalysis.general    && !current?.general)    patch.general    = flowAnalysis.general
+    if (flowAnalysis.specific   && !current?.specific)   patch.specific   = flowAnalysis.specific
+    if (flowAnalysis.entryPoint && !current?.entryPoint) patch.entryPoint = flowAnalysis.entryPoint
+    if (flowAnalysis.exitPoints && !current?.exitPoints) patch.exitPoints = flowAnalysis.exitPoints
+    if (flowAnalysis.stateNotes && !current?.stateNotes) patch.stateNotes = flowAnalysis.stateNotes
     onApply(patch)
-    setApplied(true)
+    setFlowApplied(true)
   }
 
-  if (!hasScreens) return (
-    <div className="px-4 py-3">
+  if (!hasAnyScreens) return (
+    <div className="px-4 py-3 border-b border-gray-100">
       <p className="text-[11px] text-gray-400">Adicione screens a este flow para usar o AI Analyzer.</p>
     </div>
   )
 
   return (
-    <div className="p-4">
-      <div className="flex items-center justify-between mb-3">
+    <div className="border-b border-gray-100">
+
+      {/* ── HEADER ── */}
+      <div className="px-4 py-3 bg-violet-50/60 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Wand2 size={13} className="text-violet-500" />
-          <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">AI Flow Analyzer</span>
-          <span className="text-[10px] text-gray-400">
-            {analyzedCount}/{screens.length} screens
-          </span>
+          <Wand2 size={13} className="text-violet-500 flex-shrink-0" />
+          <span className="text-xs font-bold text-violet-800 uppercase tracking-wide">AI Flow Analyzer</span>
         </div>
-        {!analysis && !loading && (
-          <button
-            onClick={analyze}
-            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded bg-violet-600 text-white hover:bg-violet-700 transition-colors"
-          >
-            <Sparkles size={11} /> Analisar flow
-          </button>
-        )}
+        <div className="flex items-center gap-1.5 text-[10px] text-violet-400 flex-shrink-0">
+          <span className="font-semibold text-violet-600">{readyScreens.length}</span>
+          <span>/</span>
+          <span>{activeScreens.length}</span>
+          <span>screens</span>
+          {draftScreens.length > 0 && (
+            <span className="text-slate-400 ml-1">· {draftScreens.length} draft</span>
+          )}
+        </div>
       </div>
 
-      {/* Progress bar showing how many screens have context */}
-      {analyzedCount < screens.length && (
-        <div className="mb-3">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] text-gray-400">
-              {analyzedCount === 0
-                ? 'Nenhuma screen com contexto — análise será heurística'
-                : `${analyzedCount} screens com contexto`}
-            </span>
+      <div className="px-4 py-3 space-y-3">
+
+        {/* ── STEP 1: Screens pendentes ── */}
+        {pendingScreens.length > 0 && (
+          <div className="space-y-2">
+            {/* Progress bar */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] text-gray-500 font-medium">
+                  {pendingScreens.length === activeScreens.length
+                    ? 'Nenhuma screen analisada ainda'
+                    : `${pendingScreens.length} screen${pendingScreens.length > 1 ? 's' : ''} sem contexto`}
+                </span>
+                <span className="text-[10px] text-gray-400">
+                  {Math.round((readyScreens.length / activeScreens.length) * 100)}%
+                </span>
+              </div>
+              <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-violet-300 rounded-full transition-all duration-500"
+                  style={{ width: `${(readyScreens.length / activeScreens.length) * 100}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Batch analyze button */}
+            {!batchLoading && !batchDone && (
+              <button
+                onClick={analyzeBatch}
+                className="w-full flex items-center justify-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg bg-violet-100 text-violet-700 hover:bg-violet-200 border border-violet-200 transition-colors"
+              >
+                <Sparkles size={12} />
+                {pendingScreens.length} screen{pendingScreens.length > 1 ? 's' : ''} não analisada{pendingScreens.length > 1 ? 's' : ''} — Analisar tudo
+              </button>
+            )}
+
+            {/* Batch progress */}
+            {batchLoading && batchProgress && (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 text-xs text-violet-600">
+                  <Loader2 size={12} className="animate-spin flex-shrink-0" />
+                  <span>
+                    Analisando screen {batchProgress.done + 1} de {batchProgress.total}…
+                  </span>
+                </div>
+                <div className="h-1 w-full bg-violet-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-violet-500 rounded-full transition-all"
+                    style={{ width: `${((batchProgress.done) / batchProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {batchDone && pendingScreens.length === 0 && (
+              <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 rounded-lg p-2 border border-green-100">
+                <CheckCircle2 size={12} className="flex-shrink-0" />
+                <span>Todas as screens analisadas — agora analise o flow completo</span>
+              </div>
+            )}
+
+            {batchError && (
+              <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 rounded p-2 border border-amber-100">
+                <AlertCircle size={12} className="flex-shrink-0" />
+                <span>{batchError}</span>
+              </div>
+            )}
           </div>
-          <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
-            <div
-              className={cn('h-full rounded-full transition-all', analyzedCount === 0 ? 'bg-gray-300' : 'bg-violet-400')}
-              style={{ width: `${Math.max(4, (analyzedCount / screens.length) * 100)}%` }}
-            />
-          </div>
-        </div>
-      )}
+        )}
 
-      {loading && (
-        <div className="flex items-center gap-2 text-xs text-violet-600 bg-violet-50 rounded p-3 border border-violet-100">
-          <Loader2 size={13} className="animate-spin flex-shrink-0" />
-          <span>Sintetizando {screens.length} screens…</span>
-        </div>
-      )}
-
-      {error && (
-        <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 rounded p-2 border border-red-100">
-          <AlertCircle size={12} className="flex-shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {analysis && !applied && (
+        {/* ── STEP 2: Analisar flow completo — só habilitado quando tudo pronto ── */}
         <div className="space-y-2">
-          <div className="bg-violet-50 border border-violet-100 rounded-lg p-3 space-y-2">
-            <p className="text-[11px] font-semibold text-violet-700 uppercase tracking-wide mb-1.5">
-              Sugestões do AI
-            </p>
-            {analysis.general    && <PreviewRow label="Geral"   value={analysis.general} />}
-            {analysis.specific   && <PreviewRow label="Notas"   value={analysis.specific} />}
-            {analysis.entryPoint && <PreviewRow label="Entry"   value={analysis.entryPoint} />}
-            {analysis.exitPoints && <PreviewRow label="Exits"   value={analysis.exitPoints} />}
-            {analysis.stateNotes && <PreviewRow label="Estado"  value={analysis.stateNotes} />}
-          </div>
-          <div className="flex gap-2">
+          {!flowAnalysis && !flowLoading && (
             <button
-              onClick={applyAll}
-              className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 rounded bg-violet-600 text-white hover:bg-violet-700 transition-colors"
+              onClick={analyzeFlow}
+              disabled={!allScreensReady}
+              className={cn(
+                'w-full flex items-center justify-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg border transition-colors',
+                allScreensReady
+                  ? 'bg-violet-600 text-white hover:bg-violet-700 border-violet-600'
+                  : 'bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed',
+              )}
+              title={!allScreensReady ? `Analise as ${pendingScreens.length} screen(s) pendentes primeiro` : 'Analisar flow completo'}
             >
-              <Check size={11} /> Aplicar
+              <Wand2 size={12} />
+              {allScreensReady ? 'Analisar Flow Completo' : `Aguardando ${pendingScreens.length} screen${pendingScreens.length > 1 ? 's' : ''}…`}
             </button>
-            <button onClick={() => setAnalysis(null)} className="text-xs text-gray-400 hover:text-gray-600 px-2">
-              Ignorar
-            </button>
-            <button onClick={analyze} className="text-xs text-gray-400 hover:text-gray-600 px-2">
-              Reanalisar
-            </button>
-          </div>
-        </div>
-      )}
+          )}
 
-      {applied && (
-        <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 rounded p-2 border border-green-100">
-          <CheckCircle2 size={12} className="flex-shrink-0" />
-          <span>Contexto do flow preenchido — edite os campos abaixo</span>
+          {flowLoading && (
+            <div className="flex items-center gap-2 text-xs text-violet-600 bg-violet-50 rounded-lg p-3 border border-violet-100">
+              <Loader2 size={13} className="animate-spin flex-shrink-0" />
+              <span>Sintetizando {activeScreens.length} screens…</span>
+            </div>
+          )}
+
+          {flowError && (
+            <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 rounded p-2 border border-red-100">
+              <AlertCircle size={12} className="flex-shrink-0" />
+              <span>{flowError}</span>
+            </div>
+          )}
+
+          {flowAnalysis && !flowApplied && (
+            <div className="space-y-2">
+              <div className="bg-violet-50 border border-violet-200 rounded-lg p-3 space-y-2">
+                <p className="text-[11px] font-bold text-violet-700 uppercase tracking-wide mb-1">Síntese do Flow</p>
+                {flowAnalysis.general    && <PreviewRow label="Geral"   value={flowAnalysis.general} />}
+                {flowAnalysis.specific   && <PreviewRow label="Notas"   value={flowAnalysis.specific} />}
+                {flowAnalysis.entryPoint && <PreviewRow label="Entry"   value={flowAnalysis.entryPoint} />}
+                {flowAnalysis.exitPoints && <PreviewRow label="Exits"   value={flowAnalysis.exitPoints} />}
+                {flowAnalysis.stateNotes && <PreviewRow label="Estado"  value={flowAnalysis.stateNotes} />}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={applyFlow}
+                  className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 rounded bg-violet-600 text-white hover:bg-violet-700 transition-colors"
+                >
+                  <Check size={11} /> Aplicar
+                </button>
+                <button onClick={() => setFlowAnalysis(null)} className="text-xs text-gray-400 hover:text-gray-600 px-2">Ignorar</button>
+                <button onClick={analyzeFlow} className="text-xs text-gray-400 hover:text-gray-600 px-2">Reanalisar</button>
+              </div>
+            </div>
+          )}
+
+          {flowApplied && (
+            <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 rounded p-2 border border-green-100">
+              <CheckCircle2 size={12} className="flex-shrink-0" />
+              <span>Flow context preenchido — edite os campos abaixo se necessário</span>
+            </div>
+          )}
         </div>
-      )}
+
+      </div>
     </div>
   )
 }
@@ -3146,13 +3482,15 @@ function InfoRow({ label, value, mono }: { label: string; value: string; mono?: 
 function MarkerToggle({ label, active, color, onClick }: {
   label:   string
   active:  boolean
-  color:   'green' | 'red'
+  color:   'green' | 'red' | 'slate'
   onClick: () => void
 }) {
   const cls = active
     ? color === 'green'
       ? 'bg-green-50 text-green-700 border-green-300'
-      : 'bg-red-50 text-red-700 border-red-300'
+      : color === 'red'
+      ? 'bg-red-50 text-red-700 border-red-300'
+      : 'bg-slate-100 text-slate-600 border-slate-400'
     : 'bg-gray-50 text-gray-400 border-gray-200'
 
   return (
