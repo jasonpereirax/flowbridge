@@ -32,8 +32,22 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh session to keep cookies in sync
-  await supabase.auth.getUser()
+  // Refresh session + guard routes
+  const { data: { user } } = await supabase.auth.getUser()
+  const { pathname } = request.nextUrl
+
+  // Public paths — accessible without auth
+  const isPublic = pathname.startsWith('/login') || pathname.startsWith('/auth')
+
+  // Unauthenticated → redirect to login
+  if (!user && !isPublic) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  // Already authenticated → redirect away from login
+  if (user && pathname === '/login') {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
 
   return supabaseResponse
 }
