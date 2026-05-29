@@ -421,15 +421,15 @@ export const useStore = create<Store>()(
   )
 )
 
-export const useProject    = () => useStore(s => s.projects.find(p => p.id === s.curProjectId))
-export const useCanvas     = () => useStore(s => s.canvas())
-export const useTransform  = () => useStore(s => s.transform)
-export const useView       = () => useStore(s => s.view)
-export const useSelection  = () => useStore(s => ({
+export const useProject    = () => useStore((s: Store) => s.projects.find((p: Store['projects'][number]) => p.id === s.curProjectId))
+export const useCanvas     = () => useStore((s: Store) => s.canvas())
+export const useTransform  = () => useStore((s: Store) => s.transform)
+export const useView       = () => useStore((s: Store) => s.view)
+export const useSelection  = () => useStore((s: Store) => ({
   nodeId:   s.selNodeId,
   connId:   s.selConnId,
   screenId: s.selScreenId,
   flowId:   s.selFlowId,
 }))
-export const useActiveFlow = () => useStore(s => s.activeFlow())
-export const useJourney    = () => useStore(s => s.journey())
+export const useActiveFlow = () => useStore((s: Store) => s.activeFlow())
+export const useJourney    = () => useStore((s: Store) => s.journey())
