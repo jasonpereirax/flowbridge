@@ -8,7 +8,9 @@ import { useCanvasInteraction, ConnDragState } from '@/hooks/useCanvasInteractio
 import { makeConn } from '@/utils'
 import type { MacroNode as MacroNodeType, Flow } from '@/types'
 
+import { useGenerate }     from '@/hooks/useGenerate'
 import { ConnectorLayer }  from '@/components/canvas/ConnectorLayer'
+import { GenerateModal }   from '@/components/canvas/GenerateModal'
 import { MacroNodeCard }   from '@/components/nodes/MacroNode'
 import { ScreenNodeCard }  from '@/components/nodes/ScreenNode'
 import { Ibar }            from '@/components/sidebar/Ibar'
@@ -39,6 +41,23 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
     x1: number; y1: number; x2: number; y2: number
   } | null>(null)
   const [showImportWizard, setShowImportWizard] = useState(false)
+  const [showGenModal,     setShowGenModal]     = useState(false)
+
+  const {
+    status: genStatus, files, progress,
+    error: genError, generate, reset,
+  } = useGenerate()
+
+  function handleGenerate() {
+    reset()
+    setShowGenModal(true)
+    generate()
+  }
+
+  function handleGenClose() {
+    setShowGenModal(false)
+    reset()
+  }
 
   useEffect(() => {
     if (projectId !== store.curProjectId) store.openProject(projectId)
@@ -152,7 +171,11 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
           </nav>
 
          <div className="flex items-center gap-[6px] flex-shrink-0 ml-auto">
-  <button className="flex items-center gap-[5px] px-[12px] h-[30px] bg-text-1 text-white text-[12px] font-medium rounded-[7px] hover:bg-neutral-800 active:scale-[.97] transition-all shadow-sm group">
+  <button
+    onClick={handleGenerate}
+    className="flex items-center gap-[5px] px-[12px] h-[30px] bg-text-1 text-white text-[12px] font-medium rounded-[7px] hover:bg-neutral-800 active:scale-[.97] transition-all shadow-sm group"
+    title={view === 'macro' ? 'Open a Journey flow to generate' : 'Generate code for active flow'}
+  >
     <Zap size={11} className="group-hover:text-yellow-300 transition-colors" />
     Generate
   </button>
@@ -279,6 +302,17 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
 
       {showImportWizard && (
         <ImportWizard onClose={() => setShowImportWizard(false)} />
+      )}
+
+      {showGenModal && (
+        <GenerateModal
+          status={genStatus}
+          files={files}
+          progress={progress}
+          error={genError}
+          onClose={handleGenClose}
+          onRetry={generate}
+        />
       )}
 
       <FAB />
