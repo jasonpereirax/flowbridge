@@ -18,6 +18,68 @@ function calcCost(inputTok: number, outputTok: number) {
   return { costUsd: usd, costBrl: usd * USD_BRL_RATE }
 }
 
+// Extrai o array de arquivos do output do Claude, resiliente a:
+// - blocos markdown (```json ... ```)
+// - texto de preâmbulo/posfácio
+// - JSON truncado (recupera objetos completos via contagem de chaves)
+function extractFiles(raw: string): GeneratedFile[] | null {
+  if (!raw) return null
+
+  // Remove cercas markdown se existirem
+  let text = raw.trim()
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+  if (fence) text = fence[1].trim()
+
+  const start = text.indexOf('[')
+  if (start === -1) return null
+
+  // Tentativa 1 — parse direto do array completo
+  const fullMatch = text.match(/\[\s*\{[\s\S]*\}\s*\]/)
+  if (fullMatch) {
+    try {
+      const parsed = JSON.parse(fullMatch[0]) as GeneratedFile[]
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed
+    } catch { /* cai para recuperação */ }
+  }
+
+  // Tentativa 2 — scanner com contagem de chaves.
+  // Extrai cada objeto de nível superior completo, ignorando chaves
+  // dentro de strings e respeitando escapes. Para naturalmente quando
+  // um objeto é truncado (depth nunca volta a zero).
+  const objects: GeneratedFile[] = []
+  let depth    = 0
+  let objStart = -1
+  let inStr    = false
+  let escaped  = false
+
+  for (let i = start + 1; i < text.length; i++) {
+    const ch = text[i]
+
+    if (escaped) { escaped = false; continue }
+    if (ch === '\\') { escaped = true; continue }
+    if (ch === '"') { inStr = !inStr; continue }
+    if (inStr) continue
+
+    if (ch === '{') {
+      if (depth === 0) objStart = i
+      depth++
+    } else if (ch === '}') {
+      if (depth > 0) depth--
+      if (depth === 0 && objStart !== -1) {
+        try {
+          const obj = JSON.parse(text.slice(objStart, i + 1)) as GeneratedFile
+          if (obj.path && obj.content !== undefined) objects.push(obj)
+        } catch { /* ignora objeto inválido */ }
+        objStart = -1
+      }
+    } else if (ch === ']' && depth === 0) {
+      break  // fim do array
+    }
+  }
+
+  return objects.length > 0 ? objects : null
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface LiveUsage {
@@ -146,21 +208,15 @@ export function useGenerate(): UseGenerateReturn {
         // Stream encerrado — verifica se foi limpo ou cortado
         if (done) {
           if (!gotDone && status !== 'error') {
-            // Stream morto sem evento 'done' — tenta parsear o que foi acumulado
-            const jsonMatch = raw.match(/\[\s*\{[\s\S]*\}\s*\]/)
-            if (jsonMatch) {
-              try {
-                const parsed = JSON.parse(jsonMatch[0]) as GeneratedFile[]
-                setFiles(parsed)
-                setStatus('done')
-                setProgress(100)
-                addStep('Concluído (parcial)', 100)
-              } catch {
-                setError('Conexão interrompida antes de concluir. Tente novamente.')
-                setStatus('error')
-              }
+            // Stream morto sem evento 'done' — tenta recuperar o que foi acumulado
+            const parsed = extractFiles(raw)
+            if (parsed) {
+              setFiles(parsed)
+              setStatus('done')
+              setProgress(100)
+              addStep('Concluído (parcial)', 100)
             } else {
-              setError('Conexão interrompida pelo servidor. Aumente o plano Vercel ou reduza o contexto.')
+              setError('Conexão interrompida pelo servidor antes de concluir. Aumente o plano Vercel ou reduza o contexto.')
               setStatus('error')
             }
           }
@@ -178,43 +234,52 @@ export function useGenerate(): UseGenerateReturn {
           }
           if (!line.startsWith('data:')) continue
 
+          // SÓ o parse da linha SSE fica no try/catch — linhas malformadas são ignoradas
+          let payload: Record<string, unknown>
           try {
-            const payload = JSON.parse(line.slice(5).trim())
+            payload = JSON.parse(line.slice(5).trim())
+          } catch {
+            currentEvent = ''
+            continue
+          }
 
-            if (currentEvent === 'step') {
-              addStep(payload.text as string, payload.percent as number)
+          // ── Processamento dos eventos — FORA do try/catch ──
+          // Falhas aqui (parse de arquivos) viram estado de erro visível, não travam.
+
+          if (currentEvent === 'step') {
+            addStep(payload.text as string, payload.percent as number)
+          }
+
+          if (payload.text !== undefined && currentEvent !== 'step') {
+            raw += payload.text as string
+            if (payload.estimatedOutputTokens) {
+              const est = payload.estimatedOutputTokens as number
+              const { costUsd, costBrl } = calcCost(0, est)
+              setUsage({ inputTokens: 0, outputTokens: est, costUsd, costBrl, isEstimate: true })
             }
+            if (payload.percent) setProgress(payload.percent as number)
+          }
 
-            if (payload.text !== undefined && currentEvent !== 'step') {
-              raw += payload.text as string
-              if (payload.estimatedOutputTokens) {
-                const est = payload.estimatedOutputTokens as number
-                const { costUsd, costBrl } = calcCost(0, est)
-                setUsage({ inputTokens: 0, outputTokens: est, costUsd, costBrl, isEstimate: true })
-              }
-              if (payload.percent) setProgress(payload.percent as number)
-            }
+          if (currentEvent === 'done' || payload.stopReason) {
+            gotDone = true
+            if (timeoutRef.current) clearTimeout(timeoutRef.current)
 
-            if (currentEvent === 'done' || payload.stopReason) {
-              gotDone = true
-              if (timeoutRef.current) clearTimeout(timeoutRef.current)
+            const tokIn  = (payload.tokensIn  as number) ?? 0
+            const tokOut = (payload.tokensOut as number) ?? 0
+            const dur    = (payload.durationMs as number) ?? (Date.now() - startedAt)
+            const { costUsd, costBrl } = calcCost(tokIn, tokOut)
 
-              const tokIn  = (payload.tokensIn  as number) ?? 0
-              const tokOut = (payload.tokensOut as number) ?? 0
-              const dur    = (payload.durationMs as number) ?? (Date.now() - startedAt)
-              const { costUsd, costBrl } = calcCost(tokIn, tokOut)
+            setUsage({ inputTokens: tokIn, outputTokens: tokOut, costUsd, costBrl, isEstimate: false })
+            setProgress(100)
 
-              setUsage({ inputTokens: tokIn, outputTokens: tokOut, costUsd, costBrl, isEstimate: false })
-              setProgress(100)
+            const parsed = extractFiles(raw)
+            const wasTruncated = payload.stopReason === 'max_tokens'
+
+            if (parsed) {
               addStep('Geração concluída', 100)
-
-              const jsonMatch = raw.match(/\[\s*\{[\s\S]*\}\s*\]/)
-              if (!jsonMatch) throw new Error('Não foi possível parsear os arquivos gerados')
-              const parsed = JSON.parse(jsonMatch[0]) as GeneratedFile[]
               setFiles(parsed)
               setStatus('done')
-
-              const run: GenerationRun = {
+              store.addGenerationRun({
                 id:          `${Date.now()}-${Math.random().toString(36).slice(2)}`,
                 projectId:   project.id,
                 projectName: project.name,
@@ -225,30 +290,41 @@ export function useGenerate(): UseGenerateReturn {
                 usage: { inputTokens: tokIn, outputTokens: tokOut, totalTokens: tokIn + tokOut, costUsd, costBrl, durationMs: dur },
                 filesCount:  parsed.length,
                 createdAt:   new Date().toISOString(),
-              }
-              store.addGenerationRun(run)
-            }
-
-            if (currentEvent === 'error') {
-              if (timeoutRef.current) clearTimeout(timeoutRef.current)
-              const msg = (payload.message as string) ?? 'Generation failed'
+              })
+            } else {
+              const msg = wasTruncated
+                ? 'Resposta truncada (limite de tokens atingido). Reduza o número de telas por geração.'
+                : 'Não foi possível parsear os arquivos gerados. O modelo retornou um formato inesperado.'
               setError(msg)
               setStatus('error')
-
-              const dur = (payload.durationMs as number) ?? (Date.now() - startedAt)
               store.addGenerationRun({
                 id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
                 projectId: project.id, projectName: project.name,
                 flowId: flow.id, flowName: flow.name,
                 screenCount: screens.length, status: 'error',
-                usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0, costBrl: 0, durationMs: dur },
+                usage: { inputTokens: tokIn, outputTokens: tokOut, totalTokens: tokIn + tokOut, costUsd, costBrl, durationMs: dur },
                 filesCount: 0, error: msg, createdAt: new Date().toISOString(),
               })
             }
-
-          } catch (parseErr) {
-            // linha SSE malformada — ignora
           }
+
+          if (currentEvent === 'error') {
+            if (timeoutRef.current) clearTimeout(timeoutRef.current)
+            const msg = (payload.message as string) ?? 'Generation failed'
+            setError(msg)
+            setStatus('error')
+
+            const dur = (payload.durationMs as number) ?? (Date.now() - startedAt)
+            store.addGenerationRun({
+              id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+              projectId: project.id, projectName: project.name,
+              flowId: flow.id, flowName: flow.name,
+              screenCount: screens.length, status: 'error',
+              usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0, costBrl: 0, durationMs: dur },
+              filesCount: 0, error: msg, createdAt: new Date().toISOString(),
+            })
+          }
+
           currentEvent = ''
         }
       }
