@@ -5,8 +5,8 @@ import type { GenerateRequest } from '@/types'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-export const runtime    = 'nodejs'
-export const maxDuration = 60
+export const runtime     = 'nodejs'
+export const maxDuration = 300   // Vercel Pro: até 300s
 
 export async function POST(req: NextRequest) {
   const body: GenerateRequest = await req.json()
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
         // ── Stream ────────────────────────────────────────────────
         const claudeStream = client.messages.stream({
           model,
-          max_tokens: 8096,
+          max_tokens: 4096,   // reduzido de 8096 — suficiente para a maioria das telas
           system,
           messages: [{ role: 'user', content: user }],
         })
