@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Maximize2, Zap, ChevronRight, FolderInput } from 'lucide-react'
+import { Maximize2, Zap, ChevronRight, FolderInput, Clock } from 'lucide-react'
 import { useStore, useTransform, useView } from '@/lib/store'
 import { useCanvasInteraction, ConnDragState } from '@/hooks/useCanvasInteraction'
 import { makeConn } from '@/utils'
@@ -11,6 +11,7 @@ import type { MacroNode as MacroNodeType, Flow } from '@/types'
 import { useGenerate }     from '@/hooks/useGenerate'
 import { ConnectorLayer }  from '@/components/canvas/ConnectorLayer'
 import { GenerateModal }   from '@/components/canvas/GenerateModal'
+import { HistoryPanel }    from '@/components/canvas/HistoryPanel'
 import { MacroNodeCard }   from '@/components/nodes/MacroNode'
 import { ScreenNodeCard }  from '@/components/nodes/ScreenNode'
 import { Ibar }            from '@/components/sidebar/Ibar'
@@ -42,9 +43,10 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
   } | null>(null)
   const [showImportWizard, setShowImportWizard] = useState(false)
   const [showGenModal,     setShowGenModal]     = useState(false)
+  const [showHistory,      setShowHistory]      = useState(false)
 
   const {
-    status: genStatus, files, progress,
+    status: genStatus, files, progress, steps, usage,
     error: genError, generate, reset,
   } = useGenerate()
 
@@ -174,10 +176,17 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
   <button
     onClick={handleGenerate}
     className="flex items-center gap-[5px] px-[12px] h-[30px] bg-text-1 text-white text-[12px] font-medium rounded-[7px] hover:bg-neutral-800 active:scale-[.97] transition-all shadow-sm group"
-    title={view === 'macro' ? 'Open a Journey flow to generate' : 'Generate code for active flow'}
+    title={view === 'macro' ? 'Abra um Journey flow para gerar' : 'Gerar código do flow ativo'}
   >
     <Zap size={11} className="group-hover:text-yellow-300 transition-colors" />
     Generate
+  </button>
+  <button
+    onClick={() => setShowHistory(true)}
+    className="flex items-center gap-[5px] px-[10px] h-[30px] border border-border text-text-2 text-[12px] font-medium rounded-[7px] hover:bg-bg hover:text-text-1 active:scale-[.97] transition-all"
+    title="Histórico de geração"
+  >
+    <Clock size={11} />
   </button>
   {view === 'macro' && (
     <button
@@ -309,10 +318,16 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
           status={genStatus}
           files={files}
           progress={progress}
+          steps={steps}
+          usage={usage}
           error={genError}
           onClose={handleGenClose}
           onRetry={generate}
         />
+      )}
+
+      {showHistory && (
+        <HistoryPanel onClose={() => setShowHistory(false)} />
       )}
 
       <FAB />
