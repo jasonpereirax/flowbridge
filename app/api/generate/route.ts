@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
         // ── Stream ────────────────────────────────────────────────
         const claudeStream = client.messages.stream({
           model,
-          max_tokens: 4096,   // reduzido de 8096 — suficiente para a maioria das telas
+          max_tokens: 8192,   // teto alto para evitar truncar saída multi-arquivo
           system,
           messages: [{ role: 'user', content: user }],
         })
