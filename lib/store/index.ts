@@ -9,6 +9,7 @@ import type {
   ProjectId, NodeId, ConnId, FlowId, ScreenId,
   EbarSection, RpanelTab, ProjectSettings,
   ScreenContext, JourneyContext, FlowContext,
+  GenerationRun,
 } from '@/types'
 
 interface CanvasData {
@@ -85,6 +86,10 @@ interface Store {
   journey:    () => MacroNode | null
   activeFlow: () => Flow | null
   nodeById:   (id: NodeId) => MacroNode | undefined
+  // ── Generation History ───────────────────────────────────────────────
+  generationHistory: GenerationRun[]
+  addGenerationRun:  (run: GenerationRun) => void
+  clearHistory:      () => void
 }
 
 function getCanvas(s: Store): CanvasData | null {
@@ -111,6 +116,7 @@ export const useStore = create<Store>()(
         projects:     [],
         curProjectId: null,
         canvasData:   {},
+        generationHistory: [],
         view:         'macro',
         curJourneyId: null,
         microMode:    'all',
@@ -407,13 +413,17 @@ export const useStore = create<Store>()(
         },
 
         nodeById: (id) => getCanvas(get())?.nodes.find(n => n.id === id),
+
+        addGenerationRun: (run) => set((s: Store) => { s.generationHistory.unshift(run) }),
+        clearHistory:     ()    => set((s: Store) => { s.generationHistory = [] }),
       })),
       {
         name: 'flowbridge-v1',
-        partialize: (s) => ({
-          projects:     s.projects,
-          canvasData:   s.canvasData,
-          curProjectId: s.curProjectId,
+        partialize: (s: Store) => ({
+          projects:          s.projects,
+          canvasData:        s.canvasData,
+          curProjectId:      s.curProjectId,
+          generationHistory: s.generationHistory,
         }),
       }
     ),
