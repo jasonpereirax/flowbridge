@@ -186,3 +186,40 @@ export interface CanvasData {
 // ── Generation Status ─────────────────────────────────────────────────────────
 
 export type GenerationStatus = 'pending' | 'running' | 'done' | 'error'
+
+// ── Generation Logging & History ──────────────────────────────────────────────
+
+// Pricing constants — update when model changes
+export const INPUT_PRICE_PER_MTOK  = 3.00   // USD per million input tokens
+export const OUTPUT_PRICE_PER_MTOK = 15.00  // USD per million output tokens
+export const USD_BRL_RATE          = 5.80   // approximate — update as needed
+
+export interface StepLog {
+  id:      string
+  text:    string
+  ts:      number   // Date.now() at step emission
+  percent: number   // 0–100
+}
+
+export interface UsageStats {
+  inputTokens:  number
+  outputTokens: number
+  totalTokens:  number
+  costUsd:      number
+  costBrl:      number
+  durationMs:   number
+}
+
+export interface GenerationRun {
+  id:          string
+  projectId:   ProjectId
+  projectName: string
+  flowId:      FlowId
+  flowName:    string
+  screenCount: number
+  status:      'done' | 'error'
+  usage:       UsageStats
+  filesCount:  number
+  error?:      string
+  createdAt:   string   // ISO 8601
+}
