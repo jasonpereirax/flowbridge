@@ -2409,6 +2409,20 @@ function ApiEndpointBuilderAI({ endpoints, screen, onChange }: {
                   className={cn(inputCls, 'text-xs')}
                   placeholder="Description (optional)"
                 />
+                <textarea
+                  value={ep.request ?? ''}
+                  onChange={e => update(i, { request: e.target.value })}
+                  className={cn(inputCls, 'text-[11px] font-mono resize-y')}
+                  rows={2}
+                  placeholder="Request shape — ex: { email: string; role: 'admin' | 'member' }"
+                />
+                <textarea
+                  value={ep.response ?? ''}
+                  onChange={e => update(i, { response: e.target.value })}
+                  className={cn(inputCls, 'text-[11px] font-mono resize-y')}
+                  rows={2}
+                  placeholder="Response shape — ex: { members: Array<{ id: string; name: string; role: string }> }"
+                />
               </div>
               <button onClick={() => remove(i)} className="p-1 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0 mt-0.5" aria-label="Remove">
                 <Trash2 size={13} />

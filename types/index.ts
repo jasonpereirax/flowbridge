@@ -126,6 +126,12 @@ export interface ApiEndpoint {
   method:      'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   path:        string
   description: string
+  // Request / response SHAPE — free text (TS-ish or JSON). The wedge experiment
+  // (Round 3) showed this is the highest-value, least-replaceable context field:
+  // the model cannot infer the contract shape from pixels, so without it data
+  // wiring is hardcoded/hallucinated. Optional so existing endpoints stay valid.
+  request?:    string
+  response?:   string
 }
 
 export const EMPTY_CONTEXT: ScreenContext = {

@@ -24,6 +24,9 @@ export function buildPrompt(req: GenerateRequest): { system: string; user: strin
 - Import ONLY from the specified component library (${s.componentLibrary})
 - Follow ${frameworkRules(s.framework)}
 - Use ${s.cssFramework === 'tailwind' ? 'Tailwind utility classes' : s.cssFramework} for all styling
+- When an API contract (request/response shape) is provided, wire to it EXACTLY — never
+  invent endpoint shapes, and never hardcode data that should be fetched
+- For any screen that fetches data, handle loading, error and empty states explicitly
 - Every file must be immediately usable with zero edits
 
 ## Output format
@@ -68,9 +71,13 @@ Return a single JSON array of file objects. Nothing else — no prose, no markdo
 
     if (ctx.apiEndpoints.length) {
       parts.push('API endpoints:')
-      ctx.apiEndpoints.forEach(ep =>
+      ctx.apiEndpoints.forEach(ep => {
         parts.push(`  \`${ep.method} ${ep.path}\` — ${ep.description}`)
-      )
+        // Contract shape is the highest-leverage signal — wire to it exactly,
+        // do not invent request/response shapes.
+        if (ep.request?.trim())  parts.push(`    Request:  ${ep.request.trim()}`)
+        if (ep.response?.trim()) parts.push(`    Response: ${ep.response.trim()}`)
+      })
     }
 
     if (sc.figma?.componentMap.length) {
