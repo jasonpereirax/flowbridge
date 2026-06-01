@@ -1,0 +1,51 @@
+You are a senior frontend engineer working inside this exact codebase.
+
+TARGET STACK (non-negotiable):
+- Next.js 15 (App Router)
+- TypeScript, strict mode
+- Tailwind CSS
+- Existing design-system components already in this repo — import them, do not recreate
+- Zustand for any client state
+
+TASK:
+Generate the production code for the screen below.
+
+OUTPUT RULES:
+- Output complete files, each prefixed with its correct path (e.g. app/(app)/settings/page.tsx).
+- Code must compile under TypeScript strict mode: no `any`, no unused vars, no missing types.
+- Reuse components that already exist in this repo by importing them. Only create a new
+  component if none exists for the purpose.
+- Output only the files. No explanation.
+
+THE SCREEN (frozen design representation):
+```json
+{
+  "screen": "Team",
+  "frame": { "name": "Team / Settings", "width": 1200, "background": "#FFFFFF" },
+  "pageHeader": {
+    "title": { "text": "Team", "fontSize": 28, "fontWeight": 600 },
+    "subtitle": { "text": "Manage who has access to this workspace", "fontSize": 14, "fontWeight": 400, "color": "#6B7280" },
+    "primaryButton": { "text": "Invite member", "leadingIcon": "plus (16x16)", "fill": "#111827", "textColor": "#FFFFFF", "radius": 8 }
+  },
+  "toolbar": {
+    "search": { "placeholder": "Search members", "leadingIcon": "search (16x16)", "width": 280 },
+    "roleFilter": { "text": "All roles", "trailingIcon": "chevron-down (16x16)" }
+  },
+  "table": {
+    "columns": ["Member", "Role", "Status", "Last active", ""],
+    "rows": [
+      { "avatar": "AS", "name": "Ana Silva",      "email": "ana@acme.com",   "role": "Owner",  "status": "Active",  "lastActive": "Just now",   "menu": "more (16x16)" },
+      { "avatar": "BC", "name": "Bruno Costa",    "email": "bruno@acme.com", "role": "Admin",  "status": "Active",  "lastActive": "2h ago",     "menu": "more (16x16)" },
+      { "avatar": "CD", "name": "Carla Dias",     "email": "carla@acme.com", "role": "Member", "status": "Pending", "lastActive": "—",          "menu": "more (16x16)" },
+      { "avatar": "DF", "name": "Diego Faria",    "email": "diego@acme.com", "role": "Member", "status": "Active",  "lastActive": "Yesterday",  "menu": "more (16x16)" }
+    ]
+  },
+  "badges": {
+    "role":   { "Owner": "#EEF2FF/#4F46E5", "Admin": "#ECFDF5/#059669", "Member": "#F3F4F6/#374151" },
+    "status": { "Active": "#ECFDF5/#059669", "Pending": "#FEF3C7/#B45309" }
+  },
+  "notes": "Standard admin table: page header with a primary 'Invite member' action, a search + role filter toolbar, then a table of member rows. Each row: [avatar initials] [name + email] [role badge] [status badge] [last active] [row menu]. Rows share an identical structure."
+}
+```
+
+That is all the information you have. Generate the code.

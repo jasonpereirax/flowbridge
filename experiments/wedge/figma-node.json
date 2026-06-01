@@ -1,0 +1,4287 @@
+{
+ "type": "FRAME",
+ "name": "Home",
+ "box": {
+  "w": 1920,
+  "h": 7883
+ },
+ "fill": "#FFFFFF",
+ "children": [
+  {
+   "type": "FRAME",
+   "name": "Frame 435",
+   "box": {
+    "w": 1920,
+    "h": 1142
+   },
+   "children": [
+    {
+     "type": "FRAME",
+     "name": "Mask group",
+     "box": {
+      "w": 1919,
+      "h": 1142
+     },
+     "fill": "#C7C4C0",
+     "layout": "VERTICAL"
+    }
+   ]
+  },
+  {
+   "type": "FRAME",
+   "name": "Frame 423",
+   "box": {
+    "w": 1694,
+    "h": 643
+   },
+   "layout": "VERTICAL",
+   "children": [
+    {
+     "type": "TEXT",
+     "name": "*",
+     "box": {
+      "w": 100,
+      "h": 113
+     },
+     "text": "*",
+     "font": {
+      "size": 184.0,
+      "weight": 300
+     }
+    },
+    {
+     "type": "FRAME",
+     "name": "Frame 422",
+     "box": {
+      "w": 1694,
+      "h": 232
+     },
+     "layout": "VERTICAL",
+     "children": [
+      {
+       "type": "FRAME",
+       "name": "Frame 425",
+       "box": {
+        "w": 927,
+        "h": 232
+       },
+       "layout": "HORIZONTAL",
+       "children": [
+        {
+         "type": "TEXT",
+         "name": "I'm Jason Pereira",
+         "box": {
+          "w": 927,
+          "h": 232
+         },
+         "text": "I'm Jason Pereira",
+         "font": {
+          "size": 116.0,
+          "weight": 300
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "FRAME",
+     "name": "Frame 421",
+     "box": {
+      "w": 548,
+      "h": 80
+     },
+     "layout": "HORIZONTAL",
+     "children": [
+      {
+       "type": "TEXT",
+       "name": "Helping companies and people to turn their ideas into design.",
+       "box": {
+        "w": 548,
+        "h": 80
+       },
+       "text": "Helping companies and people to turn their ideas into design. ",
+       "font": {
+        "size": 24.0,
+        "weight": 400
+       }
+      }
+     ]
+    },
+    {
+     "type": "FRAME",
+     "name": "Frame 430",
+     "box": {
+      "w": 235,
+      "h": 69
+     },
+     "fill": "#000000",
+     "layout": "VERTICAL",
+     "children": [
+      {
+       "type": "TEXT",
+       "name": "Call to action",
+       "box": {
+        "w": 171,
+        "h": 21
+       },
+       "text": "Call to action",
+       "font": {
+        "size": 18.0,
+        "weight": 500
+       }
+      }
+     ]
+    },
+    {
+     "type": "FRAME",
+     "name": "Frame 318",
+     "box": {
+      "w": 219,
+      "h": 21
+     },
+     "layout": "VERTICAL",
+     "children": [
+      {
+       "type": "TEXT",
+       "name": "-Or Call to action",
+       "box": {
+        "w": 219,
+        "h": 21
+       },
+       "text": "-Or Call to action",
+       "font": {
+        "size": 18.0,
+        "weight": 400
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "FRAME",
+   "name": "Frame 64",
+   "box": {
+    "w": 222,
+    "h": 221
+   },
+   "fill": "#FFFFFF",
+   "radius": 176.38497924804688,
+   "layout": "VERTICAL",
+   "children": [
+    {
+     "type": "FRAME",
+     "name": "Frame",
+     "box": {
+      "w": 189,
+      "h": 188
+     },
+     "children": [
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 9,
+        "h": 12
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 13,
+        "h": 14
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 11,
+        "h": 12
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 11,
+        "h": 12
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 10,
+        "h": 12
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 11,
+        "h": 12
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 12,
+        "h": 14
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 13,
+        "h": 15
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 14,
+        "h": 14
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 11,
+        "h": 9
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 13,
+        "h": 13
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 13,
+        "h": 11
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 14,
+        "h": 9
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 13,
+        "h": 11
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 13,
+        "h": 13
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 11,
+        "h": 9
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 14,
+        "h": 12
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 9,
+        "h": 11
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 11,
+        "h": 13
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 11,
+        "h": 13
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 9,
+        "h": 12
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 11,
+        "h": 13
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 12,
+        "h": 14
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 11,
+        "h": 12
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 10,
+        "h": 10
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 12,
+        "h": 13
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 15,
+        "h": 14
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 13,
+        "h": 11
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 12,
+        "h": 10
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 13,
+        "h": 12
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "VECTOR",
+       "name": "Vector",
+       "box": {
+        "w": 12,
+        "h": 13
+       },
+       "fill": "#000000"
+      },
+      {
+       "type": "FRAME",
+       "name": "Frame",
+       "box": {
+        "w": 47,
+        "h": 53
+       },
+       "children": [
+        {
+         "type": "GROUP",
+         "name": "Group",
+         "box": {
+          "w": 47,
+          "h": 53
+         },
+         "children": [
+          {
+           "type": "GROUP",
+           "name": "Group",
+           "box": {
+            "w": 47,
+            "h": 53
+           },
+           "children": [
+            {
+             "type": "GROUP",
+             "name": "Group",
+             "box": {
+              "w": 41,
+              "h": 43
+             },
+             "children": [
+              {
+               "type": "VECTOR",
+               "name": "Vector",
+               "box": {
+                "w": 41,
+                "h": 43
+               },
+               "fill": "#000000"
+              }
+             ]
+            },
+            {
+             "type": "GROUP",
+             "name": "Group",
+             "box": {
+              "w": 41,
+              "h": 43
+             },
+             "children": [
+              {
+               "type": "VECTOR",
+               "name": "Vector",
+               "box": {
+                "w": 41,
+                "h": 43
+               },
+               "fill": "#000000"
+              }
+             ]
+            },
+            {
+             "type": "GROUP",
+             "name": "Group",
+             "box": {
+              "w": 16,
+              "h": 14
+             },
+             "children": [
+              {
+               "type": "VECTOR",
+               "name": "Vector",
+               "box": {
+                "w": 16,
+                "h": 14
+               },
+               "fill": "#000000"
+              }
+             ]
+            },
+            {
+             "type": "GROUP",
+             "name": "Group",
+             "box": {
+              "w": 17,
+              "h": 15
+             },
+             "children": [
+              {
+               "type": "VECTOR",
+               "name": "Vector",
+               "box": {
+                "w": 17,
+                "h": 15
+               },
+               "fill": "#000000"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "FRAME",
+   "name": "Frame 445",
+   "box": {
+    "w": 1919,
+    "h": 1159
+   },
+   "fill": "#F4F4F4",
+   "layout": "VERTICAL",
+   "children": [
+    {
+     "type": "FRAME",
+     "name": "Frame 444",
+     "box": {
+      "w": 1679,
+      "h": 839
+     },
+     "layout": "VERTICAL",
+     "children": [
+      {
+       "type": "FRAME",
+       "name": "Frame 442",
+       "box": {
+        "w": 1679,
+        "h": 466
+       },
+       "layout": "HORIZONTAL",
+       "children": [
+        {
+         "type": "FRAME",
+         "name": "Frame 438",
+         "box": {
+          "w": 120,
+          "h": 120
+         },
+         "fill": "#CF7745",
+         "radius": 80.0,
+         "layout": "HORIZONTAL",
+         "children": [
+          {
+           "type": "TEXT",
+           "name": "About",
+           "box": {
+            "w": 80,
+            "h": 25
+           },
+           "text": "About",
+           "font": {
+            "size": 21.0,
+            "weight": 400
+           }
+          }
+         ]
+        },
+        {
+         "type": "FRAME",
+         "name": "Frame 441",
+         "box": {
+          "w": 984,
+          "h": 466
+         },
+         "layout": "VERTICAL",
+         "children": [
+          {
+           "type": "FRAME",
+           "name": "Frame 439",
+           "box": {
+            "w": 953,
+            "h": 282
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "TEXT",
+             "name": "Digital Designer based in São Paulo, in love to undertake.",
+             "box": {
+              "w": 953,
+              "h": 282
+             },
+             "text": "Digital Designer based in São Paulo, in love to undertake.",
+             "font": {
+              "size": 80.0,
+              "weight": 500
+             }
+            }
+           ]
+          },
+          {
+           "type": "FRAME",
+           "name": "Frame 440",
+           "box": {
+            "w": 984,
+            "h": 120
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "FRAME",
+             "name": "Frame 421",
+             "box": {
+              "w": 477,
+              "h": 120
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "TEXT",
+               "name": "Helping companies and people to turn their ideas into design. A very good design and customer experience.",
+               "box": {
+                "w": 477,
+                "h": 120
+               },
+               "text": "Helping companies and people to turn their ideas into design. A very good design and customer experience.",
+               "font": {
+                "size": 24.0,
+                "weight": 400
+               }
+              }
+             ]
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame 437",
+             "box": {
+              "w": 477,
+              "h": 120
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "TEXT",
+               "name": "Helping companies and people to turn their ideas into design. A very good design and customer experience.",
+               "box": {
+                "w": 477,
+                "h": 120
+               },
+               "text": "Helping companies and people to turn their ideas into design. A very good design and customer experience.",
+               "font": {
+                "size": 24.0,
+                "weight": 400
+               }
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "FRAME",
+       "name": "Frame 443",
+       "box": {
+        "w": 1679,
+        "h": 253
+       },
+       "layout": "VERTICAL",
+       "children": [
+        {
+         "type": "FRAME",
+         "name": "Frame 318",
+         "box": {
+          "w": 1679,
+          "h": 57
+         },
+         "layout": "VERTICAL",
+         "children": [
+          {
+           "type": "FRAME",
+           "name": "Frame 436",
+           "box": {
+            "w": 1679,
+            "h": 57
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "TEXT",
+             "name": "Selected Clients",
+             "box": {
+              "w": 236,
+              "h": 25
+             },
+             "text": "Selected Clients",
+             "font": {
+              "size": 21.0,
+              "weight": 600
+             }
+            },
+            {
+             "type": "INSTANCE",
+             "name": "Icon/Outline/plus",
+             "box": {
+              "w": 24,
+              "h": 24
+             },
+             "children": [
+              {
+               "type": "VECTOR",
+               "name": "Icon",
+               "box": {
+                "w": 16,
+                "h": 16
+               }
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "RECTANGLE",
+         "name": "Frame 6728",
+         "box": {
+          "w": 1679,
+          "h": 132
+         }
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "FRAME",
+   "name": "Frame 447",
+   "box": {
+    "w": 1920,
+    "h": 1829
+   },
+   "layout": "VERTICAL",
+   "children": [
+    {
+     "type": "FRAME",
+     "name": "Frame 444",
+     "box": {
+      "w": 1679,
+      "h": 111
+     },
+     "layout": "HORIZONTAL",
+     "children": [
+      {
+       "type": "FRAME",
+       "name": "Frame 438",
+       "box": {
+        "w": 1518,
+        "h": 47
+       },
+       "layout": "HORIZONTAL",
+       "children": [
+        {
+         "type": "FRAME",
+         "name": "Frame 454",
+         "box": {
+          "w": 1518,
+          "h": 47
+         },
+         "layout": "HORIZONTAL",
+         "children": [
+          {
+           "type": "TEXT",
+           "name": "Project(s)",
+           "box": {
+            "w": 242,
+            "h": 47
+           },
+           "text": "Project(s)",
+           "font": {
+            "size": 40.0,
+            "weight": 500
+           }
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "FRAME",
+       "name": "Frame 453",
+       "box": {
+        "w": 41,
+        "h": 41
+       },
+       "layout": "HORIZONTAL",
+       "children": [
+        {
+         "type": "VECTOR",
+         "name": "Arrow 3",
+         "box": {
+          "w": 21,
+          "h": 21
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "FRAME",
+     "name": "Frame 460",
+     "box": {
+      "w": 1920,
+      "h": 1072
+     },
+     "children": [
+      {
+       "type": "RECTANGLE",
+       "name": "Rectangle 65",
+       "box": {
+        "w": 1920,
+        "h": 500
+       },
+       "fill": "#D9D9D9"
+      },
+      {
+       "type": "FRAME",
+       "name": "Frame 457",
+       "box": {
+        "w": 1679,
+        "h": 1376
+       },
+       "layout": "VERTICAL",
+       "children": [
+        {
+         "type": "FRAME",
+         "name": "Frame 421",
+         "box": {
+          "w": 1679,
+          "h": 500
+         },
+         "layout": "HORIZONTAL",
+         "children": [
+          {
+           "type": "FRAME",
+           "name": "Frame 473",
+           "box": {
+            "w": 1686,
+            "h": 60
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "FRAME",
+             "name": "Frame 448",
+             "box": {
+              "w": 549,
+              "h": 48
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "ELLIPSE",
+               "name": "Ellipse 23",
+               "box": {
+                "w": 40,
+                "h": 40
+               },
+               "fill": "#CF7745"
+              },
+              {
+               "type": "TEXT",
+               "name": "Sesc Brasil",
+               "box": {
+                "w": 258,
+                "h": 48
+               },
+               "text": "Sesc Brasil",
+               "font": {
+                "size": 48.0,
+                "weight": 400
+               }
+              }
+             ]
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame 452",
+             "box": {
+              "w": 413,
+              "h": 40
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "TEXT",
+               "name": "Website Institucional",
+               "box": {
+                "w": 249,
+                "h": 40
+               },
+               "text": "Website Institucional",
+               "font": {
+                "size": 24.0,
+                "weight": 400
+               }
+              }
+             ]
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame 453",
+             "box": {
+              "w": 532,
+              "h": 40
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "TEXT",
+               "name": "2021",
+               "box": {
+                "w": 53,
+                "h": 40
+               },
+               "text": "2021",
+               "font": {
+                "size": 24.0,
+                "weight": 400
+               }
+              }
+             ]
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame 472",
+             "box": {
+              "w": 144,
+              "h": 60
+             },
+             "layout": "VERTICAL",
+             "children": [
+              {
+               "type": "FRAME",
+               "name": "Frame 454",
+               "box": {
+                "w": 112,
+                "h": 40
+               },
+               "layout": "HORIZONTAL",
+               "children": [
+                {
+                 "type": "TEXT",
+                 "name": "See more",
+                 "box": {
+                  "w": 112,
+                  "h": 40
+                 },
+                 "text": "See more",
+                 "font": {
+                  "size": 24.0,
+                  "weight": 400
+                 }
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "FRAME",
+         "name": "Frame 445",
+         "box": {
+          "w": 1679,
+          "h": 220
+         },
+         "layout": "HORIZONTAL",
+         "children": [
+          {
+           "type": "FRAME",
+           "name": "Frame 473",
+           "box": {
+            "w": 1686,
+            "h": 60
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "FRAME",
+             "name": "Frame 448",
+             "box": {
+              "w": 549,
+              "h": 48
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "ELLIPSE",
+               "name": "Ellipse 23",
+               "box": {
+                "w": 40,
+                "h": 40
+               },
+               "fill": "#CF7745"
+              },
+              {
+               "type": "TEXT",
+               "name": "W/Express",
+               "box": {
+                "w": 249,
+                "h": 48
+               },
+               "text": "W/Express",
+               "font": {
+                "size": 48.0,
+                "weight": 400
+               }
+              }
+             ]
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame 452",
+             "box": {
+              "w": 413,
+              "h": 40
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "TEXT",
+               "name": "Website Institucional",
+               "box": {
+                "w": 249,
+                "h": 40
+               },
+               "text": "Website Institucional",
+               "font": {
+                "size": 24.0,
+                "weight": 400
+               }
+              }
+             ]
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame 453",
+             "box": {
+              "w": 532,
+              "h": 40
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "TEXT",
+               "name": "2021",
+               "box": {
+                "w": 53,
+                "h": 40
+               },
+               "text": "2021",
+               "font": {
+                "size": 24.0,
+                "weight": 400
+               }
+              }
+             ]
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame 472",
+             "box": {
+              "w": 144,
+              "h": 60
+             },
+             "layout": "VERTICAL",
+             "children": [
+              {
+               "type": "FRAME",
+               "name": "Frame 454",
+               "box": {
+                "w": 112,
+                "h": 40
+               },
+               "layout": "HORIZONTAL",
+               "children": [
+                {
+                 "type": "TEXT",
+                 "name": "See more",
+                 "box": {
+                  "w": 112,
+                  "h": 40
+                 },
+                 "text": "See more",
+                 "font": {
+                  "size": 24.0,
+                  "weight": 400
+                 }
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "FRAME",
+         "name": "Frame 447",
+         "box": {
+          "w": 1679,
+          "h": 220
+         },
+         "layout": "HORIZONTAL",
+         "children": [
+          {
+           "type": "FRAME",
+           "name": "Frame 473",
+           "box": {
+            "w": 1686,
+            "h": 60
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "FRAME",
+             "name": "Frame 448",
+             "box": {
+              "w": 549,
+              "h": 48
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "ELLIPSE",
+               "name": "Ellipse 23",
+               "box": {
+                "w": 40,
+                "h": 40
+               },
+               "fill": "#CF7745"
+              },
+              {
+               "type": "TEXT",
+               "name": "EBANX",
+               "box": {
+                "w": 158,
+                "h": 48
+               },
+               "text": "EBANX",
+               "font": {
+                "size": 48.0,
+                "weight": 400
+               }
+              }
+             ]
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame 452",
+             "box": {
+              "w": 413,
+              "h": 40
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "TEXT",
+               "name": "Website Institucional",
+               "box": {
+                "w": 249,
+                "h": 40
+               },
+               "text": "Website Institucional",
+               "font": {
+                "size": 24.0,
+                "weight": 400
+               }
+              }
+             ]
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame 453",
+             "box": {
+              "w": 532,
+              "h": 40
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "TEXT",
+               "name": "2021",
+               "box": {
+                "w": 53,
+                "h": 40
+               },
+               "text": "2021",
+               "font": {
+                "size": 24.0,
+                "weight": 400
+               }
+              }
+             ]
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame 472",
+             "box": {
+              "w": 144,
+              "h": 60
+             },
+             "layout": "VERTICAL",
+             "children": [
+              {
+               "type": "FRAME",
+               "name": "Frame 454",
+               "box": {
+                "w": 112,
+                "h": 40
+               },
+               "layout": "HORIZONTAL",
+               "children": [
+                {
+                 "type": "TEXT",
+                 "name": "See more",
+                 "box": {
+                  "w": 112,
+                  "h": 40
+                 },
+                 "text": "See more",
+                 "font": {
+                  "size": 24.0,
+                  "weight": 400
+                 }
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "FRAME",
+         "name": "Frame 446",
+         "box": {
+          "w": 1679,
+          "h": 220
+         },
+         "layout": "HORIZONTAL",
+         "children": [
+          {
+           "type": "FRAME",
+           "name": "Frame 473",
+           "box": {
+            "w": 1686,
+            "h": 60
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "FRAME",
+             "name": "Frame 448",
+             "box": {
+              "w": 549,
+              "h": 48
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "ELLIPSE",
+               "name": "Ellipse 23",
+               "box": {
+                "w": 40,
+                "h": 40
+               },
+               "fill": "#CF7745"
+              },
+              {
+               "type": "TEXT",
+               "name": "CVV",
+               "box": {
+                "w": 96,
+                "h": 48
+               },
+               "text": "CVV",
+               "font": {
+                "size": 48.0,
+                "weight": 400
+               }
+              }
+             ]
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame 452",
+             "box": {
+              "w": 413,
+              "h": 40
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "TEXT",
+               "name": "Website Institucional",
+               "box": {
+                "w": 249,
+                "h": 40
+               },
+               "text": "Website Institucional",
+               "font": {
+                "size": 24.0,
+                "weight": 400
+               }
+              }
+             ]
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame 453",
+             "box": {
+              "w": 532,
+              "h": 40
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "TEXT",
+               "name": "2021",
+               "box": {
+                "w": 53,
+                "h": 40
+               },
+               "text": "2021",
+               "font": {
+                "size": 24.0,
+                "weight": 400
+               }
+              }
+             ]
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame 472",
+             "box": {
+              "w": 144,
+              "h": 60
+             },
+             "layout": "VERTICAL",
+             "children": [
+              {
+               "type": "FRAME",
+               "name": "Frame 454",
+               "box": {
+                "w": 112,
+                "h": 40
+               },
+               "layout": "HORIZONTAL",
+               "children": [
+                {
+                 "type": "TEXT",
+                 "name": "See more",
+                 "box": {
+                  "w": 112,
+                  "h": 40
+                 },
+                 "text": "See more",
+                 "font": {
+                  "size": 24.0,
+                  "weight": 400
+                 }
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "FRAME",
+         "name": "Frame 448",
+         "box": {
+          "w": 1679,
+          "h": 220
+         },
+         "layout": "HORIZONTAL",
+         "children": [
+          {
+           "type": "FRAME",
+           "name": "Frame 473",
+           "box": {
+            "w": 1686,
+            "h": 60
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "FRAME",
+             "name": "Frame 448",
+             "box": {
+              "w": 549,
+              "h": 48
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "ELLIPSE",
+               "name": "Ellipse 23",
+               "box": {
+                "w": 40,
+                "h": 40
+               },
+               "fill": "#CF7745"
+              },
+              {
+               "type": "TEXT",
+               "name": "Nome do projeto",
+               "box": {
+                "w": 396,
+                "h": 48
+               },
+               "text": "Nome do projeto",
+               "font": {
+                "size": 48.0,
+                "weight": 400
+               }
+              }
+             ]
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame 452",
+             "box": {
+              "w": 413,
+              "h": 40
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "TEXT",
+               "name": "Website Institucional",
+               "box": {
+                "w": 249,
+                "h": 40
+               },
+               "text": "Website Institucional",
+               "font": {
+                "size": 24.0,
+                "weight": 400
+               }
+              }
+             ]
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame 453",
+             "box": {
+              "w": 532,
+              "h": 40
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "TEXT",
+               "name": "2021",
+               "box": {
+                "w": 53,
+                "h": 40
+               },
+               "text": "2021",
+               "font": {
+                "size": 24.0,
+                "weight": 400
+               }
+              }
+             ]
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame 472",
+             "box": {
+              "w": 144,
+              "h": 60
+             },
+             "layout": "VERTICAL",
+             "children": [
+              {
+               "type": "FRAME",
+               "name": "Frame 454",
+               "box": {
+                "w": 112,
+                "h": 40
+               },
+               "layout": "HORIZONTAL",
+               "children": [
+                {
+                 "type": "TEXT",
+                 "name": "See more",
+                 "box": {
+                  "w": 112,
+                  "h": 40
+                 },
+                 "text": "See more",
+                 "font": {
+                  "size": 24.0,
+                  "weight": 400
+                 }
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "FRAME",
+   "name": "Frame 446",
+   "box": {
+    "w": 1920,
+    "h": 1475
+   },
+   "fill": "#2D2D2D",
+   "layout": "VERTICAL",
+   "children": [
+    {
+     "type": "FRAME",
+     "name": "Frame 444",
+     "box": {
+      "w": 1679,
+      "h": 1155
+     },
+     "layout": "VERTICAL",
+     "children": [
+      {
+       "type": "FRAME",
+       "name": "Frame 442",
+       "box": {
+        "w": 1677,
+        "h": 310
+       },
+       "layout": "VERTICAL",
+       "children": [
+        {
+         "type": "FRAME",
+         "name": "Frame 447",
+         "box": {
+          "w": 1677,
+          "h": 310
+         },
+         "layout": "VERTICAL",
+         "children": [
+          {
+           "type": "FRAME",
+           "name": "Frame 438",
+           "box": {
+            "w": 1677,
+            "h": 94
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "TEXT",
+             "name": "+10 Years of experience",
+             "box": {
+              "w": 1646,
+              "h": 70
+             },
+             "text": "+10 Years of experience",
+             "font": {
+              "size": 60.0,
+              "weight": 500
+             }
+            },
+            {
+             "type": "VECTOR",
+             "name": "Arrow 3",
+             "box": {
+              "w": 21,
+              "h": 21
+             }
+            }
+           ]
+          },
+          {
+           "type": "FRAME",
+           "name": "Frame 440",
+           "box": {
+            "w": 1677,
+            "h": 136
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "FRAME",
+             "name": "Frame 421",
+             "box": {
+              "w": 527,
+              "h": 136
+             },
+             "layout": "VERTICAL",
+             "children": [
+              {
+               "type": "FRAME",
+               "name": "Frame 448",
+               "box": {
+                "w": 527,
+                "h": 40
+               },
+               "layout": "HORIZONTAL",
+               "children": [
+                {
+                 "type": "TEXT",
+                 "name": "UI / UX Design",
+                 "box": {
+                  "w": 281,
+                  "h": 40
+                 },
+                 "text": "UI / UX Design",
+                 "font": {
+                  "size": 40.0,
+                  "weight": 500
+                 }
+                }
+               ]
+              },
+              {
+               "type": "TEXT",
+               "name": "Efficient and unique interfaces tailored to your project needs.",
+               "box": {
+                "w": 462,
+                "h": 80
+               },
+               "text": "Efficient and unique interfaces tailored to your project needs.",
+               "font": {
+                "size": 24.0,
+                "weight": 400
+               }
+              }
+             ]
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame 424",
+             "box": {
+              "w": 527,
+              "h": 136
+             },
+             "layout": "VERTICAL",
+             "children": [
+              {
+               "type": "FRAME",
+               "name": "Frame 448",
+               "box": {
+                "w": 527,
+                "h": 40
+               },
+               "layout": "HORIZONTAL",
+               "children": [
+                {
+                 "type": "TEXT",
+                 "name": "Art Direction",
+                 "box": {
+                  "w": 251,
+                  "h": 40
+                 },
+                 "text": "Art Direction",
+                 "font": {
+                  "size": 40.0,
+                  "weight": 500
+                 }
+                }
+               ]
+              },
+              {
+               "type": "TEXT",
+               "name": "Behavior-based analysis of users in your project.",
+               "box": {
+                "w": 385,
+                "h": 80
+               },
+               "text": "Behavior-based analysis of users in your project.",
+               "font": {
+                "size": 24.0,
+                "weight": 400
+               }
+              }
+             ]
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame 425",
+             "box": {
+              "w": 527,
+              "h": 136
+             },
+             "layout": "VERTICAL",
+             "children": [
+              {
+               "type": "FRAME",
+               "name": "Frame 448",
+               "box": {
+                "w": 527,
+                "h": 40
+               },
+               "layout": "HORIZONTAL",
+               "children": [
+                {
+                 "type": "TEXT",
+                 "name": "Photography",
+                 "box": {
+                  "w": 246,
+                  "h": 40
+                 },
+                 "text": "Photography",
+                 "font": {
+                  "size": 40.0,
+                  "weight": 500
+                 }
+                }
+               ]
+              },
+              {
+               "type": "TEXT",
+               "name": "Art direction to enhance visual communication.",
+               "box": {
+                "w": 362,
+                "h": 80
+               },
+               "text": "Art direction to enhance visual communication.",
+               "font": {
+                "size": 24.0,
+                "weight": 400
+               }
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "FRAME",
+       "name": "Frame 450",
+       "box": {
+        "w": 1679,
+        "h": 536
+       },
+       "layout": "VERTICAL",
+       "children": [
+        {
+         "type": "FRAME",
+         "name": "Frame 318",
+         "box": {
+          "w": 1679,
+          "h": 57
+         },
+         "layout": "VERTICAL",
+         "children": [
+          {
+           "type": "FRAME",
+           "name": "Frame 436",
+           "box": {
+            "w": 1679,
+            "h": 57
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "TEXT",
+             "name": "Objective process",
+             "box": {
+              "w": 255,
+              "h": 25
+             },
+             "text": "Objective process",
+             "font": {
+              "size": 21.0,
+              "weight": 600
+             }
+            },
+            {
+             "type": "INSTANCE",
+             "name": "Icon/Outline/plus",
+             "box": {
+              "w": 24,
+              "h": 24
+             },
+             "children": [
+              {
+               "type": "VECTOR",
+               "name": "Icon",
+               "box": {
+                "w": 16,
+                "h": 16
+               }
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "FRAME",
+         "name": "Frame 449",
+         "box": {
+          "w": 1679,
+          "h": 419
+         },
+         "layout": "VERTICAL",
+         "children": [
+          {
+           "type": "GROUP",
+           "name": "Group 64",
+           "box": {
+            "w": 1679,
+            "h": 419
+           },
+           "children": [
+            {
+             "type": "FRAME",
+             "name": "Frame 445",
+             "box": {
+              "w": 1679,
+              "h": 419
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "FRAME",
+               "name": "Frame 353",
+               "box": {
+                "w": 419,
+                "h": 419
+               },
+               "fill": "#414141",
+               "radius": 276.2303161621094,
+               "layout": "VERTICAL",
+               "children": [
+                {
+                 "type": "TEXT",
+                 "name": "Define",
+                 "box": {
+                  "w": 120,
+                  "h": 34
+                 },
+                 "text": "Define",
+                 "font": {
+                  "size": 33.6280403137207,
+                  "weight": 500
+                 }
+                }
+               ]
+              },
+              {
+               "type": "FRAME",
+               "name": "Frame 354",
+               "box": {
+                "w": 420,
+                "h": 419
+               },
+               "fill": "#414141",
+               "radius": 276.2303161621094,
+               "layout": "VERTICAL",
+               "children": [
+                {
+                 "type": "TEXT",
+                 "name": "Discover",
+                 "box": {
+                  "w": 166,
+                  "h": 34
+                 },
+                 "text": "Discover",
+                 "font": {
+                  "size": 33.6280403137207,
+                  "weight": 500
+                 }
+                }
+               ]
+              },
+              {
+               "type": "FRAME",
+               "name": "Frame 355",
+               "box": {
+                "w": 419,
+                "h": 419
+               },
+               "fill": "#414141",
+               "radius": 276.2303161621094,
+               "layout": "VERTICAL",
+               "children": [
+                {
+                 "type": "TEXT",
+                 "name": "Create",
+                 "box": {
+                  "w": 126,
+                  "h": 34
+                 },
+                 "text": "Create",
+                 "font": {
+                  "size": 33.6280403137207,
+                  "weight": 500
+                 }
+                }
+               ]
+              },
+              {
+               "type": "FRAME",
+               "name": "Frame 356",
+               "box": {
+                "w": 420,
+                "h": 419
+               },
+               "fill": "#414141",
+               "radius": 276.2303161621094,
+               "layout": "VERTICAL",
+               "children": [
+                {
+                 "type": "TEXT",
+                 "name": "Deliver",
+                 "box": {
+                  "w": 140,
+                  "h": 34
+                 },
+                 "text": "Deliver",
+                 "font": {
+                  "size": 33.6280403137207,
+                  "weight": 500
+                 }
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "VECTOR",
+             "name": "Arrow 7",
+             "box": {
+              "w": 34,
+              "h": 0
+             }
+            },
+            {
+             "type": "VECTOR",
+             "name": "Arrow 8",
+             "box": {
+              "w": 34,
+              "h": 0
+             }
+            },
+            {
+             "type": "VECTOR",
+             "name": "Arrow 9",
+             "box": {
+              "w": 34,
+              "h": 0
+             }
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "FRAME",
+       "name": "Frame 451",
+       "box": {
+        "w": 486,
+        "h": 69
+       },
+       "layout": "HORIZONTAL",
+       "children": [
+        {
+         "type": "FRAME",
+         "name": "Frame 430",
+         "box": {
+          "w": 235,
+          "h": 69
+         },
+         "fill": "#FDFF99",
+         "layout": "VERTICAL",
+         "children": [
+          {
+           "type": "TEXT",
+           "name": "Call to action",
+           "box": {
+            "w": 171,
+            "h": 21
+           },
+           "text": "Call to action",
+           "font": {
+            "size": 18.0,
+            "weight": 400
+           }
+          }
+         ]
+        },
+        {
+         "type": "FRAME",
+         "name": "Frame 318",
+         "box": {
+          "w": 219,
+          "h": 21
+         },
+         "layout": "VERTICAL",
+         "children": [
+          {
+           "type": "TEXT",
+           "name": "-Or Call to action",
+           "box": {
+            "w": 219,
+            "h": 21
+           },
+           "text": "-Or Call to action",
+           "font": {
+            "size": 18.0,
+            "weight": 400
+           }
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "FRAME",
+   "name": "Frame 443",
+   "box": {
+    "w": 1920,
+    "h": 920
+   },
+   "fill": "#F4F4F4",
+   "layout": "VERTICAL",
+   "children": [
+    {
+     "type": "FRAME",
+     "name": "Frame 318",
+     "box": {
+      "w": 1679,
+      "h": 57
+     },
+     "layout": "VERTICAL",
+     "children": [
+      {
+       "type": "FRAME",
+       "name": "Frame 436",
+       "box": {
+        "w": 1679,
+        "h": 57
+       },
+       "layout": "HORIZONTAL",
+       "children": [
+        {
+         "type": "TEXT",
+         "name": "Testimonials",
+         "box": {
+          "w": 180,
+          "h": 25
+         },
+         "text": "Testimonials",
+         "font": {
+          "size": 21.0,
+          "weight": 600
+         }
+        },
+        {
+         "type": "INSTANCE",
+         "name": "Icon/Outline/plus",
+         "box": {
+          "w": 24,
+          "h": 24
+         },
+         "children": [
+          {
+           "type": "VECTOR",
+           "name": "Icon",
+           "box": {
+            "w": 16,
+            "h": 16
+           }
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "FRAME",
+     "name": "Frame 462",
+     "box": {
+      "w": 2224,
+      "h": 479
+     },
+     "layout": "VERTICAL",
+     "children": [
+      {
+       "type": "FRAME",
+       "name": "Frame 474",
+       "box": {
+        "w": 2224,
+        "h": 409
+       },
+       "layout": "HORIZONTAL",
+       "children": [
+        {
+         "type": "FRAME",
+         "name": "Frame 347",
+         "box": {
+          "w": 541,
+          "h": 409
+         },
+         "fill": "#FFFFFF",
+         "layout": "VERTICAL",
+         "children": [
+          {
+           "type": "FRAME",
+           "name": "Frame 347",
+           "box": {
+            "w": 477,
+            "h": 48
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "FRAME",
+             "name": "Frame 461",
+             "box": {
+              "w": 477,
+              "h": 48
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "FRAME",
+               "name": "Frame 344",
+               "box": {
+                "w": 48,
+                "h": 48
+               },
+               "layout": "HORIZONTAL",
+               "children": [
+                {
+                 "type": "ELLIPSE",
+                 "name": "Ellipse 23",
+                 "box": {
+                  "w": 49,
+                  "h": 49
+                 },
+                 "fill": "#333333"
+                }
+               ]
+              },
+              {
+               "type": "FRAME",
+               "name": "Frame 345",
+               "box": {
+                "w": 194,
+                "h": 48
+               },
+               "layout": "VERTICAL",
+               "children": [
+                {
+                 "type": "FRAME",
+                 "name": "Frame 342",
+                 "box": {
+                  "w": 194,
+                  "h": 21
+                 },
+                 "layout": "HORIZONTAL",
+                 "children_truncated": 1
+                },
+                {
+                 "type": "FRAME",
+                 "name": "Frame 348",
+                 "box": {
+                  "w": 49,
+                  "h": 16
+                 },
+                 "layout": "HORIZONTAL",
+                 "children_truncated": 1
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "FRAME",
+           "name": "Frame 341",
+           "box": {
+            "w": 477,
+            "h": 102
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "TEXT",
+             "name": "” Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor. “",
+             "box": {
+              "w": 477,
+              "h": 102
+             },
+             "text": "” Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor. “",
+             "font": {
+              "size": 26.0,
+              "weight": 400
+             }
+            }
+           ]
+          },
+          {
+           "type": "FRAME",
+           "name": "Frame 347",
+           "box": {
+            "w": 71,
+            "h": 51
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "FRAME",
+             "name": "Frame 351",
+             "box": {
+              "w": 71,
+              "h": 51
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "TEXT",
+               "name": "Website",
+               "box": {
+                "w": 71,
+                "h": 19
+               },
+               "text": "Website",
+               "font": {
+                "size": 16.0,
+                "weight": 400
+               }
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "FRAME",
+         "name": "Frame 448",
+         "box": {
+          "w": 541,
+          "h": 409
+         },
+         "fill": "#FFFFFF",
+         "layout": "VERTICAL",
+         "children": [
+          {
+           "type": "FRAME",
+           "name": "Frame 347",
+           "box": {
+            "w": 477,
+            "h": 48
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "FRAME",
+             "name": "Frame 461",
+             "box": {
+              "w": 477,
+              "h": 48
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "FRAME",
+               "name": "Frame 344",
+               "box": {
+                "w": 48,
+                "h": 48
+               },
+               "layout": "HORIZONTAL",
+               "children": [
+                {
+                 "type": "ELLIPSE",
+                 "name": "Ellipse 23",
+                 "box": {
+                  "w": 49,
+                  "h": 49
+                 },
+                 "fill": "#333333"
+                }
+               ]
+              },
+              {
+               "type": "FRAME",
+               "name": "Frame 345",
+               "box": {
+                "w": 194,
+                "h": 48
+               },
+               "layout": "VERTICAL",
+               "children": [
+                {
+                 "type": "FRAME",
+                 "name": "Frame 342",
+                 "box": {
+                  "w": 194,
+                  "h": 21
+                 },
+                 "layout": "HORIZONTAL",
+                 "children_truncated": 1
+                },
+                {
+                 "type": "FRAME",
+                 "name": "Frame 348",
+                 "box": {
+                  "w": 49,
+                  "h": 16
+                 },
+                 "layout": "HORIZONTAL",
+                 "children_truncated": 1
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "FRAME",
+           "name": "Frame 341",
+           "box": {
+            "w": 477,
+            "h": 102
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "TEXT",
+             "name": "” Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor. “",
+             "box": {
+              "w": 477,
+              "h": 102
+             },
+             "text": "” Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor. “",
+             "font": {
+              "size": 26.0,
+              "weight": 400
+             }
+            }
+           ]
+          },
+          {
+           "type": "FRAME",
+           "name": "Frame 347",
+           "box": {
+            "w": 71,
+            "h": 51
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "FRAME",
+             "name": "Frame 351",
+             "box": {
+              "w": 71,
+              "h": 51
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "TEXT",
+               "name": "Website",
+               "box": {
+                "w": 71,
+                "h": 19
+               },
+               "text": "Website",
+               "font": {
+                "size": 16.0,
+                "weight": 400
+               }
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "FRAME",
+         "name": "Frame 449",
+         "box": {
+          "w": 541,
+          "h": 409
+         },
+         "fill": "#FFFFFF",
+         "layout": "VERTICAL",
+         "children": [
+          {
+           "type": "FRAME",
+           "name": "Frame 347",
+           "box": {
+            "w": 477,
+            "h": 48
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "FRAME",
+             "name": "Frame 461",
+             "box": {
+              "w": 477,
+              "h": 48
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "FRAME",
+               "name": "Frame 344",
+               "box": {
+                "w": 48,
+                "h": 48
+               },
+               "layout": "HORIZONTAL",
+               "children": [
+                {
+                 "type": "ELLIPSE",
+                 "name": "Ellipse 23",
+                 "box": {
+                  "w": 49,
+                  "h": 49
+                 },
+                 "fill": "#333333"
+                }
+               ]
+              },
+              {
+               "type": "FRAME",
+               "name": "Frame 345",
+               "box": {
+                "w": 194,
+                "h": 48
+               },
+               "layout": "VERTICAL",
+               "children": [
+                {
+                 "type": "FRAME",
+                 "name": "Frame 342",
+                 "box": {
+                  "w": 194,
+                  "h": 21
+                 },
+                 "layout": "HORIZONTAL",
+                 "children_truncated": 1
+                },
+                {
+                 "type": "FRAME",
+                 "name": "Frame 348",
+                 "box": {
+                  "w": 49,
+                  "h": 16
+                 },
+                 "layout": "HORIZONTAL",
+                 "children_truncated": 1
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "FRAME",
+           "name": "Frame 341",
+           "box": {
+            "w": 477,
+            "h": 102
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "TEXT",
+             "name": "” Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor. “",
+             "box": {
+              "w": 477,
+              "h": 102
+             },
+             "text": "” Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor. “",
+             "font": {
+              "size": 26.0,
+              "weight": 400
+             }
+            }
+           ]
+          },
+          {
+           "type": "FRAME",
+           "name": "Frame 347",
+           "box": {
+            "w": 71,
+            "h": 51
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "FRAME",
+             "name": "Frame 351",
+             "box": {
+              "w": 71,
+              "h": 51
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "TEXT",
+               "name": "Website",
+               "box": {
+                "w": 71,
+                "h": 19
+               },
+               "text": "Website",
+               "font": {
+                "size": 16.0,
+                "weight": 400
+               }
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "FRAME",
+         "name": "Frame 450",
+         "box": {
+          "w": 541,
+          "h": 409
+         },
+         "fill": "#FFFFFF",
+         "layout": "VERTICAL",
+         "children": [
+          {
+           "type": "FRAME",
+           "name": "Frame 347",
+           "box": {
+            "w": 477,
+            "h": 48
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "FRAME",
+             "name": "Frame 461",
+             "box": {
+              "w": 477,
+              "h": 48
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "FRAME",
+               "name": "Frame 344",
+               "box": {
+                "w": 48,
+                "h": 48
+               },
+               "layout": "HORIZONTAL",
+               "children": [
+                {
+                 "type": "ELLIPSE",
+                 "name": "Ellipse 23",
+                 "box": {
+                  "w": 49,
+                  "h": 49
+                 },
+                 "fill": "#333333"
+                }
+               ]
+              },
+              {
+               "type": "FRAME",
+               "name": "Frame 345",
+               "box": {
+                "w": 194,
+                "h": 48
+               },
+               "layout": "VERTICAL",
+               "children": [
+                {
+                 "type": "FRAME",
+                 "name": "Frame 342",
+                 "box": {
+                  "w": 194,
+                  "h": 21
+                 },
+                 "layout": "HORIZONTAL",
+                 "children_truncated": 1
+                },
+                {
+                 "type": "FRAME",
+                 "name": "Frame 348",
+                 "box": {
+                  "w": 49,
+                  "h": 16
+                 },
+                 "layout": "HORIZONTAL",
+                 "children_truncated": 1
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "FRAME",
+           "name": "Frame 341",
+           "box": {
+            "w": 477,
+            "h": 102
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "TEXT",
+             "name": "” Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor. “",
+             "box": {
+              "w": 477,
+              "h": 102
+             },
+             "text": "” Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor. “",
+             "font": {
+              "size": 26.0,
+              "weight": 400
+             }
+            }
+           ]
+          },
+          {
+           "type": "FRAME",
+           "name": "Frame 347",
+           "box": {
+            "w": 71,
+            "h": 51
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "FRAME",
+             "name": "Frame 351",
+             "box": {
+              "w": 71,
+              "h": 51
+             },
+             "layout": "HORIZONTAL",
+             "children": [
+              {
+               "type": "TEXT",
+               "name": "Website",
+               "box": {
+                "w": 71,
+                "h": 19
+               },
+               "text": "Website",
+               "font": {
+                "size": 16.0,
+                "weight": 400
+               }
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "FRAME",
+       "name": "Frame 475",
+       "box": {
+        "w": 226,
+        "h": 6
+       },
+       "layout": "HORIZONTAL",
+       "children": [
+        {
+         "type": "RECTANGLE",
+         "name": "Rectangle 66",
+         "box": {
+          "w": 50,
+          "h": 6
+         },
+         "fill": "#101010"
+        },
+        {
+         "type": "RECTANGLE",
+         "name": "Rectangle 67",
+         "box": {
+          "w": 50,
+          "h": 6
+         },
+         "fill": "#D9D9D9"
+        },
+        {
+         "type": "RECTANGLE",
+         "name": "Rectangle 68",
+         "box": {
+          "w": 50,
+          "h": 6
+         },
+         "fill": "#D9D9D9"
+        },
+        {
+         "type": "RECTANGLE",
+         "name": "Rectangle 69",
+         "box": {
+          "w": 50,
+          "h": 6
+         },
+         "fill": "#D9D9D9"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "FRAME",
+   "name": "Frame 60",
+   "box": {
+    "w": 1920,
+    "h": 521
+   },
+   "layout": "VERTICAL",
+   "children": [
+    {
+     "type": "FRAME",
+     "name": "Frame 58",
+     "box": {
+      "w": 1920,
+      "h": 521
+     },
+     "fill": "#2D2C2C",
+     "layout": "VERTICAL",
+     "children": [
+      {
+       "type": "FRAME",
+       "name": "Frame 63",
+       "box": {
+        "w": 1680,
+        "h": 312
+       },
+       "layout": "HORIZONTAL",
+       "children": [
+        {
+         "type": "FRAME",
+         "name": "Frame 61",
+         "box": {
+          "w": 230,
+          "h": 224
+         },
+         "layout": "VERTICAL",
+         "children": [
+          {
+           "type": "FRAME",
+           "name": "Frame 463",
+           "box": {
+            "w": 184,
+            "h": 68
+           },
+           "children": [
+            {
+             "type": "GROUP",
+             "name": "Group 2",
+             "box": {
+              "w": 202,
+              "h": 68
+             },
+             "children": [
+              {
+               "type": "FRAME",
+               "name": "Frame",
+               "box": {
+                "w": 60,
+                "h": 68
+               },
+               "children": [
+                {
+                 "type": "GROUP",
+                 "name": "Group",
+                 "box": {
+                  "w": 60,
+                  "h": 68
+                 },
+                 "children_truncated": 1
+                }
+               ]
+              },
+              {
+               "type": "LINE",
+               "name": "Line 1",
+               "box": {
+                "w": 0,
+                "h": 61
+               }
+              },
+              {
+               "type": "TEXT",
+               "name": "JASON PEREIRA",
+               "box": {
+                "w": 119,
+                "h": 50
+               },
+               "text": "JASON PEREIRA",
+               "font": {
+                "size": 23.0,
+                "weight": 300
+               }
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "TEXT",
+           "name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
+           "box": {
+            "w": 230,
+            "h": 76
+           },
+           "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
+           "font": {
+            "size": 16.0,
+            "weight": 400
+           }
+          },
+          {
+           "type": "FRAME",
+           "name": "Frame 53",
+           "box": {
+            "w": 96,
+            "h": 16
+           },
+           "layout": "HORIZONTAL",
+           "children": [
+            {
+             "type": "INSTANCE",
+             "name": "Social-icon-linkedin",
+             "box": {
+              "w": 16,
+              "h": 16
+             },
+             "children": [
+              {
+               "type": "GROUP",
+               "name": "Group",
+               "box": {
+                "w": 16,
+                "h": 16
+               },
+               "children": [
+                {
+                 "type": "VECTOR",
+                 "name": "Vector",
+                 "box": {
+                  "w": 16,
+                  "h": 16
+                 },
+                 "fill": "#FFFFFF"
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "INSTANCE",
+             "name": "Social-icon-instagram",
+             "box": {
+              "w": 16,
+              "h": 16
+             },
+             "children": [
+              {
+               "type": "GROUP",
+               "name": "Group",
+               "box": {
+                "w": 16,
+                "h": 16
+               },
+               "children": [
+                {
+                 "type": "VECTOR",
+                 "name": "Vector",
+                 "box": {
+                  "w": 16,
+                  "h": 16
+                 },
+                 "fill": "#FFFFFF"
+                },
+                {
+                 "type": "VECTOR",
+                 "name": "Vector",
+                 "box": {
+                  "w": 8,
+                  "h": 8
+                 },
+                 "fill": "#FFFFFF"
+                },
+                {
+                 "type": "VECTOR",
+                 "name": "Vector",
+                 "box": {
+                  "w": 2,
+                  "h": 2
+                 },
+                 "fill": "#FFFFFF"
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "INSTANCE",
+             "name": "Social-icon-facebook",
+             "box": {
+              "w": 16,
+              "h": 16
+             },
+             "children": [
+              {
+               "type": "VECTOR",
+               "name": "Vector",
+               "box": {
+                "w": 16,
+                "h": 16
+               },
+               "fill": "#FFFFFF"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "FRAME",
+         "name": "Frame 55",
+         "box": {
+          "w": 285,
+          "h": 248
+         },
+         "layout": "VERTICAL",
+         "children": [
+          {
+           "type": "TEXT",
+           "name": "MENU",
+           "box": {
+            "w": 54,
+            "h": 22
+           },
+           "text": "MENU",
+           "font": {
+            "size": 18.0,
+            "weight": 500
+           }
+          },
+          {
+           "type": "FRAME",
+           "name": "Frame 51",
+           "box": {
+            "w": 285,
+            "h": 194
+           },
+           "layout": "VERTICAL",
+           "children": [
+            {
+             "type": "TEXT",
+             "name": "Início",
+             "box": {
+              "w": 40,
+              "h": 19
+             },
+             "text": "Início",
+             "font": {
+              "size": 16.0,
+              "weight": 400
+             }
+            },
+            {
+             "type": "TEXT",
+             "name": "Quem somos",
+             "box": {
+              "w": 99,
+              "h": 19
+             },
+             "text": "Quem somos",
+             "font": {
+              "size": 16.0,
+              "weight": 400
+             }
+            },
+            {
+             "type": "TEXT",
+             "name": "Serviços",
+             "box": {
+              "w": 66,
+              "h": 19
+             },
+             "text": "Serviços",
+             "font": {
+              "size": 16.0,
+              "weight": 400
+             }
+            },
+            {
+             "type": "TEXT",
+             "name": "Blog",
+             "box": {
+              "w": 34,
+              "h": 19
+             },
+             "text": "Blog",
+             "font": {
+              "size": 16.0,
+              "weight": 400
+             }
+            },
+            {
+             "type": "TEXT",
+             "name": "Dúvidas Frequentes",
+             "box": {
+              "w": 151,
+              "h": 19
+             },
+             "text": "Dúvidas Frequentes",
+             "font": {
+              "size": 16.0,
+              "weight": 400
+             }
+            },
+            {
+             "type": "TEXT",
+             "name": "Contato",
+             "box": {
+              "w": 61,
+              "h": 19
+             },
+             "text": "Contato",
+             "font": {
+              "size": 16.0,
+              "weight": 400
+             }
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "FRAME",
+       "name": "Frame 64",
+       "box": {
+        "w": 1680,
+        "h": 81
+       },
+       "layout": "HORIZONTAL",
+       "children": [
+        {
+         "type": "FRAME",
+         "name": "Frame 52",
+         "box": {
+          "w": 328,
+          "h": 17
+         },
+         "layout": "VERTICAL",
+         "children": [
+          {
+           "type": "TEXT",
+           "name": "©2023 Peres Global Insurance. All right reserved.",
+           "box": {
+            "w": 328,
+            "h": 17
+           },
+           "text": "©2023 Peres Global Insurance. All right reserved.",
+           "font": {
+            "size": 14.0,
+            "weight": 400
+           }
+          }
+         ]
+        },
+        {
+         "type": "FRAME",
+         "name": "Frame 62",
+         "box": {
+          "w": 308,
+          "h": 17
+         },
+         "layout": "HORIZONTAL",
+         "children": [
+          {
+           "type": "FRAME",
+           "name": "Frame 53",
+           "box": {
+            "w": 126,
+            "h": 17
+           },
+           "layout": "VERTICAL",
+           "children": [
+            {
+             "type": "TEXT",
+             "name": "Política de Cookies",
+             "box": {
+              "w": 126,
+              "h": 17
+             },
+             "text": "Política de Cookies",
+             "font": {
+              "size": 14.0,
+              "weight": 400
+             }
+            }
+           ]
+          },
+          {
+           "type": "FRAME",
+           "name": "Frame 54",
+           "box": {
+            "w": 150,
+            "h": 17
+           },
+           "layout": "VERTICAL",
+           "children": [
+            {
+             "type": "TEXT",
+             "name": "Política de privacidade",
+             "box": {
+              "w": 150,
+              "h": 17
+             },
+             "text": "Política de privacidade",
+             "font": {
+              "size": 14.0,
+              "weight": 400
+             }
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "FRAME",
+   "name": "Frame 468",
+   "box": {
+    "w": 1923,
+    "h": 891
+   },
+   "fill": "#FFFFFF",
+   "children": [
+    {
+     "type": "FRAME",
+     "name": "Frame 471",
+     "box": {
+      "w": 1470,
+      "h": 487
+     },
+     "layout": "VERTICAL",
+     "children": [
+      {
+       "type": "FRAME",
+       "name": "Frame 470",
+       "box": {
+        "w": 1437,
+        "h": 234
+       },
+       "layout": "HORIZONTAL",
+       "children": [
+        {
+         "type": "FRAME",
+         "name": "Frame 464",
+         "box": {
+          "w": 1143,
+          "h": 234
+         },
+         "layout": "HORIZONTAL",
+         "children": [
+          {
+           "type": "TEXT",
+           "name": "LET'S GET",
+           "box": {
+            "w": 1143,
+            "h": 234
+           },
+           "text": "LET'S GET",
+           "font": {
+            "size": 234.05999755859375,
+            "weight": 300
+           }
+          }
+         ]
+        },
+        {
+         "type": "FRAME",
+         "name": "Frame 467",
+         "box": {
+          "w": 214,
+          "h": 213
+         },
+         "fill": "#FFFFFF",
+         "radius": 169.9942169189453,
+         "layout": "VERTICAL",
+         "children": [
+          {
+           "type": "FRAME",
+           "name": "Frame",
+           "box": {
+            "w": 182,
+            "h": 181
+           },
+           "children": [
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 9,
+              "h": 12
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 13,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 11,
+              "h": 12
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 11,
+              "h": 12
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 10,
+              "h": 12
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 11,
+              "h": 11
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 12,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 12,
+              "h": 14
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 13,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 10,
+              "h": 8
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 13,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 13,
+              "h": 11
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 14,
+              "h": 9
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 13,
+              "h": 11
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 13,
+              "h": 12
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 10,
+              "h": 9
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 13,
+              "h": 12
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 8,
+              "h": 11
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 10,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 11,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 8,
+              "h": 11
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 11,
+              "h": 12
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 12,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 11,
+              "h": 12
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 9,
+              "h": 10
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 12,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 14,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 13,
+              "h": 10
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 11,
+              "h": 9
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 13,
+              "h": 11
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 12,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame",
+             "box": {
+              "w": 45,
+              "h": 51
+             },
+             "children": [
+              {
+               "type": "GROUP",
+               "name": "Group",
+               "box": {
+                "w": 45,
+                "h": 51
+               },
+               "children": [
+                {
+                 "type": "GROUP",
+                 "name": "Group",
+                 "box": {
+                  "w": 45,
+                  "h": 51
+                 },
+                 "children_truncated": 4
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "FRAME",
+       "name": "Frame 469",
+       "box": {
+        "w": 1470,
+        "h": 244
+       },
+       "layout": "HORIZONTAL",
+       "children": [
+        {
+         "type": "FRAME",
+         "name": "Frame 466",
+         "box": {
+          "w": 214,
+          "h": 213
+         },
+         "fill": "#FFFFFF",
+         "radius": 169.9942169189453,
+         "layout": "VERTICAL",
+         "children": [
+          {
+           "type": "FRAME",
+           "name": "Frame",
+           "box": {
+            "w": 182,
+            "h": 181
+           },
+           "children": [
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 9,
+              "h": 12
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 13,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 11,
+              "h": 12
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 11,
+              "h": 12
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 10,
+              "h": 12
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 11,
+              "h": 11
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 12,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 12,
+              "h": 14
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 13,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 10,
+              "h": 8
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 13,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 13,
+              "h": 11
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 14,
+              "h": 9
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 13,
+              "h": 11
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 13,
+              "h": 12
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 10,
+              "h": 9
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 13,
+              "h": 12
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 8,
+              "h": 11
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 10,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 11,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 8,
+              "h": 11
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 11,
+              "h": 12
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 12,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 11,
+              "h": 12
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 9,
+              "h": 10
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 12,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 14,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 13,
+              "h": 10
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 11,
+              "h": 9
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 13,
+              "h": 11
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "VECTOR",
+             "name": "Vector",
+             "box": {
+              "w": 12,
+              "h": 13
+             },
+             "fill": "#CF7745"
+            },
+            {
+             "type": "FRAME",
+             "name": "Frame",
+             "box": {
+              "w": 45,
+              "h": 51
+             },
+             "children": [
+              {
+               "type": "GROUP",
+               "name": "Group",
+               "box": {
+                "w": 45,
+                "h": 51
+               },
+               "children": [
+                {
+                 "type": "GROUP",
+                 "name": "Group",
+                 "box": {
+                  "w": 45,
+                  "h": 51
+                 },
+                 "children_truncated": 4
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "FRAME",
+         "name": "Frame 465",
+         "box": {
+          "w": 1189,
+          "h": 244
+         },
+         "layout": "HORIZONTAL",
+         "children": [
+          {
+           "type": "TEXT",
+           "name": "IN TOUCH",
+           "box": {
+            "w": 1189,
+            "h": 244
+           },
+           "text": "IN TOUCH",
+           "font": {
+            "size": 244.05999755859375,
+            "weight": 300
+           }
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "FRAME",
+     "name": "Frame 451",
+     "box": {
+      "w": 486,
+      "h": 69
+     },
+     "layout": "HORIZONTAL",
+     "children": [
+      {
+       "type": "FRAME",
+       "name": "Frame 430",
+       "box": {
+        "w": 235,
+        "h": 69
+       },
+       "fill": "#000000",
+       "layout": "VERTICAL",
+       "children": [
+        {
+         "type": "TEXT",
+         "name": "Call to action",
+         "box": {
+          "w": 171,
+          "h": 21
+         },
+         "text": "Call to action",
+         "font": {
+          "size": 18.0,
+          "weight": 500
+         }
+        }
+       ]
+      },
+      {
+       "type": "FRAME",
+       "name": "Frame 318",
+       "box": {
+        "w": 219,
+        "h": 21
+       },
+       "layout": "VERTICAL",
+       "children": [
+        {
+         "type": "TEXT",
+         "name": "-Or Call to action",
+         "box": {
+          "w": 219,
+          "h": 21
+         },
+         "text": "-Or Call to action",
+         "font": {
+          "size": 18.0,
+          "weight": 400
+         }
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "FRAME",
+   "name": "Frame 10",
+   "box": {
+    "w": 1920,
+    "h": 149
+   },
+   "layout": "HORIZONTAL",
+   "children": [
+    {
+     "type": "GROUP",
+     "name": "Group 2",
+     "box": {
+      "w": 202,
+      "h": 68
+     },
+     "children": [
+      {
+       "type": "FRAME",
+       "name": "Frame",
+       "box": {
+        "w": 60,
+        "h": 68
+       },
+       "children": [
+        {
+         "type": "GROUP",
+         "name": "Group",
+         "box": {
+          "w": 60,
+          "h": 68
+         },
+         "children": [
+          {
+           "type": "GROUP",
+           "name": "Group",
+           "box": {
+            "w": 60,
+            "h": 68
+           },
+           "children": [
+            {
+             "type": "GROUP",
+             "name": "Group",
+             "box": {
+              "w": 53,
+              "h": 55
+             },
+             "children": [
+              {
+               "type": "VECTOR",
+               "name": "Vector",
+               "box": {
+                "w": 53,
+                "h": 55
+               },
+               "fill": "#000000"
+              }
+             ]
+            },
+            {
+             "type": "GROUP",
+             "name": "Group",
+             "box": {
+              "w": 53,
+              "h": 55
+             },
+             "children": [
+              {
+               "type": "VECTOR",
+               "name": "Vector",
+               "box": {
+                "w": 53,
+                "h": 55
+               },
+               "fill": "#000000"
+              }
+             ]
+            },
+            {
+             "type": "GROUP",
+             "name": "Group",
+             "box": {
+              "w": 21,
+              "h": 18
+             },
+             "children": [
+              {
+               "type": "VECTOR",
+               "name": "Vector",
+               "box": {
+                "w": 21,
+                "h": 18
+               },
+               "fill": "#000000"
+              }
+             ]
+            },
+            {
+             "type": "GROUP",
+             "name": "Group",
+             "box": {
+              "w": 21,
+              "h": 19
+             },
+             "children": [
+              {
+               "type": "VECTOR",
+               "name": "Vector",
+               "box": {
+                "w": 21,
+                "h": 19
+               },
+               "fill": "#000000"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "LINE",
+       "name": "Line 1",
+       "box": {
+        "w": 0,
+        "h": 61
+       }
+      },
+      {
+       "type": "TEXT",
+       "name": "JASON PEREIRA",
+       "box": {
+        "w": 119,
+        "h": 50
+       },
+       "text": "JASON PEREIRA",
+       "font": {
+        "size": 23.0,
+        "weight": 300
+       }
+      }
+     ]
+    },
+    {
+     "type": "FRAME",
+     "name": "Frame 9",
+     "box": {
+      "w": 461,
+      "h": 12
+     },
+     "layout": "HORIZONTAL",
+     "children": [
+      {
+       "type": "TEXT",
+       "name": "About",
+       "box": {
+        "w": 71,
+        "h": 12
+       },
+       "text": "About",
+       "font": {
+        "size": 20.0,
+        "weight": 600
+       }
+      },
+      {
+       "type": "TEXT",
+       "name": "Projects",
+       "box": {
+        "w": 108,
+        "h": 12
+       },
+       "text": "Projects",
+       "font": {
+        "size": 20.0,
+        "weight": 600
+       }
+      },
+      {
+       "type": "TEXT",
+       "name": "Testimonials",
+       "box": {
+        "w": 154,
+        "h": 12
+       },
+       "text": "Testimonials",
+       "font": {
+        "size": 20.0,
+        "weight": 600
+       }
+      }
+     ]
+    },
+    {
+     "type": "FRAME",
+     "name": "Frame 430",
+     "box": {
+      "w": 159,
+      "h": 69
+     },
+     "fill": "#000000",
+     "layout": "VERTICAL",
+     "children": [
+      {
+       "type": "TEXT",
+       "name": "Contact",
+       "box": {
+        "w": 95,
+        "h": 21
+       },
+       "text": "Contact",
+       "font": {
+        "size": 18.0,
+        "weight": 500
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
