@@ -5,6 +5,11 @@ import { DashboardClient } from '@/components/dashboard/DashboardClient'
 export default async function DashboardPage() {
   const supabase = await createClient()
 
+  // Local mode — no Supabase configured. Client hydrates from localStorage.
+  if (!supabase) {
+    return <DashboardClient initialProjects={[]} user={null} />
+  }
+
   const [
     { data: projectsRaw },
     { data: { user } },

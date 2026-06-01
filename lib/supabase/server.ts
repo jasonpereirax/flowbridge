@@ -4,12 +4,17 @@ import { cookies } from 'next/headers'
 import type { Database } from '@/types/supabase'
 
 // For Server Components, Server Actions, Route Handlers
+// Returns null when Supabase env vars are absent (local mode — app runs off localStorage).
 export async function createClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!supabaseUrl || !supabaseKey) return null
+
   const cookieStore = await cookies()
 
   return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseKey,
     {
       cookies: {
         getAll: ()          => cookieStore.getAll(),
