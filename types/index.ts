@@ -145,6 +145,12 @@ export interface ScreenFigma {
   fileKey:       string
   thumbnailUrl?: string
   componentMap:  FigmaComponentMap[]
+  // Distilled design outline (sections + text + components) from the Figma node.
+  // This is the visual context that lets generation reproduce the actual design.
+  structure?:    string
+  // From the Figma Dev Mode MCP: reference code snippet + serialized design tokens.
+  reference?:    string
+  tokensText?:   string
   fetchedAt:     string
 }
 

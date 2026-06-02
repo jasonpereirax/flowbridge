@@ -1,6 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { type NextRequest } from 'next/server'
 import { buildPrompt } from '@/lib/claude/prompt-builder'
+import { fetchFigmaImageUrls, screenFigmaRefs } from '@/lib/figma/images'
+import { mcpGetSectionScreenshots } from '@/lib/figma/mcp'
 import type { GenerateRequest } from '@/types'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -41,6 +43,22 @@ export async function POST(req: NextRequest) {
           percent: 20,
         })
 
+        // ── Vision — let Claude SEE the design, in DETAIL ─────────
+        // Prefer crisp per-section screenshots (MCP); fall back to the full-page render.
+        const content: Anthropic.ContentBlockParam[] = [{ type: 'text', text: user }]
+        const firstNode = body.screens.find(s => s.figma?.nodeId)?.figma?.nodeId
+        const shots = firstNode ? await mcpGetSectionScreenshots(firstNode) : []
+        if (shots.length) {
+          send('step', { text: `Capturando ${shots.length} seção(ões) em detalhe…`, percent: 26 })
+          for (const s of shots) {
+            content.push({ type: 'image', source: { type: 'base64', media_type: s.mime as 'image/png', data: s.data } })
+          }
+        } else {
+          const imageUrls = await fetchFigmaImageUrls(screenFigmaRefs(body.screens))
+          if (imageUrls.length) send('step', { text: `Anexando ${imageUrls.length} render(s) do Figma…`, percent: 26 })
+          for (const url of imageUrls) content.push({ type: 'image', source: { type: 'url', url } })
+        }
+
         // ── Step 3 — connect to Claude ────────────────────────────
         send('step', {
           text:    `Enviando para ${model}…`,
@@ -52,7 +70,7 @@ export async function POST(req: NextRequest) {
           model,
           max_tokens: 8192,   // teto alto para evitar truncar saída multi-arquivo
           system,
-          messages: [{ role: 'user', content: user }],
+          messages: [{ role: 'user', content }],
         })
 
         let charCount = 0

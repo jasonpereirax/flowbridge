@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { parseFigmaUrl } from '@/utils'
+import { distillFigmaStructure } from '@/lib/figma/distill'
 import type { ScreenFigma } from '@/types'
 
 interface UseFigmaBindingResult {
@@ -90,6 +91,7 @@ export function useFigmaBinding(
           ?? Object.values(nodesData?.nodes ?? {})[0]
 
         const componentNames = extractComponentNames(nodeEntry)
+        const structure      = distillFigmaStructure(nodeEntry)
 
         // 2. Buscar thumbnail
         let thumbnailUrl: string | undefined
@@ -119,6 +121,7 @@ export function useFigmaBinding(
             figmaName:     name,
             codeComponent: guessCodeName(name),
           })),
+          structure,
           fetchedAt: new Date().toISOString(),
         }
 

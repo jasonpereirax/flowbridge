@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { cn, screenCompleteness } from '@/utils'
+import { distillFigmaStructure } from '@/lib/figma/distill'
 import type {
   MacroNode, Screen, ApiEndpoint, ScreenFigma, ScreenContext,
   JourneyContext, FlowContext, Flow,
@@ -3228,6 +3229,7 @@ function useFigmaRESTBinding(
           figmaName: name,
           codeComponent: name.split('/')[0].trim(),
         })),
+        structure: distillFigmaStructure(frameDoc ?? nodeEntry),
         fetchedAt: new Date().toISOString(),
       }, frameName ?? undefined)
       setError(null)
@@ -3357,6 +3359,9 @@ function useFigmaMCPBinding(
       const figma: ScreenFigma = {
         url, nodeId, fileKey, thumbnailUrl,
         componentMap: rawComponents,
+        structure:  typeof data.structure  === 'string' ? data.structure  : undefined,
+        reference:  typeof data.referenceCode === 'string' ? data.referenceCode : undefined,
+        tokensText: typeof data.tokensText === 'string' ? data.tokensText : undefined,
         fetchedAt: new Date().toISOString(),
       }
 

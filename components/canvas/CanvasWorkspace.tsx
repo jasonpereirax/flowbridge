@@ -48,6 +48,7 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
   const {
     status: genStatus, files, progress, steps, usage,
     error: genError, generate, reset,
+    previewHtml, previewStatus, previewError, preview,
   } = useGenerate()
 
   function handleGenerate() {
@@ -323,6 +324,10 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
           error={genError}
           onClose={handleGenClose}
           onRetry={generate}
+          previewHtml={previewHtml}
+          previewStatus={previewStatus}
+          previewError={previewError}
+          onPreview={preview}
         />
       )}
 

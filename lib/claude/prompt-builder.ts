@@ -27,6 +27,10 @@ export function buildPrompt(req: GenerateRequest): { system: string; user: strin
 - When an API contract (request/response shape) is provided, wire to it EXACTLY — never
   invent endpoint shapes, and never hardcode data that should be fetched
 - For any screen that fetches data, handle loading, error and empty states explicitly
+- When a Figma design is provided, REPRODUCE it faithfully: match the exact fonts named
+  in the design (load them, e.g. via next/font or a font import — never silently fall back
+  to a default), use the EXACT hex colors and dimensions given (do not substitute generic
+  brand colors), and follow the section structure and copy verbatim
 - Every file must be immediately usable with zero edits
 
 ## Output format
@@ -59,6 +63,29 @@ Return a single JSON array of file objects. Nothing else — no prose, no markdo
   for (const sc of screens) {
     const ctx = sc.context
     parts.push(`### ${sc.name}${sc.isEntry ? ' [entry]' : ''}${sc.isError ? ' [error state]' : ''}`)
+
+    // The actual design from Figma — reproduce this structure, sections and copy.
+    // This is the single most important context: without it the model invents a layout.
+    if (sc.figma?.structure) {
+      parts.push('Design from Figma — REPRODUCE this exact structure, sections and text:')
+      parts.push('```')
+      parts.push(sc.figma.structure)
+      parts.push('```')
+    }
+
+    if (sc.figma?.tokensText) {
+      parts.push('Exact design tokens (from Figma — use these precise colors/values):')
+      parts.push('```')
+      parts.push(sc.figma.tokensText)
+      parts.push('```')
+    }
+
+    if (sc.figma?.reference) {
+      parts.push("Figma Dev Mode reference code — this is Figma's OWN React+Tailwind translation of this node. It is the highest-fidelity source: preserve its exact layout, spacing, sizing, colors and structure for EVERY section top to bottom. Adapt syntax to the target stack, but do NOT redesign or omit sections. Image/SVG assets referenced as http://localhost:3845/assets/… are the REAL design assets — keep those URLs (they can be swapped for production assets later):")
+      parts.push('```tsx')
+      parts.push(sc.figma.reference.slice(0, 120000))
+      parts.push('```')
+    }
 
     if (ctx.route)       parts.push(`Route: \`${ctx.route}\``)
     if (ctx.purpose)     parts.push(`Purpose: ${ctx.purpose}`)

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { extractDesignSpec, type VarMap } from '@/lib/figma/extract'
 
 /**
  * POST /api/figma-mcp
@@ -10,9 +11,12 @@ import { NextRequest, NextResponse } from 'next/server'
  * Retorna tudo consolidado para o prompt builder.
  */
 
-const MCP_URL          = process.env.FIGMA_MCP_URL    ?? ''
+// Figma Dev Mode MCP server. Defaults to the local desktop server (Streamable
+// HTTP). Override with FIGMA_DEVMODE_MCP_URL if needed.
+const MCP_URL          = process.env.FIGMA_DEVMODE_MCP_URL ?? 'http://127.0.0.1:3845/mcp'
 const FIGMA_TOKEN      = process.env.FIGMA_ACCESS_TOKEN ?? ''
 const FIGMA_API        = 'https://api.figma.com/v1'
+const MCP_MAX_CODE     = 120_000  // keep the full Figma reference (no truncation)
 
 // ── REST helpers ──────────────────────────────────────────────────────────────
 
@@ -96,95 +100,69 @@ interface ComponentEntry {
   variants?:     Record<string, string>
 }
 
-// ── SSE / MCP helpers ─────────────────────────────────────────────────────────
+// ── Figma Dev Mode MCP (Streamable HTTP) ──────────────────────────────────────
+// Talks to the local Figma desktop Dev Mode MCP server. get_design_context with
+// forceCode returns Figma's OWN React+Tailwind translation of the node — the
+// highest-fidelity source there is (exact layout/measurements + real assets).
 
-async function callMCPGetDesignContext(
-  fileKey: string, nodeId: string
-): Promise<{ code?: string; components?: string[]; tokens?: Record<string, string>; raw?: string } | null> {
+const MCP_HEADERS = { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream' }
+
+function parseSSEResult(text: string): Record<string, unknown> | null {
+  let result: Record<string, unknown> | null = null
+  for (const line of text.split('\n')) {
+    const l = line.trim()
+    if (!l.startsWith('data:')) continue
+    try {
+      const o = JSON.parse(l.slice(5).trim()) as Record<string, unknown>
+      if ('result' in o || 'error' in o) result = o
+    } catch { /* skip non-JSON SSE frames */ }
+  }
+  return result
+}
+
+async function callFigmaDevModeMCP(nodeId: string): Promise<{ code?: string } | null> {
   if (!MCP_URL) return null
-
   try {
-    // 1. Abrir sessão SSE
-    const sseRes = await fetch(`${MCP_URL}/sse`, {
-      headers: { Accept: 'text/event-stream' },
+    // 1. initialize → session id (in response header)
+    const initRes = await fetch(MCP_URL, {
+      method: 'POST', headers: MCP_HEADERS,
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'flowbridge', version: '1' } } }),
+      signal: AbortSignal.timeout(8_000),
     })
-    if (!sseRes.ok || !sseRes.body) return null
+    if (!initRes.ok) return null
+    const sid = initRes.headers.get('mcp-session-id')
+    await initRes.text().catch(() => {})
+    if (!sid) return null
 
-    const reader  = sseRes.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer    = ''
-    let sessionId: string | undefined
-    const t0 = Date.now()
+    const sessionHeaders = { ...MCP_HEADERS, 'mcp-session-id': sid }
 
-    // 2. Aguardar sessionId (max 8s)
-    while (!sessionId && Date.now() - t0 < 8_000) {
-      const { done, value } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''
-      for (const line of lines) {
-        if (line.startsWith('data: /messages?sessionId=')) {
-          sessionId = line.replace('data: /messages?sessionId=', '').trim()
-        }
-      }
-    }
-    if (!sessionId) { reader.cancel(); return null }
+    // 2. notifications/initialized
+    await fetch(MCP_URL, { method: 'POST', headers: sessionHeaders, body: JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }), signal: AbortSignal.timeout(8_000) }).then(r => r.text()).catch(() => {})
 
-    // 3. Enviar get_design_context
-    await fetch(`${MCP_URL}/messages?sessionId=${sessionId}`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+    // 3. tools/call get_design_context (force the code, skip Code Connect gate)
+    const callRes = await fetch(MCP_URL, {
+      method: 'POST', headers: sessionHeaders,
       body: JSON.stringify({
-        jsonrpc: '2.0', id: 1,
-        method:  'tools/call',
-        params:  { name: 'get_design_context', arguments: { fileKey, nodeId, depth: 6 } },
+        jsonrpc: '2.0', id: 3, method: 'tools/call',
+        params: { name: 'get_design_context', arguments: {
+          nodeId, clientLanguages: 'typescript', clientFrameworks: 'react',
+          disableCodeConnect: true, forceCode: true,
+        } },
       }),
+      signal: AbortSignal.timeout(40_000),
     })
+    if (!callRes.ok) return null
 
-    // 4. Ler resultado do stream (max 25s)
-    buffer = ''
-    const t1 = Date.now()
-    while (Date.now() - t1 < 25_000) {
-      const { done, value } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''
-      for (const line of lines) {
-        if (!line.startsWith('data:')) continue
-        const raw = line.slice(5).trim()
-        if (!raw) continue
-        try {
-          const obj = JSON.parse(raw) as Record<string, unknown>
-          if ('result' in obj) {
-            reader.cancel()
-            const content = (obj.result as Record<string, unknown>)?.content
-            const textBlock = Array.isArray(content)
-              ? content.find((b: { type: string }) => b.type === 'text')
-              : null
-            const text: string = (textBlock as { text?: string } | null)?.text ?? JSON.stringify(obj.result)
+    const result = parseSSEResult(await callRes.text())
+    if (!result || 'error' in result) return null
 
-            // Tenta parsear JSON embutido no texto
-            let parsed: Record<string, unknown> = {}
-            try { parsed = JSON.parse(text) } catch {
-              const m = text.match(/\{[\s\S]*\}/)
-              try { if (m) parsed = JSON.parse(m[0]) } catch { /* ok */ }
-            }
+    const content = (result.result as { content?: { type: string; text?: string }[] })?.content ?? []
+    const texts   = content.filter(b => b.type === 'text' && b.text).map(b => b.text as string)
+    // The big block (contains JSX / const declarations) is Figma's reference code.
+    const codeBlock = texts.find(t => t.length > 400 && (/const |function |=>|<[A-Za-z]/.test(t))) ?? texts[0]
+    if (!codeBlock) return null
 
-            return {
-              code:       parsed.code       as string | undefined,
-              components: parsed.components as string[] | undefined,
-              tokens:     parsed.tokens     as Record<string, string> | undefined,
-              raw:        text,
-            }
-          }
-          if ('error' in obj) { reader.cancel(); return null }
-        } catch { /* continua */ }
-      }
-    }
-    reader.cancel()
-    return null
+    return { code: codeBlock.slice(0, MCP_MAX_CODE) }
   } catch {
     return null
   }
@@ -216,7 +194,7 @@ export async function POST(req: NextRequest) {
       figmaGet(`/files/${fileKey}/styles`),
       figmaGet(`/files/${fileKey}/variables/local`),
       figmaGet(`/images/${fileKey}?ids=${encodeURIComponent(nodeId)}&format=png&scale=1`),
-      callMCPGetDesignContext(fileKey, nodeId),
+      callFigmaDevModeMCP(nodeId),
     ])
 
     // ── Processar nós REST ────────────────────────────────────────────────────
@@ -250,13 +228,16 @@ export async function POST(req: NextRequest) {
     const vars = variablesData.status === 'fulfilled'
       ? (variablesData.value as Record<string, unknown>)?.meta as Record<string, unknown>
       : {}
-    const variablesList = Object.values(
-      (vars?.variables as Record<string, FigmaVariable>) ?? {}
-    ).map(v => ({
+    const variableEntries = Object.entries((vars?.variables as Record<string, FigmaVariable>) ?? {})
+    const variablesList = variableEntries.map(([, v]) => ({
       name:         v.name,
       type:         v.resolvedType,
       value:        Object.values(v.valuesByMode ?? {})[0],
     }))
+
+    // id → human name, so the extractor can resolve boundVariables to token names.
+    const varMap: VarMap = {}
+    for (const [id, v] of variableEntries) varMap[id] = v.name
 
     // ── Thumbnail ─────────────────────────────────────────────────────────────
     const imgData = imagesData.status === 'fulfilled' ? imagesData.value as Record<string, unknown> : {}
@@ -269,24 +250,49 @@ export async function POST(req: NextRequest) {
 
     // ── Consolidar tokens ─────────────────────────────────────────────────────
     const allTokens: Record<string, unknown> = {
-      colors:     { ...colorTokensFromNodes, ...(mcp?.tokens ?? {}) },
+      colors:     colorTokensFromNodes,
       variables:  variablesList.slice(0, 80),
       styles:     stylesList.slice(0, 40),
     }
 
-    // ── Consolidar componentes ────────────────────────────────────────────────
-    // Merge: REST (com props completas) + MCP (com nomes extras)
-    const mcpComponentNames: string[] = mcp?.components ?? []
-    const mcpOnlyComponents = mcpComponentNames
-      .filter(name => !uniqueComponents.some(c => c.figmaName === name || c.codeComponent === name))
-      .map(name => ({ figmaName: name, codeComponent: name.split('/')[0].trim(), type: 'INSTANCE', nodeId: '' }))
+    const allComponents = uniqueComponents
 
-    const allComponents = [...uniqueComponents, ...mcpOnlyComponents]
+    // ── Design spec abrangente (auto-layout, tipografia, fills, efeitos, tokens) ─
+    const structure = extractDesignSpec(nodeEntry, varMap)
+
+    // ── Tokens serializados (variáveis semânticas + cores) ─────────────────────
+    function fmtVarValue(val: unknown): string {
+      if (val && typeof val === 'object') {
+        const c = val as { r?: number; g?: number; b?: number }
+        if (typeof c.r === 'number') {
+          const to = (x = 0) => Math.round(x * 255).toString(16).padStart(2, '0')
+          return `#${to(c.r)}${to(c.g)}${to(c.b)}`.toUpperCase()
+        }
+        return JSON.stringify(val).slice(0, 40)
+      }
+      return String(val)
+    }
+    const tokenLines: string[] = []
+    for (const v of variablesList.slice(0, 60)) {
+      tokenLines.push(`${v.name} (${v.type}): ${fmtVarValue(v.value)}`)
+    }
+    const colorMap = allTokens.colors as Record<string, string>
+    for (const [name, hexv] of Object.entries(colorMap).slice(0, 40)) {
+      tokenLines.push(`${name}: ${hexv}`)
+    }
+    if (stylesList.length) tokenLines.push(`(+${stylesList.length} named styles)`)
+    const tokensText = tokenLines.join('\n')
 
     // ── Resposta final ────────────────────────────────────────────────────────
     return NextResponse.json({
       // Para o componentMap do ScreenFigma
       components: allComponents,
+
+      // Outline estrutural rico (estrutura + textos + dimensões/tipografia/cores)
+      structure,
+
+      // Tokens serializados para o prompt
+      tokensText,
 
       // Tokens completos para o prompt
       tokens: allTokens,
@@ -294,11 +300,8 @@ export async function POST(req: NextRequest) {
       // Thumbnail para exibir no card
       thumbnailUrl,
 
-      // Código de referência do MCP (quando disponível)
+      // Código de referência do MCP (tradução do próprio Figma — alta fidelidade)
       referenceCode: mcp?.code ?? null,
-
-      // Texto bruto do MCP para debug
-      mcpRaw: mcp?.raw ?? null,
 
       // Metadados
       meta: {

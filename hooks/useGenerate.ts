@@ -90,6 +90,8 @@ export interface LiveUsage {
   isEstimate:   boolean
 }
 
+export type PreviewStatus = 'idle' | 'loading' | 'done' | 'error'
+
 export interface UseGenerateReturn {
   status:   GenerationStatus
   files:    GeneratedFile[]
@@ -99,6 +101,11 @@ export interface UseGenerateReturn {
   error:    string | null
   generate: (screenIds?: string[]) => Promise<void>
   reset:    () => void
+  // Build-free visual preview (self-contained HTML rendered in an iframe).
+  previewHtml:   string | null
+  previewStatus: PreviewStatus
+  previewError:  string | null
+  preview:       (screenIds?: string[]) => Promise<void>
 }
 
 // Timeout do cliente em ms — mais longo que o maxDuration do servidor
@@ -113,6 +120,10 @@ export function useGenerate(): UseGenerateReturn {
   const [steps,    setSteps]    = useState<StepLog[]>([])
   const [usage,    setUsage]    = useState<LiveUsage | null>(null)
   const [error,    setError]    = useState<string | null>(null)
+
+  const [previewHtml,   setPreviewHtml]   = useState<string | null>(null)
+  const [previewStatus, setPreviewStatus] = useState<PreviewStatus>('idle')
+  const [previewError,  setPreviewError]  = useState<string | null>(null)
 
   // AbortController para cancelar requisição em voo
   const abortRef    = useRef<AbortController | null>(null)
@@ -136,22 +147,27 @@ export function useGenerate(): UseGenerateReturn {
     setSteps([])
     setUsage(null)
     setError(null)
+    setPreviewHtml(null)
+    setPreviewStatus('idle')
+    setPreviewError(null)
   }, [])
 
-  const generate = useCallback(async (screenIds?: string[]) => {
-    if (!project) { setError('Nenhum projeto aberto'); return }
+  // Builds the GenerateRequest from the active project/flow/screens. Shared by
+  // generate() and preview(). Sets `error` and returns null on invalid context.
+  const buildBody = useCallback((screenIds?: string[]) => {
+    if (!project) { setError('Nenhum projeto aberto'); return null }
 
     const canvas  = store.canvas()
     const journey = store.journey()
     const flow    = store.activeFlow()
 
-    if (!canvas || !flow) { setError('Nenhum flow ativo selecionado'); return }
+    if (!canvas || !flow) { setError('Nenhum flow ativo selecionado'); return null }
 
     const screens = screenIds?.length
       ? flow.screens.filter(sc => screenIds.includes(sc.id))
       : flow.screens
 
-    if (!screens.length) { setError('Nenhuma tela para gerar'); return }
+    if (!screens.length) { setError('Nenhuma tela para gerar'); return null }
 
     const dsIds   = canvas.conns.filter(c => c.toId === journey?.id).map(c => c.fromId)
     const dsNodes = canvas.nodes
@@ -159,6 +175,40 @@ export function useGenerate(): UseGenerateReturn {
       .map(n => ({ id: n.id, name: n.name, description: n.description, tags: n.tags, figmaFileKey: n.figmaFileKey }))
 
     const body: GenerateRequest = { projectId: project.id, settings: project.settings, dsNodes, screens }
+    return { body, flow, screens }
+  }, [project, store])
+
+  const preview = useCallback(async (screenIds?: string[]) => {
+    const built = buildBody(screenIds)
+    if (!built) { setPreviewStatus('error'); setPreviewError('Contexto inválido para preview'); return }
+
+    setPreviewStatus('loading')
+    setPreviewError(null)
+    try {
+      const resp = await fetch('/api/preview', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(built.body),
+      })
+      if (!resp.ok) {
+        const j = await resp.json().catch(() => null)
+        throw new Error(j?.error ?? `Erro do servidor (${resp.status})`)
+      }
+      const data = await resp.json() as { html: string }
+      setPreviewHtml(data.html)
+      setPreviewStatus('done')
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : 'Falha ao gerar preview')
+      setPreviewStatus('error')
+    }
+  }, [buildBody])
+
+  const generate = useCallback(async (screenIds?: string[]) => {
+    if (!project) { setError('Nenhum projeto aberto'); return }
+
+    const built = buildBody(screenIds)
+    if (!built) return
+    const { body, flow, screens } = built
     const startedAt = Date.now()
 
     // Cancela qualquer geração anterior antes de começar
@@ -334,7 +384,10 @@ export function useGenerate(): UseGenerateReturn {
       setError(err instanceof Error ? err.message : 'Generation failed')
       setStatus('error')
     }
-  }, [project, store, addStep])
+  }, [project, buildBody, store, addStep])
 
-  return { status, files, progress, steps, usage, error, generate, reset }
+  return {
+    status, files, progress, steps, usage, error, generate, reset,
+    previewHtml, previewStatus, previewError, preview,
+  }
 }

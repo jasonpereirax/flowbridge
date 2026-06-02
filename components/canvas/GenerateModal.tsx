@@ -3,11 +3,11 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   X, Copy, Check, Zap, Loader2, AlertCircle,
-  FileCode2, ChevronRight, RefreshCw, Clock,
+  FileCode2, ChevronRight, RefreshCw, Clock, Eye, Code2,
 } from 'lucide-react'
 import { cn } from '@/utils'
 import type { GeneratedFile, GenerationStatus, StepLog } from '@/types'
-import type { LiveUsage } from '@/hooks/useGenerate'
+import type { LiveUsage, PreviewStatus } from '@/hooks/useGenerate'
 
 interface Props {
   status:   GenerationStatus
@@ -18,6 +18,11 @@ interface Props {
   error:    string | null
   onClose:  () => void
   onRetry:  () => void
+  // Build-free preview
+  previewHtml:   string | null
+  previewStatus: PreviewStatus
+  previewError:  string | null
+  onPreview:     () => void
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -51,10 +56,14 @@ function StepDot({ percent, current }: { percent: number; current: boolean }) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function GenerateModal({ status, files, progress, steps, usage, error, onClose, onRetry }: Props) {
+export function GenerateModal({
+  status, files, progress, steps, usage, error, onClose, onRetry,
+  previewHtml, previewStatus, previewError, onPreview,
+}: Props) {
   const [selectedIdx, setSelectedIdx] = useState(0)
   const [copied,      setCopied]      = useState(false)
   const [elapsed,     setElapsed]     = useState(0)
+  const [view,        setView]        = useState<'code' | 'preview'>('code')
   const startRef = useRef(Date.now())
   const logRef   = useRef<HTMLDivElement>(null)
 
@@ -87,6 +96,11 @@ export function GenerateModal({ status, files, progress, steps, usage, error, on
     })
   }
 
+  function goPreview() {
+    setView('preview')
+    if (previewStatus === 'idle') onPreview()
+  }
+
   // Elapsed from last step's ts
   const firstTs = steps[0]?.ts ?? Date.now()
 
@@ -116,6 +130,25 @@ export function GenerateModal({ status, files, progress, steps, usage, error, on
                   {fmtBrl(usage.costBrl)} · {fmtMs((usage as unknown as { durationMs?: number }).durationMs ?? 0)}
                 </span>
               )}
+            </div>
+          )}
+
+          {isDone && hasFiles && (
+            <div className="ml-auto flex items-center gap-0.5 bg-bg border border-border rounded-[7px] p-0.5">
+              <button
+                onClick={() => setView('code')}
+                className={cn('flex items-center gap-1 px-2 py-1 rounded-[5px] text-[11px] font-medium transition-colors',
+                  view === 'code' ? 'bg-surface text-text-1 shadow-sm' : 'text-text-3 hover:text-text-2')}
+              >
+                <Code2 size={11} /> Código
+              </button>
+              <button
+                onClick={goPreview}
+                className={cn('flex items-center gap-1 px-2 py-1 rounded-[5px] text-[11px] font-medium transition-colors',
+                  view === 'preview' ? 'bg-surface text-text-1 shadow-sm' : 'text-text-3 hover:text-text-2')}
+              >
+                <Eye size={11} /> Preview
+              </button>
             </div>
           )}
 
@@ -246,7 +279,7 @@ export function GenerateModal({ status, files, progress, steps, usage, error, on
             )}
 
             {/* Files */}
-            {hasFiles && (
+            {hasFiles && view === 'code' && (
               <div className="flex flex-1 min-h-0">
 
                 {/* File tree */}
@@ -311,6 +344,35 @@ export function GenerateModal({ status, files, progress, steps, usage, error, on
                       ))}
                     </pre>
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* Preview pane */}
+            {hasFiles && view === 'preview' && (
+              <div className="flex-1 min-h-0 bg-neutral-100">
+                {previewStatus === 'loading' && (
+                  <div className="flex h-full flex-col items-center justify-center gap-3">
+                    <Loader2 size={20} className="animate-spin text-brand-blue" />
+                    <p className="text-[12px] text-text-2">Gerando preview visual…</p>
+                  </div>
+                )}
+                {previewStatus === 'error' && (
+                  <div className="flex h-full flex-col items-center justify-center gap-3 px-6">
+                    <AlertCircle size={20} className="text-red-500" />
+                    <p className="text-[12px] text-text-3 text-center max-w-[320px]">{previewError ?? 'Falha ao gerar preview'}</p>
+                    <button onClick={onPreview} className="flex items-center gap-1.5 text-[12px] text-text-2 hover:text-text-1 px-3 py-1.5 rounded-[6px] border border-border hover:bg-bg transition-colors">
+                      <RefreshCw size={11} /> Tentar de novo
+                    </button>
+                  </div>
+                )}
+                {previewStatus === 'done' && previewHtml && (
+                  <iframe
+                    title="preview"
+                    srcDoc={previewHtml}
+                    sandbox="allow-scripts"
+                    className="h-full w-full border-0 bg-white"
+                  />
                 )}
               </div>
             )}
