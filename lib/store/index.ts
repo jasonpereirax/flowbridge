@@ -89,8 +89,13 @@ interface Store {
   // ── Generation History ───────────────────────────────────────────────
   generationHistory: GenerationRun[]
   addGenerationRun:  (run: GenerationRun) => void
+  setRunPreview:     (runId: string, html: string) => void
   clearHistory:      () => void
 }
+
+// How many recent runs keep their heavy artifacts (files + preview HTML) in
+// localStorage. Older runs keep only metadata.
+const RUNS_WITH_ARTIFACTS = 6
 
 function getCanvas(s: Store): CanvasData | null {
   if (!s.curProjectId) return null
@@ -414,7 +419,17 @@ export const useStore = create<Store>()(
 
         nodeById: (id) => getCanvas(get())?.nodes.find(n => n.id === id),
 
-        addGenerationRun: (run) => set((s: Store) => { s.generationHistory.unshift(run) }),
+        addGenerationRun: (run) => set((s: Store) => {
+          s.generationHistory.unshift(run)
+          // Keep heavy artifacts only on the most recent runs.
+          s.generationHistory.forEach((r, i) => {
+            if (i >= RUNS_WITH_ARTIFACTS) { r.files = undefined; r.previewHtml = undefined }
+          })
+        }),
+        setRunPreview: (runId, html) => set((s: Store) => {
+          const run = s.generationHistory.find(r => r.id === runId)
+          if (run) run.previewHtml = html.slice(0, 400_000)
+        }),
         clearHistory:     ()    => set((s: Store) => { s.generationHistory = [] }),
       })),
       {

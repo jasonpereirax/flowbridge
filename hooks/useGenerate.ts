@@ -126,8 +126,9 @@ export function useGenerate(): UseGenerateReturn {
   const [previewError,  setPreviewError]  = useState<string | null>(null)
 
   // AbortController para cancelar requisição em voo
-  const abortRef    = useRef<AbortController | null>(null)
-  const timeoutRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const abortRef     = useRef<AbortController | null>(null)
+  const timeoutRef   = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastRunIdRef = useRef<string | null>(null)
 
   const store   = useStore()
   const project = store.projects.find(p => p.id === store.curProjectId)
@@ -197,11 +198,13 @@ export function useGenerate(): UseGenerateReturn {
       const data = await resp.json() as { html: string }
       setPreviewHtml(data.html)
       setPreviewStatus('done')
+      // Persist the preview onto the most recent run so it survives a refresh.
+      if (lastRunIdRef.current) store.setRunPreview(lastRunIdRef.current, data.html)
     } catch (err) {
       setPreviewError(err instanceof Error ? err.message : 'Falha ao gerar preview')
       setPreviewStatus('error')
     }
-  }, [buildBody])
+  }, [buildBody, store])
 
   const generate = useCallback(async (screenIds?: string[]) => {
     if (!project) { setError('Nenhum projeto aberto'); return }
@@ -329,8 +332,10 @@ export function useGenerate(): UseGenerateReturn {
               addStep('Geração concluída', 100)
               setFiles(parsed)
               setStatus('done')
+              const runId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+              lastRunIdRef.current = runId
               store.addGenerationRun({
-                id:          `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                id:          runId,
                 projectId:   project.id,
                 projectName: project.name,
                 flowId:      flow.id,
@@ -339,6 +344,7 @@ export function useGenerate(): UseGenerateReturn {
                 status:      'done',
                 usage: { inputTokens: tokIn, outputTokens: tokOut, totalTokens: tokIn + tokOut, costUsd, costBrl, durationMs: dur },
                 filesCount:  parsed.length,
+                files:       parsed,
                 createdAt:   new Date().toISOString(),
               })
             } else {

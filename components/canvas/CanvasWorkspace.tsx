@@ -6,7 +6,7 @@ import { Maximize2, Zap, ChevronRight, FolderInput, Clock } from 'lucide-react'
 import { useStore, useTransform, useView } from '@/lib/store'
 import { useCanvasInteraction, ConnDragState } from '@/hooks/useCanvasInteraction'
 import { makeConn } from '@/utils'
-import type { MacroNode as MacroNodeType, Flow } from '@/types'
+import type { MacroNode as MacroNodeType, Flow, GenerationRun } from '@/types'
 
 import { useGenerate }     from '@/hooks/useGenerate'
 import { ConnectorLayer }  from '@/components/canvas/ConnectorLayer'
@@ -44,6 +44,7 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
   const [showImportWizard, setShowImportWizard] = useState(false)
   const [showGenModal,     setShowGenModal]     = useState(false)
   const [showHistory,      setShowHistory]      = useState(false)
+  const [viewRun,          setViewRun]          = useState<GenerationRun | null>(null)
 
   const {
     status: genStatus, files, progress, steps, usage,
@@ -332,7 +333,34 @@ export function CanvasWorkspace({ projectId }: { projectId: string }) {
       )}
 
       {showHistory && (
-        <HistoryPanel onClose={() => setShowHistory(false)} />
+        <HistoryPanel
+          onClose={() => setShowHistory(false)}
+          onOpen={(run) => { setShowHistory(false); setViewRun(run) }}
+        />
+      )}
+
+      {/* Reabrir uma geração salva (read-only) */}
+      {viewRun && (
+        <GenerateModal
+          status="done"
+          files={viewRun.files ?? []}
+          progress={100}
+          steps={[]}
+          usage={{
+            inputTokens:  viewRun.usage.inputTokens,
+            outputTokens: viewRun.usage.outputTokens,
+            costUsd:      viewRun.usage.costUsd,
+            costBrl:      viewRun.usage.costBrl,
+            isEstimate:   false,
+          }}
+          error={null}
+          onClose={() => setViewRun(null)}
+          onRetry={() => setViewRun(null)}
+          previewHtml={viewRun.previewHtml ?? null}
+          previewStatus={viewRun.previewHtml ? 'done' : 'error'}
+          previewError={viewRun.previewHtml ? null : 'Preview não foi salvo para esta geração — gere novamente para visualizar.'}
+          onPreview={() => {}}
+        />
       )}
 
       <FAB />

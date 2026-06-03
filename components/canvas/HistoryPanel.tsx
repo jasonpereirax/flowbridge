@@ -1,11 +1,11 @@
 'use client'
 
-import { X, Trash2, Zap, AlertCircle, Clock } from 'lucide-react'
+import { X, Trash2, Zap, AlertCircle, Clock, Eye } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { cn } from '@/utils'
 import type { GenerationRun } from '@/types'
 
-interface Props { onClose: () => void }
+interface Props { onClose: () => void; onOpen: (run: GenerationRun) => void }
 
 function fmtDate(iso: string) {
   const d = new Date(iso)
@@ -22,13 +22,18 @@ function fmtMs(ms: number) {
   return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`
 }
 
-function RunRow({ run }: { run: GenerationRun }) {
-  const isDone = run.status === 'done'
+function RunRow({ run, onOpen }: { run: GenerationRun; onOpen: (run: GenerationRun) => void }) {
+  const isDone  = run.status === 'done'
+  const canOpen = !!run.files?.length
   return (
-    <div className={cn(
-      'px-4 py-3 border-b border-border last:border-0 grid gap-x-4 items-center',
-      'grid-cols-[auto_1fr_auto_auto_auto_auto]'
-    )}>
+    <div
+      onClick={canOpen ? () => onOpen(run) : undefined}
+      className={cn(
+        'px-4 py-3 border-b border-border last:border-0 grid gap-x-4 items-center',
+        'grid-cols-[auto_1fr_auto_auto_auto_auto]',
+        canOpen && 'cursor-pointer hover:bg-bg transition-colors',
+      )}
+    >
       {/* status icon */}
       <div className="flex items-center justify-center w-6 h-6">
         {isDone
@@ -62,11 +67,16 @@ function RunRow({ run }: { run: GenerationRun }) {
       <div className="text-right">
         <p className="text-[10.5px] font-mono text-text-3 whitespace-nowrap">{fmtDate(run.createdAt)}</p>
       </div>
+
+      {/* open */}
+      <div className="flex items-center justify-center w-6" title={canOpen ? 'Reabrir código e preview' : undefined}>
+        {canOpen ? <Eye size={13} className="text-text-3" /> : null}
+      </div>
     </div>
   )
 }
 
-export function HistoryPanel({ onClose }: Props) {
+export function HistoryPanel({ onClose, onOpen }: Props) {
   const history     = useStore(s => s.generationHistory)
   const clearHistory = useStore(s => s.clearHistory)
 
@@ -141,7 +151,7 @@ export function HistoryPanel({ onClose }: Props) {
               <p className="text-[11px] font-mono opacity-70">Execute o Generate para ver o histórico aqui</p>
             </div>
           ) : (
-            history.map(run => <RunRow key={run.id} run={run} />)
+            history.map(run => <RunRow key={run.id} run={run} onOpen={onOpen} />)
           )}
         </div>
       </div>

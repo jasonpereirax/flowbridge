@@ -234,4 +234,7 @@ export interface GenerationRun {
   filesCount:  number
   error?:      string
   createdAt:   string   // ISO 8601
+  // Persisted artifacts so a run can be reopened after a page refresh.
+  files?:       GeneratedFile[]
+  previewHtml?: string
 }
