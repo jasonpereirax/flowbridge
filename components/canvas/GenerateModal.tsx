@@ -54,6 +54,96 @@ function StepDot({ percent, current }: { percent: number; current: boolean }) {
   return <div className="w-[6px] h-[6px] rounded-full bg-border flex-shrink-0 mt-[5px]" />
 }
 
+// ── Preview pane (zoomable, Figma-style fit-to-width) ──────────────────────────
+
+function PreviewPane({ html, status, error, onRetry }: {
+  html:    string | null
+  status:  PreviewStatus
+  error:   string | null
+  onRetry: () => void
+}) {
+  const BASE_W = 1440
+  const paneRef  = useRef<HTMLDivElement>(null)
+  const frameRef = useRef<HTMLIFrameElement>(null)
+  const [paneW,    setPaneW]    = useState(0)
+  const [contentH, setContentH] = useState(2200)
+  const [zoom,     setZoom]     = useState<number | 'fit'>('fit')
+
+  useEffect(() => {
+    const el = paneRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setPaneW(el.clientWidth))
+    ro.observe(el)
+    setPaneW(el.clientWidth)
+    return () => ro.disconnect()
+  }, [status])
+
+  if (status === 'loading') return (
+    <div className="flex-1 min-h-0 bg-neutral-100 flex h-full flex-col items-center justify-center gap-3">
+      <Loader2 size={20} className="animate-spin text-brand-blue" />
+      <p className="text-[12px] text-text-2">Gerando preview visual…</p>
+    </div>
+  )
+  if (status === 'error') return (
+    <div className="flex-1 min-h-0 bg-neutral-100 flex h-full flex-col items-center justify-center gap-3 px-6">
+      <AlertCircle size={20} className="text-red-500" />
+      <p className="text-[12px] text-text-3 text-center max-w-[320px]">{error ?? 'Falha ao gerar preview'}</p>
+      <button onClick={onRetry} className="flex items-center gap-1.5 text-[12px] text-text-2 hover:text-text-1 px-3 py-1.5 rounded-[6px] border border-border hover:bg-bg transition-colors">
+        <RefreshCw size={11} /> Tentar de novo
+      </button>
+    </div>
+  )
+  if (status !== 'done' || !html) return <div className="flex-1 min-h-0 bg-neutral-100" />
+
+  const fitScale = paneW ? (paneW - 32) / BASE_W : 0.4
+  const scale    = zoom === 'fit' ? fitScale : zoom / 100
+  const pct      = Math.max(1, Math.round(scale * 100))
+
+  function measure() {
+    try {
+      const doc = frameRef.current?.contentWindow?.document
+      if (doc) setContentH(Math.max(doc.documentElement.scrollHeight, doc.body.scrollHeight, 600))
+    } catch { /* sandboxed read blocked — keep fallback height */ }
+  }
+
+  const ctrl = 'w-6 h-6 flex items-center justify-center text-[14px] text-text-2 hover:text-text-1 hover:bg-bg rounded transition-colors select-none leading-none'
+
+  return (
+    <div className="flex-1 min-h-0 relative bg-neutral-200/50">
+      <div ref={paneRef} className="h-full overflow-auto p-4">
+        <div style={{ width: BASE_W * scale, height: contentH * scale, margin: '0 auto', position: 'relative' }}>
+          <iframe
+            ref={frameRef}
+            title="preview"
+            srcDoc={html}
+            onLoad={measure}
+            sandbox="allow-scripts allow-same-origin"
+            style={{
+              width: BASE_W, height: contentH, border: 0, background: '#fff',
+              transform: `scale(${scale})`, transformOrigin: 'top left',
+              position: 'absolute', top: 0, left: 0,
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Zoom bar */}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-0.5 rounded-[9px] border border-border bg-surface shadow-md px-1 py-0.5">
+        <button className={ctrl} onClick={() => setZoom(Math.max(10, pct - 10))} title="Zoom out">−</button>
+        <button className="text-[11px] font-mono text-text-2 hover:text-text-1 px-2 min-w-[46px] text-center tabular-nums" onClick={() => setZoom(100)} title="100%">{pct}%</button>
+        <button className={ctrl} onClick={() => setZoom(Math.min(200, pct + 10))} title="Zoom in">+</button>
+        <div className="w-px h-4 bg-border mx-0.5" />
+        <button
+          className={cn('text-[11px] px-2 py-0.5 rounded transition-colors', zoom === 'fit' ? 'bg-bg text-text-1 font-medium' : 'text-text-2 hover:text-text-1')}
+          onClick={() => setZoom('fit')}
+        >
+          Fit
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function GenerateModal({
@@ -348,33 +438,14 @@ export function GenerateModal({
               </div>
             )}
 
-            {/* Preview pane */}
+            {/* Preview pane (zoomable) */}
             {hasFiles && view === 'preview' && (
-              <div className="flex-1 min-h-0 bg-neutral-100">
-                {previewStatus === 'loading' && (
-                  <div className="flex h-full flex-col items-center justify-center gap-3">
-                    <Loader2 size={20} className="animate-spin text-brand-blue" />
-                    <p className="text-[12px] text-text-2">Gerando preview visual…</p>
-                  </div>
-                )}
-                {previewStatus === 'error' && (
-                  <div className="flex h-full flex-col items-center justify-center gap-3 px-6">
-                    <AlertCircle size={20} className="text-red-500" />
-                    <p className="text-[12px] text-text-3 text-center max-w-[320px]">{previewError ?? 'Falha ao gerar preview'}</p>
-                    <button onClick={onPreview} className="flex items-center gap-1.5 text-[12px] text-text-2 hover:text-text-1 px-3 py-1.5 rounded-[6px] border border-border hover:bg-bg transition-colors">
-                      <RefreshCw size={11} /> Tentar de novo
-                    </button>
-                  </div>
-                )}
-                {previewStatus === 'done' && previewHtml && (
-                  <iframe
-                    title="preview"
-                    srcDoc={previewHtml}
-                    sandbox="allow-scripts"
-                    className="h-full w-full border-0 bg-white"
-                  />
-                )}
-              </div>
+              <PreviewPane
+                html={previewHtml}
+                status={previewStatus}
+                error={previewError}
+                onRetry={onPreview}
+              />
             )}
           </div>
         </div>
