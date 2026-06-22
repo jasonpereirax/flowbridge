@@ -5,6 +5,11 @@ import type { GenerateRequest } from '@/types'
 // Quality of this file = quality of generated code.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Closing instruction of the code-generation prompt. Exported so the preview
+// prompt can swap it out by exact reference instead of duplicating the literal
+// (a copy would silently drift if this wording ever changes). See preview-prompt.ts.
+export const CODE_GEN_CLOSING = 'Generate all screens now. Return ONLY the JSON array.'
+
 export function buildPrompt(req: GenerateRequest): { system: string; user: string } {
   const { settings, dsNodes, screens } = req
   const s = settings
@@ -120,7 +125,7 @@ Return a single JSON array of file objects. Nothing else — no prose, no markdo
     parts.push('')
   }
 
-  parts.push('Generate all screens now. Return ONLY the JSON array.')
+  parts.push(CODE_GEN_CLOSING)
 
   return { system, user: parts.join('\n') }
 }

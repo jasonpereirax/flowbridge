@@ -1,5 +1,5 @@
 import type { GenerateRequest } from '@/types'
-import { buildPrompt } from './prompt-builder'
+import { buildPrompt, CODE_GEN_CLOSING } from './prompt-builder'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Build-free PREVIEW prompt. Produces ONE self-contained HTML document that
@@ -16,8 +16,9 @@ export function buildPreviewPrompt(req: GenerateRequest): { system: string; user
   const { user: context } = buildPrompt(req)
 
   // Reuse the assembled context, swap the code-generation closing instruction.
+  // String replace by exact shared constant — no regex to drift out of sync.
   const user = context.replace(
-    /Generate all screens now\. Return ONLY the JSON array\./,
+    CODE_GEN_CLOSING,
     'Render the screen(s) above as a SINGLE self-contained HTML document for visual preview.',
   )
 

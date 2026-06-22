@@ -23,18 +23,25 @@ function parseSSE(text: string): Record<string, unknown> | null {
   return result
 }
 
+// This MCP server is the user's LOCAL Figma desktop app (127.0.0.1:3845). In a
+// hosted deploy (Vercel) it's unreachable: a refused connection rejects instantly
+// and we fall back to REST renders, but a host that ACCEPTS then hangs would stall
+// the generation stream. Keep the handshake timeout short so an unreachable/slow
+// MCP fails fast instead of freezing the progress bar before Claude is called.
+const INIT_TIMEOUT = 3_000
+
 async function initSession(): Promise<string | null> {
   try {
     const res = await fetch(MCP_URL, {
       method: 'POST', headers: HEADERS,
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'flowbridge', version: '1' } } }),
-      signal: AbortSignal.timeout(8_000),
+      signal: AbortSignal.timeout(INIT_TIMEOUT),
     })
     if (!res.ok) return null
     const sid = res.headers.get('mcp-session-id')
     await res.text().catch(() => {})
     if (!sid) return null
-    await fetch(MCP_URL, { method: 'POST', headers: { ...HEADERS, 'mcp-session-id': sid }, body: JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }), signal: AbortSignal.timeout(8_000) }).then(r => r.text()).catch(() => {})
+    await fetch(MCP_URL, { method: 'POST', headers: { ...HEADERS, 'mcp-session-id': sid }, body: JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }), signal: AbortSignal.timeout(INIT_TIMEOUT) }).then(r => r.text()).catch(() => {})
     return sid
   } catch { return null }
 }
@@ -98,11 +105,12 @@ export async function mcpGetSectionScreenshots(nodeId: string, max = 8): Promise
   const sections = topLevelSections(xml).slice(0, max)
   if (!sections.length) return []
 
-  const shots: SectionShot[] = []
-  for (const s of sections) {
+  // Sections are independent round-trips — fetch them concurrently so latency is
+  // ~one screenshot, not the serial sum (was the dominant cost on the hot path).
+  const results = await Promise.all(sections.map(async s => {
     const content = await callTool(sid, 'get_screenshot', { nodeId: s.id, ...COMMON }, 20_000)
     const img = content?.find(b => b.type === 'image' && b.data)
-    if (img?.data) shots.push({ name: s.name, data: img.data, mime: img.mimeType ?? 'image/png' })
-  }
-  return shots
+    return img?.data ? { name: s.name, data: img.data, mime: img.mimeType ?? 'image/png' } : null
+  }))
+  return results.filter((s): s is SectionShot => s !== null)
 }

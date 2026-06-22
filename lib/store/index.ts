@@ -427,8 +427,12 @@ export const useStore = create<Store>()(
           })
         }),
         setRunPreview: (runId, html) => set((s: Store) => {
-          const run = s.generationHistory.find(r => r.id === runId)
-          if (run) run.previewHtml = html.slice(0, 400_000)
+          // Only persist onto runs that still keep heavy artifacts — otherwise a
+          // preview against an older run would re-inflate localStorage past the cap.
+          const idx = s.generationHistory.findIndex(r => r.id === runId)
+          if (idx >= 0 && idx < RUNS_WITH_ARTIFACTS) {
+            s.generationHistory[idx].previewHtml = html.slice(0, 400_000)
+          }
         }),
         clearHistory:     ()    => set((s: Store) => { s.generationHistory = [] }),
       })),

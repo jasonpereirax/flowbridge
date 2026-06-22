@@ -3345,14 +3345,6 @@ function useFigmaMCPBinding(
         }
       }
 
-      // Fallback: extrair do texto raw do MCP
-      if (rawComponents.length === 0 && typeof data.mcpRaw === 'string') {
-        const matches = data.mcpRaw.match(/[A-Z][a-zA-Z]+(?:\/[A-Z][a-zA-Z]+)*/g) ?? []
-        for (const m of [...new Set(matches)] as string[]) {
-          rawComponents.push({ figmaName: m, codeComponent: m.split('/')[0].trim() })
-        }
-      }
-
       // ── Thumbnail já vem na resposta ──────────────────────────────────────
       const thumbnailUrl = typeof data.thumbnailUrl === 'string' ? data.thumbnailUrl : undefined
 
